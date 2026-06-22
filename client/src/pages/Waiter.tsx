@@ -18,7 +18,13 @@ export default function Waiter() {
     refetch();
   };
 
-  if (isLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin" /></div>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-[#F4F9F4]">
+        <Loader2 className="animate-spin h-12 w-12 text-[#1A2F24]" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F4F9F4] p-4">

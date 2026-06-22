@@ -17,7 +17,13 @@ export default function Kitchen() {
     refetch();
   };
 
-  if (isLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin" /></div>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-[#1A2F24]">
+        <Loader2 className="animate-spin h-12 w-12 text-white" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#1A2F24] p-6 text-white">
