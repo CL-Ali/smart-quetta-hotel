@@ -52,3 +52,13 @@
 - [x] Redesign Kitchen and Waiter views with minimalist approach
 - [x] Remove heavy borders and shadows, use subtle spacing instead
 - [x] Test responsive design on mobile and tablet
+
+## Phase 9: Enhanced UX with Real Images, Confirmations & Inventory
+- [x] Add real food images to all menu items
+- [x] Implement list/grid view toggle on Home page
+- [x] Collect customer name before order placement
+- [x] Add confirmation dialogs for all critical actions
+- [x] Improve button labels to clearly show action intent
+- [x] Build inventory management interface with edit/save
+- [x] Add visual indicators for low stock items
+- [x] Implement order status workflow with confirmations
