@@ -62,3 +62,14 @@
 - [x] Build inventory management interface with edit/save
 - [x] Add visual indicators for low stock items
 - [x] Implement order status workflow with confirmations
+
+
+## Phase 10: Order History, Reordering & Payment System
+- [x] Update schema: Add customer identification, order history, stock table, payment tracking
+- [x] Implement customer lookup/identification system
+- [x] Build reordering logic - add items to existing unpaid orders
+- [x] Separate inventory (raw materials) from stock (finished items)
+- [x] Implement payment method selection (Cash/Bank)
+- [x] Generate itemized bills with payment details
+- [x] Track payment status (Pending/Paid/Partial)
+- [ ] Update all pages with new workflow

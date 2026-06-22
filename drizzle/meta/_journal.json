@@ -15,6 +15,13 @@
       "when": 1782124812155,
       "tag": "0001_true_saracen",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1782126640041,
+      "tag": "0002_previous_loki",
+      "breakpoints": true
     }
   ]
 }
