@@ -7,7 +7,6 @@
 
 ## Phase 2: Customer Interface (QR/Captive Portal Flow)
 - [x] Create dynamic menu page with visual items
-- [ ] Implement table/area selection logic (QR scan vs. Manual)
 - [x] Implement table/area selection logic (QR scan vs. Manual)
 - [x] Add real-time order tracking for customers ("Lala chai bana raha hai")
 - [x] Implement "Ghap-Shap Mode" (News/Cricket updates placeholder)
@@ -43,3 +42,13 @@
 - [x] Add accessibility features: WCAG compliance, high contrast, scalable fonts
 - [x] Enhance visual hierarchy and reduce cognitive load
 - [x] Add user feedback mechanisms (Toasts, Confirmations, Progress indicators)
+
+
+## Phase 8: Nothing UI Minimalist Redesign
+- [x] Update theme with neutral colors (whites, grays, subtle accents)
+- [x] Implement elegant typography system (Poppins/Inter for modern feel)
+- [x] Redesign Home with minimal cards and spacious layout
+- [x] Rebuild Dashboard with clean KPI cards and subtle interactions
+- [x] Redesign Kitchen and Waiter views with minimalist approach
+- [x] Remove heavy borders and shadows, use subtle spacing instead
+- [x] Test responsive design on mobile and tablet
