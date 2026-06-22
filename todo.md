@@ -72,4 +72,4 @@
 - [x] Implement payment method selection (Cash/Bank)
 - [x] Generate itemized bills with payment details
 - [x] Track payment status (Pending/Paid/Partial)
-- [ ] Update all pages with new workflow
+- [x] Update all pages with new workflow
