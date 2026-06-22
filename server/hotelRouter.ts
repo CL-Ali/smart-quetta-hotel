@@ -1,6 +1,6 @@
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { getDb } from "./db";
-import { menuItems, seatingAreas, orders, orderItems, inventory, equipment } from "../drizzle/schema";
+import { menuItems, seatingAreas, orders, orderItems, inventory, equipment, recipes } from "../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 
@@ -70,7 +70,25 @@ export const hotelRouter = router({
   getOrders: protectedProcedure.query(async () => {
     const db = await getDb();
     if (!db) throw new Error("Database not available");
-    return await db.select().from(orders).orderBy(desc(orders.createdAt));
+    
+    const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+    
+    // In a production app, we'd use a join, but for simplicity in this MVP:
+    const ordersWithItems = await Promise.all(allOrders.map(async (order) => {
+      const items = await db.select({
+        id: orderItems.id,
+        quantity: orderItems.quantity,
+        unitPrice: orderItems.unitPrice,
+        name: menuItems.name
+      })
+      .from(orderItems)
+      .leftJoin(menuItems, eq(orderItems.menuItemId, menuItems.id))
+      .where(eq(orderItems.orderId, order.id));
+      
+      return { ...order, items };
+    }));
+    
+    return ordersWithItems;
   }),
 
   updateOrderStatus: protectedProcedure
@@ -81,9 +99,37 @@ export const hotelRouter = router({
     .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
+      
+      const [order] = await db.select().from(orders).where(eq(orders.id, input.orderId));
+      if (!order) throw new Error("Order not found");
+
+      const updateData: any = { status: input.status };
+      if (input.status === 'paid') {
+        updateData.paymentStatus = 'paid';
+      }
+      
       await db.update(orders)
-        .set({ status: input.status })
+        .set(updateData)
         .where(eq(orders.id, input.orderId));
+
+      // Inventory Deduction Logic (when status moves to 'preparing')
+      if (input.status === 'preparing' && order.status === 'pending') {
+        const items = await db.select().from(orderItems).where(eq(orderItems.orderId, input.orderId));
+        for (const item of items) {
+          const itemRecipes = await db.select().from(recipes).where(eq(recipes.menuItemId, item.menuItemId as any));
+          for (const recipe of itemRecipes) {
+            const deduction = parseFloat(recipe.quantityNeeded) * item.quantity;
+            await db.execute(`UPDATE inventory SET quantity = quantity - ${deduction} WHERE id = ${recipe.inventoryItemId as any}`);
+          }
+        }
+      }
+
+      // Equipment Tracking (when status moves to 'preparing' or 'served')
+      if (input.status === 'preparing' && order.status === 'pending') {
+        // Assume 1 cup per order for simplicity in MVP
+        await db.execute("UPDATE equipment SET in_use = in_use + 1 WHERE name = 'Cup'");
+      }
+
       return { success: true };
     }),
 
@@ -106,5 +152,36 @@ export const hotelRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database not available");
     return await db.select().from(equipment);
+  }),
+
+  returnEquipment: protectedProcedure
+    .input(z.object({ name: z.string(), quantity: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.execute(`UPDATE equipment SET in_use = GREATEST(0, in_use - ${input.quantity}) WHERE name = '${input.name}'`);
+      return { success: true };
+    }),
+
+  getEndOfDayReport: protectedProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const dayOrders = await db.select().from(orders).where(eq(orders.paymentStatus, 'paid'));
+    const totalRevenue = dayOrders.reduce((sum, o) => sum + parseFloat(o.totalAmount || "0"), 0);
+    const totalOrders = dayOrders.length;
+    
+    const currentInventory = await db.select().from(inventory);
+    const currentEquipment = await db.select().from(equipment);
+    
+    return {
+      totalRevenue: totalRevenue.toFixed(2),
+      totalOrders,
+      inventory: currentInventory,
+      equipment: currentEquipment
+    };
   }),
 });

@@ -5,15 +5,59 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, CheckCircle, Clock, Package, DollarSign } from "lucide-react";
 
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 export default function Dashboard() {
-  const { data: orders, isLoading: ordersLoading, refetch: refetchOrders } = trpc.hotel.getOrders.useQuery();
-  const { data: cashReport } = trpc.hotel.getCashReport.useQuery();
-  const { data: inventory } = trpc.hotel.getInventory.useQuery();
+  const [quickOrderName, setQuickOrderName] = useState("");
+  const [selectedItems, setSelectedItems] = useState<Record<number, number>>({});
+  
+  const { data: orders, isLoading: ordersLoading, refetch: refetchOrders } = trpc.hotel.getOrders.useQuery(undefined, {
+    refetchInterval: 5000
+  });
+  const { data: cashReport } = trpc.hotel.getCashReport.useQuery(undefined, {
+    refetchInterval: 5000
+  });
+  const { data: inventory } = trpc.hotel.getInventory.useQuery(undefined, {
+    refetchInterval: 30000
+  });
+  const { data: menu } = trpc.hotel.getMenu.useQuery();
   const updateStatus = trpc.hotel.updateOrderStatus.useMutation();
+  const placeOrder = trpc.hotel.placeOrder.useMutation();
 
   const handleStatusUpdate = async (id: number, status: any) => {
     await updateStatus.mutateAsync({ orderId: id, status });
     refetchOrders();
+  };
+
+  const handleQuickOrder = async () => {
+    const items = Object.entries(selectedItems).map(([id, qty]) => {
+      const menuItem = menu?.find(m => m.id === parseInt(id));
+      return {
+        menuItemId: parseInt(id),
+        quantity: qty,
+        unitPrice: menuItem?.price || "0"
+      };
+    });
+
+    if (items.length === 0) return;
+
+    await placeOrder.mutateAsync({
+      customerName: quickOrderName || "Counter Guest",
+      items
+    });
+    setQuickOrderName("");
+    setSelectedItems({});
+    refetchOrders();
+  };
+
+  const toggleItem = (id: number) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [id]: (prev[id] || 0) + 1
+    }));
   };
 
   if (ordersLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin" /></div>;
@@ -22,9 +66,68 @@ export default function Dashboard() {
     <div className="p-6 bg-[#F4F9F4] min-h-screen">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold font-serif text-[#1A2F24]">Lala's Control Room</h1>
-        <Button variant="outline" onClick={() => refetchOrders()} className="border-[#1A2F24]">
-          <RefreshCw className="mr-2 h-4 w-4" /> Refresh
-        </Button>
+        <div className="flex gap-4">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="bg-[#D35400] hover:bg-[#A04000]">Quick Add Order</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Add Manual Order</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-6 py-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Customer/Area Name</Label>
+                    <Input placeholder="e.g. Takht 1" value={quickOrderName} onChange={e => setQuickOrderName(e.target.value)} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {menu?.map(item => (
+                      <Button 
+                        key={item.id} 
+                        variant="outline" 
+                        className="h-auto py-2 flex flex-col items-start border-[#1A2F24]"
+                        onClick={() => toggleItem(item.id)}
+                      >
+                        <span className="font-bold">{item.name}</span>
+                        <span className="text-xs text-muted-foreground">Rs. {item.price}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="border-l pl-6 space-y-4">
+                  <h3 className="font-bold border-b pb-2">Selected Items</h3>
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    {Object.entries(selectedItems).map(([id, qty]) => {
+                      const item = menu?.find(m => m.id === parseInt(id));
+                      return (
+                        <div key={id} className="flex justify-between text-sm">
+                          <span>{item?.name} x {qty}</span>
+                          <span>Rs. {parseFloat(item?.price || "0") * qty}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="pt-4 border-t">
+                    <div className="flex justify-between font-bold text-lg mb-4">
+                      <span>Total:</span>
+                      <span>Rs. {Object.entries(selectedItems).reduce((sum, [id, qty]) => {
+                        const item = menu?.find(m => m.id === parseInt(id));
+                        return sum + parseFloat(item?.price || "0") * qty;
+                      }, 0)}</span>
+                    </div>
+                    <Button className="w-full bg-[#1A2F24]" onClick={handleQuickOrder} disabled={Object.keys(selectedItems).length === 0}>
+                      Place Order
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" onClick={() => refetchOrders()} className="border-[#1A2F24]">
+            <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
