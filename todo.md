@@ -73,3 +73,13 @@
 - [x] Generate itemized bills with payment details
 - [x] Track payment status (Pending/Paid/Partial)
 - [x] Update all pages with new workflow
+
+
+## Phase 11: Advanced Features (Session, Payments, History)
+- [x] Implement session persistence with localStorage for cart/order data
+- [x] Add multiple payment methods support (pay partially with cash, then bank later)
+- [x] Build order confirmation page with itemized cart summary
+- [x] Add customer order history view showing past orders
+- [ ] Implement auto-open on WiFi connection using service worker
+- [ ] Add offline support - cache menu and allow browsing when offline
+- [x] Improve payment status tracking for multiple partial payments

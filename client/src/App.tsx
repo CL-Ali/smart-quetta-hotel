@@ -8,12 +8,16 @@ import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Kitchen from "./pages/Kitchen";
 import Waiter from "./pages/Waiter";
+import Confirmation from "./pages/Confirmation";
+import OrderHistory from "./pages/OrderHistory";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/confirmation"} component={Confirmation} />
+      <Route path={"/history"} component={OrderHistory} />
       <Route path={"/dashboard"} component={Dashboard} />
       <Route path={"/kitchen"} component={Kitchen} />
       <Route path={"/waiter"} component={Waiter} />
