@@ -2,7 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Check, X } from "lucide-react";
+import { Loader2, Check, X, Banknote, Smartphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -15,7 +15,7 @@ export default function Confirmation() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const session = StorageService.loadOrderSession();
-  const processPayment = trpc.hotel.processPayment.useMutation();
+  const processPayment = trpc.hotel.recordPayment.useMutation();
 
   if (!session || !session.orderId) {
     return (
@@ -146,23 +146,25 @@ export default function Confirmation() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setPaymentMethod("cash")}
-                className={`p-4 border-2 rounded-lg text-center font-medium transition ${
+                className={`p-4 border rounded-lg text-center font-medium transition flex items-center justify-center gap-2 cursor-pointer ${
                   paymentMethod === "cash"
-                    ? "border-green-600 bg-green-50 text-green-900"
-                    : "border-gray-200 hover:border-gray-300"
+                    ? "border-green-600 bg-green-50 text-green-900 font-semibold"
+                    : "border-gray-200 hover:bg-gray-50"
                 }`}
               >
-                💵 Cash
+                <Banknote className="w-4 h-4 text-emerald-600" />
+                <span>Cash</span>
               </button>
               <button
                 onClick={() => setPaymentMethod("bank")}
-                className={`p-4 border-2 rounded-lg text-center font-medium transition ${
+                className={`p-4 border rounded-lg text-center font-medium transition flex items-center justify-center gap-2 cursor-pointer ${
                   paymentMethod === "bank"
-                    ? "border-blue-600 bg-blue-50 text-blue-900"
-                    : "border-gray-200 hover:border-gray-300"
+                    ? "border-blue-600 bg-blue-50 text-blue-900 font-semibold"
+                    : "border-gray-200 hover:bg-gray-50"
                 }`}
               >
-                Bank
+                <Smartphone className="w-4 h-4 text-blue-600" />
+                <span>Bank</span>
               </button>
             </div>
           </div>

@@ -58,8 +58,28 @@ async function startServer() {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  server.listen(port, () => {
+  // Get LAN IP to display for mobile access
+  const { networkInterfaces } = await import("os");
+  const nets = networkInterfaces();
+  let lanIp = "localhost";
+  // Prefer non-link-local, non-virtual addresses
+  for (const [name, iface] of Object.entries(nets)) {
+    for (const net of iface ?? []) {
+      if (
+        net.family === "IPv4" &&
+        !net.internal &&
+        !net.address.startsWith("169.254") &&
+        !net.address.startsWith("172.")
+      ) {
+        lanIp = net.address; break;
+      }
+    }
+    if (lanIp !== "localhost") break;
+  }
+
+  server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${port}/`);
+    console.log(`📱 Mobile / LAN:    http://${lanIp}:${port}/`);
   });
 }
 
