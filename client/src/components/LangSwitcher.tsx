@@ -19,8 +19,7 @@ export function LangSwitcher({ className = "" }: { className?: string }) {
           <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-card hover:bg-accent text-sm font-semibold transition cursor-pointer select-none focus:outline-none border-border">
             <Globe className="h-4 w-4 text-muted-foreground" />
             <span className="flex items-center gap-1.5">
-              <span>{currentOpt.flag}</span>
-              <span>{currentOpt.label}</span>
+               <span>{(() => { const map = { en: 'Eng', ur: 'Urd', ps: 'Pas', bal: 'Bal', brh: 'Brh', fa: 'Fas', pa: 'Pan', sd: 'Sdh' }; return map[currentOpt.value] || currentOpt.label; })()}</span>
             </span>
             <ChevronDown className="h-3 w-3 text-muted-foreground" />
           </button>

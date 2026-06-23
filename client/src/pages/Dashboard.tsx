@@ -14,6 +14,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Drawer, DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
 } from "@/components/ui/drawer";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useLang } from "@/contexts/LangContext";

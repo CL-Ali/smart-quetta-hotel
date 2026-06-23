@@ -1,21 +1,17 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { Loader2, Utensils, Plus, Coffee, Check, UserCheck, X } from "lucide-react";
+import { Loader2, Utensils, Coffee, Check, UserCheck } from "lucide-react";
+import { FloatingAddButton } from "@/components/FloatingAddButton";
 import { toast } from "sonner";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel,
-  AlertDialogContent, AlertDialogDescription,
-  AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter } from "@/components/ui/drawer";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useLang } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 import { NewOrderSheet } from "@/components/NewOrderSheet";
+import { ModelSheet } from "@/components/ModelSheet";
 
 export default function Waiter() {
   const { t } = useLang();
-  const [confirmId, setConfirmId]       = useState<number | null>(null);
+  const [confirmId, setConfirmId] = useState<number | null>(null);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const isMobile = useIsMobile();
 
@@ -37,7 +33,7 @@ export default function Waiter() {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8" /></div>;
   }
 
-  const readyOrders  = orders?.filter(o => o.status === "ready")  ?? [];
+  const readyOrders = orders?.filter(o => o.status === "ready") ?? [];
   const servedOrders = orders?.filter(o => o.status === "served").slice(0, 8) ?? [];
 
   return (
@@ -56,10 +52,6 @@ export default function Waiter() {
           </div>
           <div className="flex items-center gap-2">
             <LangSwitcher />
-            <button onClick={() => setShowNewOrder(true)}
-              className="flex items-center gap-1.5 bg-black text-white px-3 py-2 rounded-xl text-xs font-semibold">
-              <Plus className="w-3.5 h-3.5" /> {t.newOrder}
-            </button>
           </div>
         </div>
       </div>
@@ -94,32 +86,16 @@ export default function Waiter() {
                       </p>
                       <p className="font-semibold text-base">{order.customerName}</p>
                     </div>
-                    <span className="text-base font-bold text-orange-600">
-                      Rs. {(order.totalAmount ?? 0).toFixed(0)}
-                    </span>
+                    <button onClick={() => setConfirmId(order.id)} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold">
+                      {t.markServed}
+                    </button>
                   </div>
-                  <div className="space-y-0.5 mb-4 pb-3 border-b border-green-200">
-                    {order.items?.map((item: any) => (
-                      <p key={item.id} className="text-sm">
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-gray-500"> ×{item.quantity}</span>
-                      </p>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => setConfirmId(order.id)}
-                    className="w-full h-14 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-base flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <UserCheck className="w-5 h-5" />
-                    <span>{t.markServed}</span>
-                  </button>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Recently served */}
         {servedOrders.length > 0 && (
           <div>
             <h2 className="text-sm font-bold text-gray-700 mb-3">{t.recentlyServed}</h2>
@@ -143,42 +119,20 @@ export default function Waiter() {
         )}
       </div>
 
-      {/* Confirm dialog */}
-      {isMobile ? (
-        <Drawer open={confirmId !== null} onOpenChange={v => !v && setConfirmId(null)}>
-          <DrawerContent className="max-w-sm mx-4 max-h-[80vh] overflow-y-auto">
-            <DrawerHeader>
-              <DrawerTitle>Mark Order #{confirmId} as served?</DrawerTitle>
-              <DrawerDescription>This will notify the admin.</DrawerDescription>
-            </DrawerHeader>
-            <DrawerFooter className="flex gap-3 justify-end">
-              <button onClick={() => setConfirmId(null)} className="px-4 py-2 bg-gray-200 rounded">
-                {t.cancel}
-              </button>
-              <button onClick={executeServed} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
-                {t.markServed}
-              </button>
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
-      ) : (
-        <AlertDialog open={confirmId !== null} onOpenChange={v => !v && setConfirmId(null)}>
-          <AlertDialogContent className="max-w-sm mx-4">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Mark Order #{confirmId} as served?</AlertDialogTitle>
-              <AlertDialogDescription>This will notify the admin.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="flex gap-3 justify-end">
-              <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
-              <AlertDialogAction onClick={executeServed} className="bg-green-600 hover:bg-green-700">
-                {t.markServed}
-              </AlertDialogAction>
-            </div>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+
+      <ModelSheet
+        open={confirmId !== null}
+        onOpenChange={v => !v && setConfirmId(null)}
+        title={`Mark Order #${confirmId} as ${t.markServed}`}
+        description="This will notify the admin."
+        confirmText={t.markServed}
+        cancelText={t.cancel}
+        onConfirm={executeServed}
+      />
 
       <NewOrderSheet open={showNewOrder} onClose={() => setShowNewOrder(false)} onDone={refetch} />
+      <FloatingAddButton onClick={() => setShowNewOrder(true)} />
+
     </div>
   );
 }

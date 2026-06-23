@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LangProvider } from "./contexts/LangContext";
+import NavBar from "./components/NavBar";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Kitchen from "./pages/Kitchen";
@@ -15,17 +16,20 @@ import OrderHistory from "./pages/OrderHistory";
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
-    <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/confirmation"} component={Confirmation} />
-      <Route path={"/history"} component={OrderHistory} />
-      <Route path={"/dashboard"} component={Dashboard} />
-      <Route path={"/kitchen"} component={Kitchen} />
-      <Route path={"/waiter"} component={Waiter} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
-      <Route component={NotFound} />
-    </Switch>
+    <div style={{ minHeight: "100vh", background: "#111827" }}>
+      <NavBar />
+      <Switch>
+        <Route path={"/"} component={Home} />
+        <Route path={"/confirmation"} component={Confirmation} />
+        <Route path={"/history"} component={OrderHistory} />
+        <Route path={"/dashboard"} component={Dashboard} />
+        <Route path={"/kitchen"} component={Kitchen} />
+        <Route path={"/waiter"} component={Waiter} />
+        <Route path={"/404"} component={NotFound} />
+        {/* Final fallback route */}
+        <Route component={NotFound} />
+      </Switch>
+    </div>
   );
 }
 
@@ -37,7 +41,7 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
+      <ThemeProvider defaultTheme="dark">
         <LangProvider>
           <TooltipProvider>
             <Toaster />
