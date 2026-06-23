@@ -18,13 +18,13 @@ A modern hotel management web app built with **React**, **TRPC**, and **Shadcn U
 
 | Admin                                                                                                            |  Customer                                                                                                           |
 |----------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
-| <img src="https://github.com/CL-Ali/smart-quetta-hotel/blob/main/public/admin.png?raw=true" width="500px"> | <img src="https://github.com/CL-Ali/smart-quetta-hotel/blob/main/public/home.png?raw=true" width="500px"> |
+| <img src="https://github.com/CL-Ali/smart-quetta-hotel/blob/main/public/admin.jpeg?raw=true" width="500px"> | <img src="https://github.com/CL-Ali/smart-quetta-hotel/blob/main/public/home.jpeg?raw=true" width="500px"> |
 
 
 
 | Kitchen                                                                                                            |  Waiter                                                                                                           |
 |----------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
-| <img src="https://github.com/CL-Ali/smart-quetta-hotel/blob/main/public/kitchen.png?raw=true" width="500px"> | <img src="https://github.com/CL-Ali/smart-quetta-hotel/blob/main/public/waiter.png?raw=true" width="500px"> |
+| <img src="https://github.com/CL-Ali/smart-quetta-hotel/blob/main/public/kitchen.jpeg?raw=true" width="500px"> | <img src="https://github.com/CL-Ali/smart-quetta-hotel/blob/main/public/waiter.jpeg?raw=true" width="500px"> |
 
 ## Running the Project
 
