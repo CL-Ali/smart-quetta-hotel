@@ -16,11 +16,15 @@ A modern hotel management web app built with **React**, **TRPC**, and **Shadcn U
 
 ## Screenshots
 
-| Screen | Description |
-|--------|-------------|
-| ![Dashboard1](file:///C:/Users/stuck/.gemini/antigravity-ide/brain/ca435adf-585f-411a-8831-7a33c2fe1498/dashboard_1782136353934.png) | Dashboard overview (first image) |
-| ![Kitchen2](file:///C:/Users/stuck/.gemini/antigravity-ide/brain/ca435adf-585f-411a-8831-7a33c2fe1498/kitchen_1782136415930.png) | Kitchen page with cooking orders (second image) |
-| ![Waiter3](file:///C:/Users/stuck/.gemini/antigravity-ide/brain/ca435adf-585f-411a-8831-7a33c2fe1498/waiter_1782136429946.png) | Waiter view for serving orders (third image) |
+| Admin                                                                                                            |  Customer                                                                                                           |
+|----------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| <img src="https://github.com/CL-Ali/smart-quetta-hotel/blob/main/public/admin.png?raw=true" width="500px"> | <img src="https://github.com/CL-Ali/smart-quetta-hotel/blob/main/public/home.png?raw=true" width="500px"> |
+
+
+
+| Kitchen                                                                                                            |  Waiter                                                                                                           |
+|----------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| <img src="https://github.com/CL-Ali/smart-quetta-hotel/blob/main/public/kitchen.png?raw=true" width="500px"> | <img src="https://github.com/CL-Ali/smart-quetta-hotel/blob/main/public/waiter.png?raw=true" width="500px"> |
 
 ## Running the Project
 
