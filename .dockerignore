@@ -1,0 +1,46 @@
+# Dependencies (will be installed fresh inside the image)
+**/node_modules
+.pnpm-store/
+
+# Build outputs (built inside the image)
+dist/
+
+# Database files (should live on a Docker volume, not baked into the image)
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment files (passed via docker-compose environment section)
+.env
+.env.*
+
+# Dev/editor artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+.manus-logs/
+
+# Git
+.git/
+.gitignore
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Test/coverage
+coverage/
+.nyc_output/
+
+# Misc
+.prettierrc
+.prettierignore
+.webdev/
+.pnotes/
+README.md
+Readme.md

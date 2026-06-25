@@ -106,27 +106,87 @@ The app can be installed as a **standalone Progressive Web App**:
 
 ---
 
-## 🛠️ Local Development
+## 🐳 Docker (Recommended – works on any machine)
+
+> This is the easiest way to run the app. You only need **Docker Desktop** installed — no Node, no pnpm, no manual setup.
+
+### Quick Start (one command)
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/CL-Ali/smart-quetta-hotel.git
+cd smart-quetta-hotel
+
+# 2. Create your env file  (copy the example)
+copy .env.example .env        # Windows CMD
+# cp .env.example .env        # Mac / Linux
+
+# 3. Build the image and start the container
+docker compose up --build
+```
+
+Open [http://localhost:3000](http://localhost:3000) — the app is running. ✅
+
+> **First boot** takes ~2–3 minutes to build the image. After that, `docker compose up` starts in seconds.
+
+---
+
+### Useful Docker Commands
+
+```bash
+# Start in background (detached)
+docker compose up -d --build
+
+# View live logs
+docker compose logs -f
+
+# Stop the container
+docker compose down
+
+# Stop AND delete the database volume (full reset)
+docker compose down -v
+
+# Rebuild after code changes
+docker compose up --build
+```
+
+### Change the Port
+
+If port `3000` is already in use on your machine, edit `docker-compose.yml`:
+
+```yaml
+ports:
+  - "8080:3000"   # now accessible at http://localhost:8080
+```
+
+### Data Persistence
+
+The SQLite database is stored in a **Docker named volume** (`hotel_db`). Your data survives container restarts and image rebuilds. It is only deleted when you run `docker compose down -v`.
+
+---
+
+## 🛠️ Local Development (without Docker)
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/CL-Ali/smart-quetta-hotel.git
 cd smart-quetta-hotel
 
-# 2. Install dependencies
-npm install
+# 2. Install pnpm (if not already installed)
+npm install -g pnpm
 
-# 3. Copy environment variables
-cp .env.example .env
+# 3. Install dependencies
+pnpm install
 
-# 4. Push the database schema
-npm run db:push
+# 4. Copy environment variables
+copy .env.example .env   # Windows CMD
+# cp .env.example .env   # Mac / Linux
 
 # 5. Start the development server
-npm run dev
+pnpm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 

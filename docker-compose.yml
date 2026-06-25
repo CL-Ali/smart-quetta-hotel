@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smart-quetta-hotel
+    restart: unless-stopped
+    ports:
+      - "3000:3000"          # change left side (host port) if 3000 is busy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_PATH: /app/data/hotel.db
+      # ── Required ──────────────────────────────────────────────────────────
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-secret}
+      # ── Optional OAuth (leave blank to skip) ──────────────────────────────
+      OAUTH_SERVER_URL: ${OAUTH_SERVER_URL:-}
+      VITE_APP_ID: ${VITE_APP_ID:-}
+      OWNER_OPEN_ID: ${OWNER_OPEN_ID:-}
+    volumes:
+      # Named volume keeps the SQLite database across container restarts/rebuilds
+      - hotel_db:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/trpc/hotel.getMenu"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  hotel_db:
+    driver: local

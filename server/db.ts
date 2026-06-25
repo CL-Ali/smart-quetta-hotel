@@ -6,8 +6,9 @@ import * as schema from "../drizzle/schema";
 import type { InsertUser, User } from "../drizzle/schema";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Resolve to project root (server/ is one level deep inside the project)
-const DB_PATH = path.resolve(__dirname, "..", "hotel.db");
+// Allow overriding via env (used in Docker so the DB lives on a named volume)
+// Fallback: project root next to the compiled/source file
+const DB_PATH = process.env.DB_PATH ?? path.resolve(__dirname, "..", "hotel.db");
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
