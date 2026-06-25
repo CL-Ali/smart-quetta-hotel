@@ -73,6 +73,10 @@ export const orderItems = sqliteTable("order_items", {
   menuItemId: int("menuItemId").references(() => menuItems.id),
   quantity: int("quantity").notNull(),
   unitPrice: real("unitPrice").notNull(),
+  // Item-level kitchen lifecycle: pending | preparing | ready | served
+  kitchenStatus: text("kitchenStatus").default("pending").notNull(),
+  // How many of this item have been served (for partial serving)
+  servedQty: int("servedQty").default(0).notNull(),
 });
 
 /**

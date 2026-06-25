@@ -74,7 +74,9 @@ function initSchema(sqlite: Database.Database) {
       orderId INTEGER REFERENCES orders(id),
       menuItemId INTEGER REFERENCES menu_items(id),
       quantity INTEGER NOT NULL,
-      unitPrice REAL NOT NULL
+      unitPrice REAL NOT NULL,
+      kitchenStatus TEXT NOT NULL DEFAULT 'pending',
+      servedQty INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS inventory (
@@ -113,6 +115,16 @@ function initSchema(sqlite: Database.Database) {
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  // ── Migrate existing DBs — add new columns if they don't exist yet ───────────
+  const cols = sqlite.prepare("PRAGMA table_info(order_items)").all() as { name: string }[];
+  const colNames = cols.map(c => c.name);
+  if (!colNames.includes("kitchenStatus")) {
+    sqlite.exec(`ALTER TABLE order_items ADD COLUMN kitchenStatus TEXT NOT NULL DEFAULT 'pending'`);
+  }
+  if (!colNames.includes("servedQty")) {
+    sqlite.exec(`ALTER TABLE order_items ADD COLUMN servedQty INTEGER NOT NULL DEFAULT 0`);
+  }
 
   // Seed default menu items if empty
   const count = sqlite.prepare("SELECT COUNT(*) as c FROM menu_items").get() as { c: number };

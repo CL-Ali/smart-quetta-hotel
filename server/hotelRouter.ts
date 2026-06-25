@@ -185,11 +185,18 @@ export const hotelRouter = router({
         unitPrice: orderItems.unitPrice,
         name: menuItems.name,
         price: menuItems.price,
+        kitchenStatus: orderItems.kitchenStatus,
+        servedQty: orderItems.servedQty,
       })
         .from(orderItems)
         .innerJoin(menuItems, eq(orderItems.menuItemId, menuItems.id))
         .where(eq(orderItems.orderId, order.id))
         .all();
+
+      // Bill = only served items
+      const servedAmount = items.reduce(
+        (s, i) => s + (i.unitPrice * (i.servedQty ?? 0)), 0
+      );
 
       // Include completed payments for history display
       const paymentHistory = db.select({
@@ -204,9 +211,94 @@ export const hotelRouter = router({
         .all()
         .filter(p => (p as any).status !== "failed");
 
-      return { ...order, items, paymentHistory };
+      return { ...order, items, servedAmount, paymentHistory };
     });
   }),
+
+  // ── Update item kitchen status (item-level flow) ─────────────────────────────
+  updateItemStatus: publicProcedure
+    .input(z.object({
+      itemId: z.number(),
+      kitchenStatus: z.enum(["pending", "preparing", "ready", "served"]),
+      // When marking served, specify how many were served this time (default = full qty)
+      serveQty: z.number().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+
+      const rows = db.select().from(orderItems).where(eq(orderItems.id, input.itemId)).all();
+      if (rows.length === 0) throw new Error("Item not found");
+      const item = rows[0];
+
+      let newServedQty = item.servedQty ?? 0;
+      if (input.kitchenStatus === "served") {
+        const adding = input.serveQty ?? (item.quantity - newServedQty);
+        newServedQty = Math.min(item.quantity, newServedQty + adding);
+      }
+
+      // If partially served, keep status "ready" for the rest
+      const finalStatus =
+        input.kitchenStatus === "served" && newServedQty < item.quantity
+          ? "ready"       // still more to serve
+          : input.kitchenStatus;
+
+      db.update(orderItems)
+        .set({ kitchenStatus: finalStatus, servedQty: newServedQty })
+        .where(eq(orderItems.id, input.itemId))
+        .run();
+
+      // Recalculate order-level status from all its items
+      const orderId = item.orderId!;
+      const allItems = db.select().from(orderItems).where(eq(orderItems.orderId, orderId)).all();
+
+      const allServed   = allItems.every(i => (i.servedQty ?? 0) >= i.quantity);
+      const anyReady    = allItems.some(i => i.kitchenStatus === "ready");
+      const anyPreparing= allItems.some(i => i.kitchenStatus === "preparing");
+      const anyPending  = allItems.some(i => i.kitchenStatus === "pending" && (i.servedQty ?? 0) < i.quantity);
+
+      const orderRow = db.select().from(orders).where(eq(orders.id, orderId)).all()[0];
+      let newOrderStatus = orderRow?.status ?? "pending";
+
+      if (allServed) {
+        newOrderStatus = "served";
+      } else if (anyReady) {
+        newOrderStatus = "ready";
+      } else if (anyPreparing) {
+        newOrderStatus = "preparing";
+      } else if (anyPending) {
+        newOrderStatus = "pending";
+      }
+
+      // Update servedAmount on order — recalculate payment status too
+      const updatedItems = db.select().from(orderItems).where(eq(orderItems.orderId, orderId)).all();
+      const servedAmount = updatedItems.reduce((s, i) => s + i.unitPrice * (i.servedQty ?? 0), 0);
+
+      // Re-derive paymentStatus: compare what's been paid vs what's been served
+      const orderRow2 = db.select().from(orders).where(eq(orders.id, orderId)).all()[0];
+      const paidSoFar = orderRow2?.paidAmount ?? 0;
+
+      const newPaymentStatus =
+        paidSoFar <= 0            ? "unpaid"
+        : paidSoFar >= servedAmount ? "paid"    // fully covers served items
+        :                             "partial";
+
+      // Don't override a "paid" order status with served-item recalc
+      const finalOrderStatus =
+        newPaymentStatus === "paid" && newOrderStatus === "served" ? "paid"
+        : newOrderStatus;
+
+      db.update(orders)
+        .set({
+          status: finalOrderStatus,
+          totalAmount: servedAmount,
+          paymentStatus: newPaymentStatus,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(orders.id, orderId))
+        .run();
+
+      return { success: true, newServedQty, finalStatus, newOrderStatus };
+    }),
 
   // ── Update order status ──────────────────────────────────────────────────────
   updateOrderStatus: publicProcedure

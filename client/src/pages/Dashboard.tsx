@@ -64,7 +64,7 @@ function PaymentSheet({ order, open, onClose, onDone }: {
   const isMobile = useIsMobile();
   const recordPayment = trpc.hotel.recordPayment.useMutation();
 
-  const total     = order?.totalAmount ?? 0;
+  const total     = order?.servedAmount ?? order?.totalAmount ?? 0;  // bill = served items only
   const paid      = order?.paidAmount  ?? 0;
   const remaining = Math.max(0, total - paid);
 
@@ -518,12 +518,38 @@ export default function Dashboard() {
                 </div>
 
                 <div className="bg-white/60 rounded-xl px-3 py-2 mb-3 space-y-0.5">
-                  {order.items?.map((item: any) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span>{item.name} <span className="text-gray-400">×{item.quantity}</span></span>
-                      <span className="text-gray-600">Rs. {(item.unitPrice * item.quantity).toFixed(0)}</span>
+                  {order.items?.map((item: any) => {
+                    const ks = item.kitchenStatus ?? "pending";
+                    const isServed = ks === "served";
+                    const isReady  = ks === "ready";
+                    const billAmt  = item.unitPrice * (item.servedQty ?? item.quantity);
+                    return (
+                      <div key={item.id} className={`flex justify-between text-sm ${isServed ? "text-emerald-700" : isReady ? "text-green-700" : ""}`}>
+                        <span className="flex items-center gap-1.5">
+                          {isServed && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
+                          {isReady  && <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />}
+                          {!isServed && !isReady && <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />}
+                          {item.name}
+                          <span className="text-gray-400">
+                            ×{item.quantity}
+                            {item.servedQty > 0 && item.servedQty < item.quantity &&
+                              <span className="text-amber-500"> ({item.servedQty}✓)</span>
+                            }
+                          </span>
+                        </span>
+                        <span className={isServed ? "font-semibold" : "text-gray-400"}>
+                          Rs. {billAmt.toFixed(0)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {/* Served subtotal if partial */}
+                  {(order.servedAmount ?? 0) < (order.totalAmount ?? 0) && (order.servedAmount ?? 0) > 0 && (
+                    <div className="border-t border-dashed border-gray-200 pt-1 mt-1 flex justify-between text-xs font-semibold text-emerald-700">
+                      <span>Served so far</span>
+                      <span>Rs. {(order.servedAmount ?? 0).toFixed(0)}</span>
                     </div>
-                  ))}
+                  )}
                 </div>
 
                 {/* Payment history breakdown — show for partial/paid orders */}
