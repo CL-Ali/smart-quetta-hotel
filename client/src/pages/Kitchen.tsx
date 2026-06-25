@@ -16,6 +16,7 @@ const ITEM_STATUS: Record<string, { bg: string; text: string; label: string }> =
 export default function Kitchen() {
   const { t } = useLang();
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
+  const [loadingItems, setLoadingItems] = useState<Set<number>>(new Set()); // per-item loading
 
   const { data: orders, isLoading, refetch } = trpc.hotel.getOrders.useQuery(
     undefined, { refetchInterval: 3000 }
@@ -34,7 +35,6 @@ export default function Kitchen() {
   const handleItemAction = async (
     itemId: number,
     currentStatus: string,
-    orderId: number
   ) => {
     const next =
       currentStatus === "pending"   ? "preparing" :
@@ -42,12 +42,37 @@ export default function Kitchen() {
 
     if (!next) return;
 
+    // Mark only this item as loading
+    setLoadingItems(prev => new Set(prev).add(itemId));
     try {
       await updateItemStatus.mutateAsync({ itemId, kitchenStatus: next as any });
       refetch();
       toast.success(next === "preparing" ? "Cooking started" : "Item ready ✓");
     } catch {
       toast.error("Failed");
+    } finally {
+      setLoadingItems(prev => { const n = new Set(prev); n.delete(itemId); return n; });
+    }
+  };
+
+  const handleMarkAllReady = async (activeItems: any[]) => {
+    const itemIds = activeItems
+      .filter((i: any) => i.kitchenStatus === "pending" || i.kitchenStatus === "preparing")
+      .map((i: any) => i.id);
+
+    setLoadingItems(prev => { const n = new Set(prev); itemIds.forEach(id => n.add(id)); return n; });
+    try {
+      for (const item of activeItems) {
+        if (item.kitchenStatus === "pending" || item.kitchenStatus === "preparing") {
+          await updateItemStatus.mutateAsync({ itemId: item.id, kitchenStatus: "ready" });
+        }
+      }
+      refetch();
+      toast.success("All items marked ready");
+    } catch {
+      toast.error("Failed");
+    } finally {
+      setLoadingItems(prev => { const n = new Set(prev); itemIds.forEach(id => n.delete(id)); return n; });
     }
   };
 
