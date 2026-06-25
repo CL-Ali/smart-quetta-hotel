@@ -9,8 +9,10 @@ import {
   UserCheck, Ban, CheckCircle2, Wallet, X,
 } from "lucide-react";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel,
-  AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
   Drawer, DrawerContent,
@@ -51,162 +53,261 @@ const PAY_PILL: Record<string, string> = {
 
 // ─── Payment Sheet ────────────────────────────────────────────────────────────
 
-function PaymentSheet({ order, open, onClose, onDone }: { order: any; open: boolean; onClose: () => void; onDone: () => void }) {
+type PayMethod = "cash" | "bank";
+
+const BANK_PRESETS = ["JazzCash", "EasyPaisa", "HBL", "MCB", "UBL", "Meezan", "Sadapay"];
+
+function PaymentSheet({ order, open, onClose, onDone }: {
+  order: any; open: boolean; onClose: () => void; onDone: () => void;
+}) {
   const { t } = useLang();
   const isMobile = useIsMobile();
-  const [method, setMethod] = useState<"cash" | "bank">("cash");
-  const [amount, setAmount] = useState("");
   const recordPayment = trpc.hotel.recordPayment.useMutation();
 
   const total     = order?.totalAmount ?? 0;
   const paid      = order?.paidAmount  ?? 0;
   const remaining = Math.max(0, total - paid);
 
-  const [methodCash, setMethodCash] = useState(true);
-  const [methodBank, setMethodBank] = useState(false);
-  const [cashAmount, setCashAmount] = useState("");
-  const [bankAmount, setBankAmount] = useState("");
+  const [method, setMethod]   = useState<PayMethod>("cash");
+  const [amount, setAmount]   = useState("");
+  const [bankName, setBankName] = useState("");
+
+  const numAmount = parseFloat(amount) || 0;
+  const isExact   = numAmount === remaining;
+  const isOver    = numAmount > remaining;
+  const bankNameMissing = method === "bank" && bankName.trim() === "";
+  const canSubmit = numAmount > 0 && !isOver && !bankNameMissing && !recordPayment.isPending;
+
+  const handleFillFull = () => setAmount(remaining.toFixed(0));
 
   const handleConfirm = async () => {
-    const cashVal = methodCash ? parseFloat(cashAmount) || 0 : 0;
-    const bankVal = methodBank ? parseFloat(bankAmount) || 0 : 0;
-    const totalVal = cashVal + bankVal;
-    if (totalVal <= 0) { toast.error("Enter amount"); return; }
-    if (totalVal > remaining) { toast.error("Amount exceeds remaining"); return; }
+    if (!canSubmit) return;
     try {
-      if (methodCash) {
-        await recordPayment.mutateAsync({ orderId: order.id, amount: cashVal, method: "cash" });
-      }
-      if (methodBank) {
-        await recordPayment.mutateAsync({ orderId: order.id, amount: bankVal, method: "bank" });
-      }
-      toast.success(totalVal === remaining ? "Fully paid" : `Rs. ${totalVal} saved`);
-      onDone(); onClose();
-    } catch { toast.error("Failed to save payment"); }
+      await recordPayment.mutateAsync({
+        orderId: order.id,
+        amount: numAmount,
+        method,
+        bankName: method === "bank" ? bankName.trim() : undefined,
+      });
+      toast.success(isExact ? "Order fully paid ✓" : `Rs. ${numAmount.toFixed(0)} saved`);
+      onDone();
+      onClose();
+    } catch {
+      toast.error("Failed to save payment");
+    }
   };
 
-  const renderContent = (isMob: boolean) => (
-    <div className={`space-y-4 ${isMob ? "pb-8 pt-2 px-4" : ""}`}>
+  const handleOpenChange = (v: boolean) => {
+    if (!v) { setAmount(""); setMethod("cash"); setBankName(""); onClose(); }
+  };
+
+  // Past payments on this order
+  const pastPayments: any[] = order?.paymentHistory ?? [];
+
+  const content = (
+    <div className="space-y-4 px-4 pb-8 pt-2">
+
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Wallet className="w-5 h-5 text-orange-600" />
-          <h2 className="text-lg font-bold text-foreground">{t.payment} — #{order?.id}</h2>
+          <h2 className="text-lg font-bold">{t.payment} — #{order?.id}</h2>
         </div>
-        {isMob && (
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 cursor-pointer">
-            <X className="w-5 h-5" />
-          </button>
-        )}
+        <button onClick={() => handleOpenChange(false)} className="p-1 text-gray-400 hover:text-gray-600">
+          <X className="w-5 h-5" />
+        </button>
       </div>
-      {order && (
-        <div className="space-y-4">
-          <div className="bg-gray-50 rounded-xl p-4 space-y-1.5 border border-gray-100">
-            <p className="font-bold text-base text-gray-900">{order.customerName}</p>
-            {order.items?.map((item: any) => (
-              <div key={item.id} className="flex justify-between text-sm text-gray-600">
-                <span>{item.name} ×{item.quantity}</span>
-                <span>Rs. {(item.unitPrice * item.quantity).toFixed(0)}</span>
+
+      {/* Bill summary */}
+      <div className="bg-gray-50 rounded-2xl p-4 space-y-1.5 border border-gray-100">
+        <p className="font-bold text-sm text-gray-900">{order?.customerName}</p>
+        {order?.items?.map((item: any) => (
+          <div key={item.id} className="flex justify-between text-xs text-gray-500">
+            <span>{item.name} ×{item.quantity}</span>
+            <span>Rs. {(item.unitPrice * item.quantity).toFixed(0)}</span>
+          </div>
+        ))}
+        <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-gray-900 text-sm">
+          <span>{t.grandTotal}</span>
+          <span>Rs. {total.toFixed(0)}</span>
+        </div>
+        <div className="flex justify-between font-black text-orange-600 text-base">
+          <span>{t.remaining}</span>
+          <span>Rs. {remaining.toFixed(0)}</span>
+        </div>
+      </div>
+
+      {/* Payment history — show if any past payments exist */}
+      {pastPayments.length > 0 && (
+        <div className="rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="bg-gray-100 px-3 py-2">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Payment History</p>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {pastPayments.map((p: any, i: number) => (
+              <div key={i} className="flex items-center justify-between px-3 py-2.5 bg-white">
+                <div className="flex items-center gap-2">
+                  {p.method === "cash"
+                    ? <Banknote className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    : <Smartphone className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  }
+                  <div>
+                    <span className="text-xs font-semibold text-gray-700 capitalize">
+                      {p.method === "cash" ? t.cash : (p.transactionId || t.bank)}
+                    </span>
+                    <p className="text-[10px] text-gray-400">
+                      {new Date(p.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-sm font-bold text-gray-800">Rs. {(p.amount ?? 0).toFixed(0)}</span>
               </div>
             ))}
-            <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-gray-900">
-              <span>{t.grandTotal}</span><span>Rs. {total.toFixed(0)}</span>
+            <div className="flex justify-between px-3 py-2 bg-emerald-50">
+              <span className="text-xs font-bold text-emerald-700">{t.alreadyPaid}</span>
+              <span className="text-sm font-black text-emerald-700">Rs. {paid.toFixed(0)}</span>
             </div>
-            {paid > 0 && (
-              <div className="flex justify-between text-sm text-emerald-600">
-                <span>{t.alreadyPaid}</span><span>Rs. {paid.toFixed(0)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-orange-600 text-lg">
-              <span>{t.remaining}</span><span>Rs. {remaining.toFixed(0)}</span>
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium block mb-2 text-gray-700">{t.howMuch}</label>
-            {methodCash && (
-              <Input
-                type="number" inputMode="numeric"
-                placeholder={remaining.toFixed(0)}
-                value={cashAmount} onChange={e => setCashAmount(e.target.value)}
-                className="h-14 text-xl font-bold text-center" autoFocus
-              />
-            )}
-            {methodBank && (
-              <Input
-                type="number" inputMode="numeric"
-                placeholder={remaining.toFixed(0)}
-                value={bankAmount} onChange={e => setBankAmount(e.target.value)}
-                className="h-14 text-xl font-bold text-center"
-              />
-            )}
-            <div className="flex gap-4 mt-2">
-              <label className="flex items-center space-x-2">
-                <input type="checkbox" checked={methodCash} onChange={e => setMethodCash(e.target.checked)} />
-                <span>{t.cash}</span>
-              </label>
-              <label className="flex items-center space-x-2">
-                <input type="checkbox" checked={methodBank} onChange={e => setMethodBank(e.target.checked)} />
-                <span>{t.bank}</span>
-              </label>
-            </div>
-            <button onClick={() => {
-              const sum = (parseFloat(cashAmount) || 0) + (parseFloat(bankAmount) || 0);
-              const fill = remaining - sum;
-              if (methodCash) setCashAmount((parseFloat(cashAmount) || 0 + fill).toString());
-              if (methodBank) setBankAmount((parseFloat(bankAmount) || 0 + fill).toString());
-            }}
-              className="w-full mt-2 py-2.5 text-sm text-orange-600 font-semibold bg-orange-50 hover:bg-orange-100 rounded-xl cursor-pointer">
-              {t.fillFull} → Rs. {remaining.toFixed(0)}
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { val: "cash", label: t.cash, icon: Banknote, activeClass: "border-emerald-500 bg-emerald-50 text-emerald-800" },
-              { val: "bank", label: t.bank, icon: Smartphone, activeClass: "border-blue-500 bg-blue-50 text-blue-800" }
-            ].map(({ val, label, icon: Icon, activeClass }) => (
-              <button key={val} onClick={() => setMethod(val as "cash" | "bank")}
-                className={`flex flex-col items-center gap-2 py-4 rounded-xl border-2 font-semibold text-sm transition cursor-pointer select-none ${
-                  method === val ? activeClass : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                <Icon className="w-6 h-6" />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <button onClick={onClose} className="flex-1 h-12 border border-gray-200 hover:bg-gray-50 rounded-xl text-sm font-medium text-gray-600 cursor-pointer">
-              {t.back}
-            </button>
-            <button onClick={handleConfirm} disabled={recordPayment.isPending || !amount}
-              className="flex-1 h-12 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-semibold disabled:opacity-40 cursor-pointer flex items-center justify-center">
-              {recordPayment.isPending ? <Loader2 className="animate-spin w-5 h-5" /> : t.save}
-            </button>
           </div>
         </div>
       )}
+
+      {/* Method selector */}
+      <div className="grid grid-cols-2 gap-3">
+        {([
+          { key: "cash" as PayMethod, label: t.cash,  icon: Banknote,   active: "border-emerald-500 bg-emerald-50 text-emerald-800" },
+          { key: "bank" as PayMethod, label: t.bank,  icon: Smartphone, active: "border-blue-500 bg-blue-50 text-blue-800" },
+        ] as const).map(({ key, label, icon: Icon, active }) => (
+          <button
+            key={key}
+            onClick={() => { setMethod(key); setAmount(""); setBankName(""); }}
+            className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer
+              ${method === key ? active : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"}`}
+          >
+            <Icon className="w-4 h-4" /> {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Bank name selector — only when bank is selected */}
+      {method === "bank" && (
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block">
+            Bank / Service Name *
+          </label>
+          {/* Quick preset chips */}
+          <div className="flex flex-wrap gap-2">
+            {BANK_PRESETS.map(b => (
+              <button
+                key={b}
+                onClick={() => setBankName(b)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer
+                  ${bankName === b
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                  }`}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
+          {/* Custom input */}
+          <Input
+            placeholder="Ya apna bank ka naam likhein..."
+            value={bankName}
+            onChange={e => setBankName(e.target.value)}
+            className={`h-11 text-sm ${bankNameMissing && numAmount > 0 ? "border-red-300 bg-red-50" : ""}`}
+          />
+          {bankNameMissing && numAmount > 0 && (
+            <p className="text-xs text-red-500 font-medium">Bank / service name zaroor likhein</p>
+          )}
+        </div>
+      )}
+
+      {/* Amount input */}
+      <div className="space-y-2">
+        <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block">
+          {t.howMuch}
+        </label>
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg select-none">Rs.</span>
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={remaining}
+            placeholder={remaining.toFixed(0)}
+            value={amount}
+            onChange={e => setAmount(e.target.value)}
+            className={`h-16 text-2xl font-black text-center pl-14 pr-4 transition-colors
+              ${isOver ? "border-red-400 bg-red-50" : ""}
+              ${isExact && numAmount > 0 ? "border-emerald-400 bg-emerald-50" : ""}`}
+            autoFocus={method === "cash"}
+          />
+        </div>
+        {isOver && (
+          <p className="text-xs text-red-500 font-medium flex items-center gap-1">
+            <X className="w-3 h-3" /> Exceeds remaining (Rs. {remaining.toFixed(0)})
+          </p>
+        )}
+        {isExact && numAmount > 0 && (
+          <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Exact — fully paid ho jayega
+          </p>
+        )}
+        {numAmount > 0 && !isExact && !isOver && (
+          <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+            <Clock className="w-3 h-3" /> Partial — Rs. {(remaining - numAmount).toFixed(0)} baqi rahega
+          </p>
+        )}
+        <button
+          onClick={handleFillFull}
+          className="w-full py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-semibold text-sm cursor-pointer border border-orange-200 transition-colors"
+        >
+          {t.fillFull} — Rs. {remaining.toFixed(0)}
+        </button>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex gap-3 pt-1">
+        <button
+          onClick={() => handleOpenChange(false)}
+          className="flex-1 h-12 border border-gray-200 hover:bg-gray-50 rounded-xl text-sm font-medium text-gray-600 cursor-pointer"
+        >
+          {t.back}
+        </button>
+        <button
+          onClick={handleConfirm}
+          disabled={!canSubmit}
+          className={`flex-1 h-12 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2
+            ${canSubmit
+              ? "bg-orange-600 hover:bg-orange-700 text-white cursor-pointer shadow-sm"
+              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+            }`}
+        >
+          {recordPayment.isPending
+            ? <Loader2 className="animate-spin w-5 h-5" />
+            : <><Banknote className="w-4 h-4" />{isExact ? "Collect & Close" : t.save}</>
+          }
+        </button>
+      </div>
     </div>
   );
 
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={v => !v && onClose()}>
-        <DrawerContent className="max-h-[85vh] flex flex-col p-0">
-          <div className="mx-auto w-12 h-1.5 bg-muted rounded-full my-3 shrink-0" />
-          <div className="overflow-y-auto">
-            {renderContent(true)}
-          </div>
+      <Drawer open={open} onOpenChange={handleOpenChange}>
+        <DrawerContent className="max-h-[92vh] flex flex-col p-0">
+          <div className="mx-auto w-12 h-1.5 bg-gray-200 rounded-full my-3 shrink-0" />
+          <div className="overflow-y-auto flex-1">{content}</div>
         </DrawerContent>
       </Drawer>
     );
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={v => !v && onClose()}>
-      <AlertDialogContent className="max-w-sm mx-4">
-        {renderContent(false)}
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+      <AlertDialogContent className="max-w-sm p-0 overflow-hidden">
+        <div className="max-h-[85vh] overflow-y-auto">{content}</div>
       </AlertDialogContent>
     </AlertDialog>
   );
@@ -425,6 +526,29 @@ export default function Dashboard() {
                   ))}
                 </div>
 
+                {/* Payment history breakdown — show for partial/paid orders */}
+                {(order.paymentHistory?.length > 0) && (
+                  <div className="mb-3 rounded-xl overflow-hidden border border-gray-100">
+                    {order.paymentHistory.map((p: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between px-3 py-2 bg-white border-b border-gray-50 last:border-0">
+                        <div className="flex items-center gap-2">
+                          {p.method === "cash"
+                            ? <Banknote className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                            : <Smartphone className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                          }
+                          <span className="text-xs font-semibold text-gray-600">
+                            {p.method === "cash" ? t.cash : (p.transactionId || t.bank)}
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(p.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <span className="text-xs font-bold text-gray-700">Rs. {(p.amount ?? 0).toFixed(0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   {order.status !== "cancelled" && order.paymentStatus !== "paid" && (
                     <button onClick={() => setPayOrder(order)}
@@ -436,7 +560,7 @@ export default function Dashboard() {
                   {order.paymentStatus === "paid" && (
                     <div className="flex-1 bg-emerald-50 border border-emerald-100 text-emerald-700 font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>{t.payStatus.paid} — {order.paymentMethod}</span>
+                      <span>{t.payStatus.paid}</span>
                     </div>
                   )}
                   {order.status === "cancelled" && (

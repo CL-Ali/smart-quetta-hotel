@@ -130,8 +130,18 @@ export const hotelRouter = router({
           .run();
       } else {
         // No open order — create a fresh one
+        // Validate customerId — reject stale IDs from client cache
+        let validCustomerId: number | null = null;
+        if (input.customerId) {
+          const exists = db.select({ id: customers.id })
+            .from(customers)
+            .where(eq(customers.id, input.customerId))
+            .all();
+          validCustomerId = exists.length > 0 ? input.customerId : null;
+        }
+
         const result = db.insert(orders).values({
-          customerId: input.customerId ?? null,
+          customerId: validCustomerId,
           seatingAreaId: input.seatingAreaId ?? null,
           customerName: input.customerName,
           totalAmount,
@@ -143,8 +153,15 @@ export const hotelRouter = router({
         orderId = Number(result.lastInsertRowid);
       }
 
-      // Insert order items
+      // Insert order items — skip any item whose menuItemId no longer exists
+      // (guards against stale client cache after a DB reset)
       for (const item of input.items) {
+        const menuItem = db.select({ id: menuItems.id })
+          .from(menuItems)
+          .where(eq(menuItems.id, item.menuItemId))
+          .all();
+        if (menuItem.length === 0) continue; // stale ID — skip silently
+
         db.insert(orderItems).values({
           orderId,
           menuItemId: item.menuItemId,
@@ -173,7 +190,21 @@ export const hotelRouter = router({
         .innerJoin(menuItems, eq(orderItems.menuItemId, menuItems.id))
         .where(eq(orderItems.orderId, order.id))
         .all();
-      return { ...order, items };
+
+      // Include completed payments for history display
+      const paymentHistory = db.select({
+        id: payments.id,
+        amount: payments.amount,
+        method: payments.method,
+        transactionId: payments.transactionId,
+        createdAt: payments.createdAt,
+      })
+        .from(payments)
+        .where(eq(payments.orderId, order.id))
+        .all()
+        .filter(p => (p as any).status !== "failed");
+
+      return { ...order, items, paymentHistory };
     });
   }),
 
@@ -190,13 +221,14 @@ export const hotelRouter = router({
     }),
 
   // ── Admin: record payment ────────────────────────────────────────────────────
-  // Admin enters how much was paid and by which method. Marks order paid/partial.
   recordPayment: publicProcedure
     .input(z.object({
       orderId: z.number(),
       amount: z.number().positive(),
       method: z.enum(["cash", "bank"]),
-      transactionId: z.string().optional(),
+      // For bank: store service name (JazzCash / EasyPaisa / HBL etc.)
+      // For cash: optional note
+      bankName: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
       const db = getDb();
@@ -205,7 +237,6 @@ export const hotelRouter = router({
       if (orderRows.length === 0) throw new Error("Order not found");
       const order = orderRows[0];
 
-      // Sum all previous completed payments for this order (source of truth)
       const prevPayments = db.select().from(payments)
         .where(eq(payments.orderId, input.orderId)).all()
         .filter(p => p.status === "completed");
@@ -213,18 +244,16 @@ export const hotelRouter = router({
       const totalAmount   = order.totalAmount ?? 0;
       const newPaidAmount = alreadyPaid + input.amount;
 
-      // Insert payment record
       db.insert(payments).values({
         orderId: input.orderId,
         amount: input.amount,
         method: input.method,
         status: "completed",
-        transactionId: input.transactionId ?? null,
+        transactionId: input.bankName ?? null,   // reuse transactionId col for bank/service name
       }).run();
 
-      // Determine new payment status
       const newPaymentStatus = newPaidAmount >= totalAmount ? "paid" : "partial";
-      const newOrderStatus = newPaidAmount >= totalAmount ? "paid" : order.status;
+      const newOrderStatus   = newPaidAmount >= totalAmount ? "paid" : order.status;
 
       db.update(orders)
         .set({
