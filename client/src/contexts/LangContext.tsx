@@ -75,6 +75,10 @@ const T = {
     noOrders:       "No pending orders",
     // autofill
     tapToAutofill:  "Tap to autofill: ",
+    // confirmation dialogs
+    confirmCancel:     "Cancel this order?",
+    confirmCancelDesc: "This action cannot be undone.",
+    confirm:           "Confirm",
   },
   ur: {
     hotelName:      "کوئٹہ ہوٹل",
@@ -142,6 +146,9 @@ const T = {
     readyToServeBtn:"تیار ہے",
     noOrders:       "کوئی آرڈر نہیں",
     tapToAutofill:  "آٹو فل کرنے کے لیے کلک کریں: ",
+    confirmCancel:     "یہ آرڈر منسوخ کریں؟",
+    confirmCancelDesc: "یہ عمل واپس نہیں ہو سکتا۔",
+    confirm:           "تصدیق کریں",
   },
   ps: {
     hotelName:      "کوټه هوټل",
@@ -209,6 +216,9 @@ const T = {
     readyToServeBtn:"چمتو دی",
     noOrders:       "هیڅ آرډر نشته",
     tapToAutofill:  "د آٹو فل لپاره کلک کړئ: ",
+    confirmCancel:     "دا آرډر لغوه کړئ؟",
+    confirmCancelDesc: "دا کار بیرته نه شي کیدای.",
+    confirm:           "تایید کړئ",
   },
   bal: {
     hotelName:      "کوئٹہ ہوٹل",
@@ -276,6 +286,9 @@ const T = {
     readyToServeBtn:"تیار انت",
     noOrders:       "ھیچ آرڈر نیست",
     tapToAutofill:  "نام آٹو فل کنگ ءِ ھاتر ءَ ادا کلک کن: ",
+    confirmCancel:     "ایں آرڈر کینسل کنگ؟",
+    confirmCancelDesc: "ایں کار واپس نہ بیت.",
+    confirm:           "تصدیق",
   },
   brh: {
     hotelName:      "کوئٹہ ہوٹل",
@@ -343,6 +356,9 @@ const T = {
     readyToServeBtn:"تیار ءِ",
     noOrders:       "ہیچ آرڈر اف",
     tapToAutofill:  "پن ءِ آٹو فل کننگ کن داڑے کلک کر: ",
+    confirmCancel:     "ایسا آرڈر منسوخ کر؟",
+    confirmCancelDesc: "ایہ ڈول پدا نہ بیت.",
+    confirm:           "پکائی",
   },
   fa: {
     hotelName:      "کوئته هتل",
@@ -410,6 +426,9 @@ const T = {
     readyToServeBtn:"آماده برای سرو",
     noOrders:       "هیچ سفارش معلقی نیست",
     tapToAutofill:  "برای پر کردن خودکار نام قبلی اینجا کلیک کنید: ",
+    confirmCancel:     "این سفارش را لغو کنید؟",
+    confirmCancelDesc: "این عمل قابل بازگشت نیست.",
+    confirm:           "تایید",
   },
   pa: {
     hotelName:      "کوئٹہ ہوٹل",
@@ -477,6 +496,9 @@ const T = {
     readyToServeBtn:"تیار اے",
     noOrders:       "کوئی آرڈر نہیں",
     tapToAutofill:  "ناں آٹو فل کرن لئی ایتھے کلک کرو: ",
+    confirmCancel:     "ایہ آرڈر کینسل کرو؟",
+    confirmCancelDesc: "ایہ کੰਮ ਵਾਪਸ ਨਹੀਂ ਹੋ ਸਕਦਾ।",
+    confirm:           "پکا کرو",
   },
   sd: {
     hotelName:      "کوئٽه هوٽل",
@@ -544,6 +566,9 @@ const T = {
     readyToServeBtn:"تيار آهي",
     noOrders:       "ڪو به آرڊر ناهي",
     tapToAutofill:  "نالو پاڻمرادو ڀرڻ لاءِ هتي ڪلڪ ڪريو: ",
+    confirmCancel:     "هي آرڊر منسوخ ڪريو؟",
+    confirmCancelDesc: "هي عمل واپس نٿو ٿي سگهي.",
+    confirm:           "پڪ ڪريو",
   },
 } as const;
 

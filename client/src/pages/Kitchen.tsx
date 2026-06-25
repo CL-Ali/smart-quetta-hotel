@@ -160,7 +160,7 @@ export default function Kitchen() {
                   ? `Start cooking Order #${confirm?.orderId}?`
                   : `Mark Order #${confirm?.orderId} ready?`}
               </DrawerTitle>
-              <DrawerDescription>{t.confirmationDesc}</DrawerDescription>
+              <DrawerDescription>{t.confirmCancelDesc}</DrawerDescription>
             </DrawerHeader>
             <DrawerFooter className="flex gap-3 justify-end">
               <button onClick={() => setConfirm(null)} className="px-4 py-2 bg-gray-200 rounded">
@@ -181,7 +181,7 @@ export default function Kitchen() {
                   ? `Start cooking Order #${confirm?.orderId}?`
                   : `Mark Order #${confirm?.orderId} ready?`}
               </AlertDialogTitle>
-              <AlertDialogDescription>{t.confirmationDesc}</AlertDialogDescription>
+              <AlertDialogDescription>{t.confirmCancelDesc}</AlertDialogDescription>
             </AlertDialogHeader>
             <div className="flex gap-3 justify-end">
               <AlertDialogCancel>{t.cancel}</AlertDialogCancel>

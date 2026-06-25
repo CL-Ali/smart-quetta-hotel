@@ -106,87 +106,76 @@ The app can be installed as a **standalone Progressive Web App**:
 
 ---
 
-## 🐳 Docker (Recommended – works on any machine)
+## ▶️ Quick Start (Recommended – No Docker, No pnpm needed)
 
-> This is the easiest way to run the app. You only need **Docker Desktop** installed — no Node, no pnpm, no manual setup.
+> Sirf **Node.js** chahiye. Koi aur cheez install karne ki zaroorat nahi.
 
-### Quick Start (one command)
+### Windows
+1. [Node.js LTS](https://nodejs.org) download kar ke install karo (agar pehle se nahi hai)
+2. Repo clone karo ya ZIP download karo
+3. `start.bat` pe **double-click** karo
+4. Browser khud open ho jayega `http://localhost:3000` pe ✅
 
+### Mac / Linux
 ```bash
-# 1. Clone the repo
-git clone https://github.com/CL-Ali/smart-quetta-hotel.git
-cd smart-quetta-hotel
+# Ek baar permission do
+chmod +x start.sh
 
-# 2. Create your env file  (copy the example)
-copy .env.example .env        # Windows CMD
-# cp .env.example .env        # Mac / Linux
-
-# 3. Build the image and start the container
-docker compose up --build
+# Run karo
+./start.sh
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — the app is running. ✅
-
-> **First boot** takes ~2–3 minutes to build the image. After that, `docker compose up` starts in seconds.
+> **Pehli baar** ~2-3 minute lagte hain (dependencies download hoti hain). Doosri baar seedha start hota hai.
 
 ---
 
-### Useful Docker Commands
+## 🐳 Docker (Alternative – sabse portable option)
+
+Agar Node.js bhi install karna nahi hai, Docker use kar sakte ho.
 
 ```bash
-# Start in background (detached)
+# Clone
+git clone https://github.com/CL-Ali/smart-quetta-hotel.git
+cd smart-quetta-hotel
+
+# Start (pehli baar image build hogi ~3 min)
+docker compose up --build
+
+# Background me chalana ho to
 docker compose up -d --build
+```
 
-# View live logs
-docker compose logs -f
+Open [http://localhost:3000](http://localhost:3000) ✅
 
-# Stop the container
+```bash
+# Band karna
 docker compose down
 
-# Stop AND delete the database volume (full reset)
+# Data ke saath band karna (full reset)
 docker compose down -v
-
-# Rebuild after code changes
-docker compose up --build
 ```
-
-### Change the Port
-
-If port `3000` is already in use on your machine, edit `docker-compose.yml`:
-
-```yaml
-ports:
-  - "8080:3000"   # now accessible at http://localhost:8080
-```
-
-### Data Persistence
-
-The SQLite database is stored in a **Docker named volume** (`hotel_db`). Your data survives container restarts and image rebuilds. It is only deleted when you run `docker compose down -v`.
 
 ---
 
-## 🛠️ Local Development (without Docker)
+## 🛠️ Manual Setup (Developers)
 
 ```bash
-# 1. Clone the repository
+# 1. Clone
 git clone https://github.com/CL-Ali/smart-quetta-hotel.git
 cd smart-quetta-hotel
 
-# 2. Install pnpm (if not already installed)
-npm install -g pnpm
+# 2. .env banao
+cp .env.example .env        # Mac/Linux
+copy .env.example .env      # Windows CMD
 
-# 3. Install dependencies
-pnpm install
+# 3. Dependencies
+npm install --legacy-peer-deps
 
-# 4. Copy environment variables
-copy .env.example .env   # Windows CMD
-# cp .env.example .env   # Mac / Linux
-
-# 5. Start the development server
-pnpm run dev
+# 4. Dev server
+npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
