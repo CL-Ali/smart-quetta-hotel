@@ -193,7 +193,7 @@ export default function Kitchen() {
 
                               {canAct && (
                                 <button
-                                  onClick={() => handleItemAction(item.id, status, order.id)}
+                                  onClick={() => handleItemAction(item.id, status)}
                                   disabled={updateItemStatus.isPending}
                                   className={`shrink-0 ml-2 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-colors cursor-pointer
                                     ${status === "pending"   ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"}`}
@@ -213,15 +213,8 @@ export default function Kitchen() {
                         {/* Mark all ready at once if any still pending/preparing */}
                         {!allReady && activeItems.length > 1 && (
                           <button
-                            onClick={async () => {
-                              for (const item of activeItems) {
-                                if (item.kitchenStatus === "pending" || item.kitchenStatus === "preparing") {
-                                  await updateItemStatus.mutateAsync({ itemId: item.id, kitchenStatus: "ready" });
-                                }
-                              }
-                              refetch();
-                              toast.success("All items marked ready");
-                            }}
+                            onClick={() => handleMarkAllReady(activeItems)}
+                            disabled={updateItemStatus.isPending}
                             className="w-full py-2 mt-1 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl cursor-pointer"
                           >
                             <Check className="w-3 h-3 inline mr-1" />

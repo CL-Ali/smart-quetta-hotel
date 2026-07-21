@@ -7,16 +7,44 @@ import { SignJWT, jwtVerify } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
 import { ENV } from "./env";
-import type {
-  ExchangeTokenRequest,
-  ExchangeTokenResponse,
-  GetUserInfoResponse,
-  GetUserInfoWithJwtRequest,
-  GetUserInfoWithJwtResponse,
-} from "./types/manusTypes";
+
 // Utility function
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
+
+// ── OAuth response types (used by SDKServer) ─────────────────────────────────
+interface ExchangeTokenRequest {
+  clientId: string;
+  grantType: string;
+  code: string;
+  redirectUri: string;
+}
+interface ExchangeTokenResponse {
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn?: number;
+}
+interface GetUserInfoResponse {
+  openId: string;
+  name?: string;
+  email?: string;
+  platform?: string | null;
+  loginMethod?: string | null;
+  [key: string]: unknown;
+}
+interface GetUserInfoWithJwtRequest {
+  jwtToken: string;
+  projectId: string;
+}
+interface GetUserInfoWithJwtResponse {
+  openId: string;
+  name?: string;
+  email?: string;
+  taskUid?: string;
+  platform?: string | null;
+  loginMethod?: string | null;
+  [key: string]: unknown;
+}
 
 export type SessionPayload = {
   openId: string;
