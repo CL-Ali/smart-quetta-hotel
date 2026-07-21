@@ -42,6 +42,7 @@ export default defineConfig({
 
       // Web App Manifest — every field that Chrome/Safari uses for install
       manifest: {
+        id: "/",
         name: "Smart Quetta Hotel",
         short_name: "Quetta Hotel",
         description: "Smart hotel ordering — place orders, track kitchen, manage payments",
@@ -77,6 +78,22 @@ export default defineConfig({
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
+          },
+        ],
+        screenshots: [
+          {
+            src: "/images/screenshot-narrow.jpeg",
+            sizes: "632x1390",
+            type: "image/jpeg",
+            form_factor: "narrow",
+            label: "Customer menu and order view",
+          },
+          {
+            src: "/images/screenshot-wide.jpeg",
+            sizes: "1264x1390",
+            type: "image/jpeg",
+            form_factor: "wide",
+            label: "Customer menu and admin dashboard",
           },
         ],
         shortcuts: [
