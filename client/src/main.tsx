@@ -15,10 +15,13 @@ registerSW({
     // Check for updates every 60 seconds (useful for hotel staff who keep app open all day)
     if (r) {
       setInterval(async () => {
-        if (!(!r.installing && navigator)) return;
+        if (r.installing || !navigator) return;
         if ("connection" in navigator && !navigator.onLine) return;
         try {
-          const resp = await fetch(swUrl, { cache: "no-store", headers: { "cache": "no-store", "cache-control": "no-cache" } });
+          const resp = await fetch(swUrl, {
+            cache: "no-store",
+            headers: { "cache-control": "no-cache" },
+          });
           if (resp?.status === 200) await r.update();
         } catch { /* ignore network errors */ }
       }, 60 * 1000);

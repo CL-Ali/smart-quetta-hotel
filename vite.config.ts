@@ -13,9 +13,10 @@ export default defineConfig({
       registerType: "autoUpdate",
 
       // Include SW in dev mode so install prompt can be tested locally
+      // Use "classic" type — module SW in dev mode can break install prompt in Chrome
       devOptions: {
         enabled: true,
-        type: "module",
+        type: "classic",
       },
 
       // Workbox config — what to precache
@@ -24,6 +25,8 @@ export default defineConfig({
         // Never cache API calls
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/api\//],
+        // Clean up outdated caches on activation
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             // Cache images from unsplash and other CDNs at runtime
@@ -116,7 +119,7 @@ export default defineConfig({
     host: true,
     fs: {
       strict: true,
-      deny: ["**/.*"],
+      deny: ["**/.env", "**/.env.*", "**/.*rc", "**/.*ignore"],
     },
   },
 });
