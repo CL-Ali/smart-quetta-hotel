@@ -108,6 +108,9 @@ temp/
 *.sqlite
 *.sqlite3
 
+# Drizzle auto-generated migration files (schema is source of truth via db.ts)
+drizzle/migrations/
+
 # Manus AI artifacts (auto-generated, not part of source)
 client/public/__manus__/
 .manus-logs/
