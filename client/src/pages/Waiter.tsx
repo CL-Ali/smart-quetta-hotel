@@ -147,9 +147,9 @@ export default function Waiter() {
                         {isExpanded && (
                           <div className="px-4 pb-4 space-y-2">
                             {order.items?.map((item: any) => {
-                              const isReady  = item.kitchenStatus === "ready";
+                              const isReady = item.kitchenStatus === "ready";
                               const isServed = item.kitchenStatus === "served";
-                              const pending  = item.quantity - (item.servedQty ?? 0);
+                              const pending = item.quantity - (item.servedQty ?? 0);
                               if (!isReady && !isServed) return null; // hide pending/preparing items
 
                               return (

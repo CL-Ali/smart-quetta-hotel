@@ -7,10 +7,10 @@ import { LangSwitcher } from "@/components/LangSwitcher";
 
 // Item-level status badge colors
 const ITEM_STATUS: Record<string, { bg: string; text: string; label: string }> = {
-  pending:   { bg: "bg-gray-100",   text: "text-gray-600",   label: "Pending"   },
-  preparing: { bg: "bg-blue-100",   text: "text-blue-700",   label: "Cooking"   },
-  ready:     { bg: "bg-green-100",  text: "text-green-700",  label: "Ready"     },
-  served:    { bg: "bg-emerald-50", text: "text-emerald-600",label: "Served"    },
+  pending: { bg: "bg-gray-100", text: "text-gray-600", label: "Pending" },
+  preparing: { bg: "bg-blue-100", text: "text-blue-700", label: "Cooking" },
+  ready: { bg: "bg-green-100", text: "text-green-700", label: "Ready" },
+  served: { bg: "bg-emerald-50", text: "text-emerald-600", label: "Served" },
 };
 
 export default function Kitchen() {
@@ -37,8 +37,8 @@ export default function Kitchen() {
     currentStatus: string,
   ) => {
     const next =
-      currentStatus === "pending"   ? "preparing" :
-      currentStatus === "preparing" ? "ready"     : null;
+      currentStatus === "pending" ? "preparing" :
+        currentStatus === "preparing" ? "ready" : null;
 
     if (!next) return;
 
@@ -145,13 +145,12 @@ export default function Kitchen() {
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-gray-500">#{order.id}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
-                          order.status === "preparing" ? "bg-blue-100 text-blue-700" :
-                          order.status === "ready"     ? "bg-green-100 text-green-700" :
-                                                         "bg-gray-100 text-gray-600"
-                        }`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${order.status === "preparing" ? "bg-blue-100 text-blue-700" :
+                            order.status === "ready" ? "bg-green-100 text-green-700" :
+                              "bg-gray-100 text-gray-600"
+                          }`}>
                           {order.status === "preparing" ? "Cooking" :
-                           order.status === "ready"     ? "Ready" : "Pending"}
+                            order.status === "ready" ? "Ready" : "Pending"}
                         </span>
                         <span className="text-xs text-gray-400">
                           {new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -196,11 +195,11 @@ export default function Kitchen() {
                                   onClick={() => handleItemAction(item.id, status)}
                                   disabled={updateItemStatus.isPending}
                                   className={`shrink-0 ml-2 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-colors cursor-pointer
-                                    ${status === "pending"   ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"}`}
+                                    ${status === "pending" ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"}`}
                                 >
                                   {updateItemStatus.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> :
-                                   status === "pending" ? <><ChefHat className="w-3 h-3 inline mr-1" />Cook</> :
-                                   <><Check className="w-3 h-3 inline mr-1" />Ready</>}
+                                    status === "pending" ? <><ChefHat className="w-3 h-3 inline mr-1" />Cook</> :
+                                      <><Check className="w-3 h-3 inline mr-1" />Ready</>}
                                 </button>
                               )}
                               {isFullyServed && (
