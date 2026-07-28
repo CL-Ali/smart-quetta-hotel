@@ -6,6 +6,7 @@
 dist/
 build/
 *.dist
+dev-dist/
 
 # Environment variables
 .env
@@ -108,8 +109,8 @@ temp/
 *.sqlite
 *.sqlite3
 
-# Drizzle auto-generated migration files (schema is source of truth via db.ts)
-drizzle/migrations/
+# Drizzle auto-generated migration files (schema is source of truth via api/db/index.ts)
+api/db/migrations/
 
 .pnotes/
 template.json

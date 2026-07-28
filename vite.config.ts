@@ -13,6 +13,8 @@ export default defineConfig({
       devOptions: {
         enabled: true,
         type: "classic",
+        // Suppress "no files matched" glob warning in dev mode
+        suppressWarnings: true,
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
