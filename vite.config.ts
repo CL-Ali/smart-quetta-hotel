@@ -9,27 +9,18 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // Auto-update SW in background — user gets latest without manual reload
       registerType: "autoUpdate",
-
-      // Include SW in dev mode so install prompt can be tested locally
-      // Use "classic" type — module SW in dev mode can break install prompt in Chrome
       devOptions: {
         enabled: true,
         type: "classic",
       },
-
-      // Workbox config — what to precache
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        // Never cache API calls
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/api\//],
-        // Clean up outdated caches on activation
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
-            // Cache images from unsplash and other CDNs at runtime
             urlPattern: /^https:\/\/images\.unsplash\.com\/.*/i,
             handler: "CacheFirst",
             options: {
@@ -39,8 +30,6 @@ export default defineConfig({
           },
         ],
       },
-
-      // Web App Manifest — every field that Chrome/Safari uses for install
       manifest: {
         id: "/",
         name: "Smart Quetta Hotel",
@@ -55,79 +44,32 @@ export default defineConfig({
         lang: "en",
         categories: ["food", "business"],
         icons: [
-          {
-            src: "/logo-192.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "any",
-          },
-          {
-            src: "/logo-192.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "maskable",
-          },
-          {
-            src: "/logo-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any",
-          },
-          {
-            src: "/logo-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable",
-          },
+          { src: "/logo-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "/logo-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+          { src: "/logo-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "/logo-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
         screenshots: [
-          {
-            src: "/images/screenshot-narrow.jpeg",
-            sizes: "632x1390",
-            type: "image/jpeg",
-            form_factor: "narrow",
-            label: "Customer menu and order view",
-          },
-          {
-            src: "/images/screenshot-wide.jpeg",
-            sizes: "1264x1390",
-            type: "image/jpeg",
-            form_factor: "wide",
-            label: "Customer menu and admin dashboard",
-          },
+          { src: "/images/screenshot-narrow.jpeg", sizes: "632x1390", type: "image/jpeg", form_factor: "narrow", label: "Customer menu and order view" },
+          { src: "/images/screenshot-wide.jpeg", sizes: "1264x1390", type: "image/jpeg", form_factor: "wide", label: "Customer menu and admin dashboard" },
         ],
         shortcuts: [
-          {
-            name: "Dashboard",
-            short_name: "Admin",
-            url: "/dashboard",
-            icons: [{ src: "/logo-192.png", sizes: "192x192" }],
-          },
-          {
-            name: "Kitchen",
-            short_name: "Kitchen",
-            url: "/kitchen",
-            icons: [{ src: "/logo-192.png", sizes: "192x192" }],
-          },
-          {
-            name: "Waiter",
-            short_name: "Waiter",
-            url: "/waiter",
-            icons: [{ src: "/logo-192.png", sizes: "192x192" }],
-          },
+          { name: "Dashboard", short_name: "Admin", url: "/dashboard", icons: [{ src: "/logo-192.png", sizes: "192x192" }] },
+          { name: "Kitchen", short_name: "Kitchen", url: "/kitchen", icons: [{ src: "/logo-192.png", sizes: "192x192" }] },
+          { name: "Waiter", short_name: "Waiter", url: "/waiter", icons: [{ src: "/logo-192.png", sizes: "192x192" }] },
         ],
       },
     }),
   ],
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@": path.resolve(import.meta.dirname, "src"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
     },
   },
   envDir: path.resolve(import.meta.dirname),
-  root: path.resolve(import.meta.dirname, "client"),
-  publicDir: path.resolve(import.meta.dirname, "client", "public"),
+  root: path.resolve(import.meta.dirname),
+  publicDir: path.resolve(import.meta.dirname, "public"),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,

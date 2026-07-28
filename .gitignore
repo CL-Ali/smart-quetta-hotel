@@ -111,9 +111,6 @@ temp/
 # Drizzle auto-generated migration files (schema is source of truth via db.ts)
 drizzle/migrations/
 
-# Manus AI artifacts (auto-generated, not part of source)
-client/public/__manus__/
-.manus-logs/
 .pnotes/
 template.json
 delivery_summary.md

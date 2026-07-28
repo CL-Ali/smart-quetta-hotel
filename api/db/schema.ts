@@ -27,7 +27,7 @@ export const seatingAreas = sqliteTable("seating_areas", {
 });
 
 /**
- * Customers - Track repeat customers
+ * Customers
  */
 export const customers = sqliteTable("customers", {
   id: int("id").primaryKey({ autoIncrement: true }),
@@ -121,7 +121,7 @@ export const recipes = sqliteTable("recipes", {
 });
 
 /**
- * Payments - Track payment details
+ * Payments
  */
 export const payments = sqliteTable("payments", {
   id: int("id").primaryKey({ autoIncrement: true }),

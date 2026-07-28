@@ -2,13 +2,13 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
-import * as schema from "../drizzle/schema";
-import type { InsertUser, User } from "../drizzle/schema";
+import * as schema from "./schema";
+import type { InsertUser, User } from "./schema";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Allow overriding via env (used in Docker so the DB lives on a named volume)
-// Fallback: project root next to the compiled/source file
-const DB_PATH = process.env.DB_PATH ?? path.resolve(__dirname, "..", "hotel.db");
+// Fallback: project root
+const DB_PATH = process.env.DB_PATH ?? path.resolve(__dirname, "../..", "hotel.db");
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -116,7 +116,7 @@ function initSchema(sqlite: Database.Database) {
     );
   `);
 
-  // ── Migrate existing DBs — add new columns if they don't exist yet ───────────
+  // Migrate existing DBs — add new columns if they don't exist yet
   const cols = sqlite.prepare("PRAGMA table_info(order_items)").all() as { name: string }[];
   const colNames = cols.map(c => c.name);
   if (!colNames.includes("kitchenStatus")) {
@@ -163,8 +163,7 @@ function initSchema(sqlite: Database.Database) {
   }
 }
 
-// ─── Auth stubs (no real users in SQLite mode) ───────────────────────────────
-
+// Auth stubs (no real users in SQLite mode)
 export async function upsertUser(_user: InsertUser): Promise<void> {
   // No-op in local SQLite mode
 }
