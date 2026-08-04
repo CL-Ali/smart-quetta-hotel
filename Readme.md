@@ -8,6 +8,8 @@
   <strong>A smart, multilingual hotel ordering &amp; management system — installable as a PWA on any device</strong>
 </p>
 
+> SDD migration target: Smart Restaurant LAN Ordering System. The product spec set now lives in [specs/](specs/).
+
 <p align="center">
   <img src="https://img.shields.io/badge/PWA-ready-blueviolet?style=flat-square&logo=pwa" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" />
