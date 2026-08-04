@@ -131,33 +131,27 @@ function NavLink({
   onClick?: () => void;
 }) {
   return (
-    <Link href={href}>
-      <a
-        title={title}
-        onClick={onClick}
-        style={{
-          display: block ? "block" : "inline-flex",
-          alignItems: "center",
-          padding: block ? "0.6rem 1rem" : "0.45rem 0.85rem",
-          borderRadius: "0.6rem",
-          fontSize: block ? "1rem" : "0.875rem",
-          fontWeight: active ? 700 : 500,
-          textDecoration: "none",
-          transition: "all 0.2s ease",
-          background: active
-            ? "linear-gradient(135deg, rgba(245,158,11,0.25), rgba(251,191,36,0.15))"
-            : "transparent",
-          color: active ? "#F59E0B" : "rgba(209,213,219,0.9)",
-          border: active
-            ? "1px solid rgba(245,158,11,0.35)"
-            : "1px solid transparent",
-          boxShadow: active ? "0 0 12px rgba(245,158,11,0.15)" : "none",
-          width: block ? "100%" : undefined,
-          letterSpacing: "0.01em",
-        }}
-      >
-        {label}
-      </a>
+    <Link href={href} title={title} onClick={onClick} style={{
+      display: block ? "block" : "inline-flex",
+      alignItems: "center",
+      padding: block ? "0.6rem 1rem" : "0.45rem 0.85rem",
+      borderRadius: "0.6rem",
+      fontSize: block ? "1rem" : "0.875rem",
+      fontWeight: active ? 700 : 500,
+      textDecoration: "none",
+      transition: "all 0.2s ease",
+      background: active
+        ? "linear-gradient(135deg, rgba(245,158,11,0.25), rgba(251,191,36,0.15))"
+        : "transparent",
+      color: active ? "#F59E0B" : "rgba(209,213,219,0.9)",
+      border: active
+        ? "1px solid rgba(245,158,11,0.35)"
+        : "1px solid transparent",
+      boxShadow: active ? "0 0 12px rgba(245,158,11,0.15)" : "none",
+      width: block ? "100%" : undefined,
+      letterSpacing: "0.01em",
+    }}>
+      {label}
     </Link>
   );
 }
