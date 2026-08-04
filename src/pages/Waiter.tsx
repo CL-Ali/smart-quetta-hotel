@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import React from "react";
 import { trpc } from "@/lib/trpc";
 import { Loader2, Utensils, Coffee, Check, UserCheck, ChevronDown, ChevronUp } from "lucide-react";
 import { FloatingAddButton } from "@/components/FloatingAddButton";
@@ -7,15 +8,27 @@ import { useLang } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 import { NewOrderSheet } from "@/components/NewOrderSheet";
 import { useSocket } from "@/hooks/useSocket";
+import { fmtTime } from "@/lib/time";
+import { DashboardPinGate } from "@/components/DashboardPinGate";
+import { getDashboardPin, clearDashboardPin } from "@/lib/dashboardAuth";
 
 export default function Waiter() {
   const { t } = useLang();
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
-  const [serving, setServing] = useState<Set<number>>(new Set()); // itemIds being processed
+  const [serving, setServing] = useState<Set<number>>(new Set());
+  const [pinUnlocked, setPinUnlocked] = useState(() => !!getDashboardPin());
+  const pinErrorRef = React.useRef<((msg: string) => void) | null>(null);
 
   const { data: orders, isLoading, refetch } = trpc.hotel.getOrders.useQuery(
-    undefined, { refetchInterval: 15000 }   // fallback polling — socket is primary
+    undefined, {
+      refetchInterval: 15000,
+      enabled: pinUnlocked,
+      retry: (failureCount: number, err: any) => {
+        if (err?.data?.code === "UNAUTHORIZED") { clearDashboardPin(); setPinUnlocked(false); pinErrorRef.current?.("Incorrect PIN — try again"); return false; }
+        return failureCount < 2;
+      },
+    }
   );
   const updateItemStatus = trpc.hotel.updateItemStatus.useMutation();
 
@@ -32,6 +45,8 @@ export default function Waiter() {
       socket.off("order.created",  handler);
     };
   }, [socket, refetch]);
+
+  if (!pinUnlocked) return <DashboardPinGate onUnlocked={(onErr) => { pinErrorRef.current = onErr; setPinUnlocked(true); }} />;
 
   const toggleExpand = (id: number) => {
     setExpandedOrders(prev => {
@@ -237,7 +252,7 @@ export default function Waiter() {
                       #{order.id} — {order.customerName}
                     </p>
                     <p className="text-xs text-gray-400">
-                      {new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {fmtTime(order.createdAt)}
                     </p>
                   </div>
                   <div className="text-right">

@@ -22,6 +22,20 @@
 
 ---
 
+## Implementation Phases
+
+The project is being developed in incremental phases. Below is the roadmap and current status.
+
+| Phase | Description | Core Files | Status |
+|------|-------------|------------|--------|
+| 1 – Database Migration | Add Guest, Visit, BrowserSession, Invoice, Receipt tables while keeping existing Customer/Orders compatible. | [api/db/schema.ts](api/db/schema.ts), [api/db/index.ts](api/db/index.ts) | ✅ Done |
+| 2 – Backend | Split domain logic into granular procedures (guest, visit, order, invoice, payment, kitchen, system) while keeping the router stable. | [api/routers/hotelRouter.ts](api/routers/hotelRouter.ts), [api/lib/trpc.ts](api/lib/trpc.ts) | 🚧 In Progress |
+| 3 – Frontend | Migrate Home to Guest Entry and Visit flow; keep Dashboard, Kitchen, Waiter working. | [src/pages/Home.tsx](src/pages/Home.tsx), [src/pages/Dashboard.tsx](src/pages/Dashboard.tsx) | 🚧 In Progress |
+| 4 – Realtime | Implement command/event catalog and wire socket updates; fallback to polling. | [specs/006-realtime.md](specs/006-realtime.md), [specs/018-event-catalog.md](specs/018-event-catalog.md) | ⏳ Planned |
+| 5 – Captive Portal | Add portal adapter for entry and session recovery; isolate vendor integrations. | [specs/009-captive-portal.md](specs/009-captive-portal.md), [specs/023-session-recovery.md](specs/023-session-recovery.md) | ⏳ Planned |
+| 6 – Testing | Add acceptance tests covering core business cycles, recovery, billing, and edge cases. | [specs/020-acceptance-criteria.md](specs/020-acceptance-criteria.md), [api/routers/auth.logout.test.ts](api/routers/auth.logout.test.ts) | ⏳ Planned |
+
+
 ## What Is This?
 
 **Smart Quetta Hotel** is a full-stack, self-hosted ordering and operations system built for Pakistani dhabas, restaurants, and small hotels. It replaces pen-and-paper order tracking with a clean digital workflow that runs on any device — phone, tablet, or desktop — with no internet connection required after setup.
@@ -154,6 +168,53 @@ The navigation bar is shown only on staff routes (`/dashboard`, `/kitchen`, `/wa
 
 **iOS (Safari)**
 1. Open in Safari → tap **Share** → **Add to Home Screen**
+
+---
+
+## Architecture Overview
+
+The application follows a clean **type‑safe, full‑stack** architecture, separating concerns between **API**, **Frontend**, and **Shared** utilities.
+
+### API (`api/`)
+
+| Submodule | Purpose | Key Files |
+|-----------|---------|-----------|
+| **db** | Prisma schema & migrations | [schema.ts](api/db/schema.ts) |
+| **lib** | Core server utilities (tRPC, sockets, SDK, env handling) | [trpc.ts](api/lib/trpc.ts), [socket.ts](api/lib/socket.ts) |
+| **middleware** | Request‑level concerns (rate limiting, auth) | [rateLimiter.ts](api/middleware/rateLimiter.ts) |
+| **routers** | Feature‑centric endpoints (auth, guest, hotel, order, payment, session) | [auth.router.ts](api/routers/auth.router.ts) |
+
+### Frontend (`src/`)
+
+| Submodule | Purpose | Key Files |
+|-----------|---------|-----------|
+| **components** | Re‑usable UI blocks (menus, cards, layouts) | [Card.tsx](src/components/Card.tsx) |
+| **hooks** | Data & auth hooks for React | [useAuth.ts](src/hooks/useAuth.ts) |
+| **pages** | Top‑level routes (Dashboard, Home, Kitchen, etc.) | [Dashboard.tsx](src/pages/Dashboard.tsx) |
+| **lib** | Helper libraries – constants, time utilities, shared types | [constants.ts](src/lib/constants.ts), [time.ts](src/lib/time.ts) |
+| **styles** | Global CSS & theme (dark mode, glassmorphism) | [globals.css](src/styles/globals.css) |
+| **utils** | Miscellaneous helpers (formatting, URL builders) | [format.ts](src/utils/format.ts) |
+
+### Shared (`src/shared/`)
+
+Common configuration constants and type definitions used across both API and UI, ensuring a **single source of truth** for enums, error codes, and feature flags.
+
+> **Why this matters** – Readers can instantly locate the entry point for any concern (e.g., authentication lives in `api/routers/auth.router.ts` and its client hook `src/hooks/useAuth.ts`). This reduces onboarding friction and aligns with the premium aesthetic you requested.
+
+---
+
+## Implementation Phases
+
+The roadmap is broken into six incremental phases. Each phase lists its scope, the core source files that drive it, and the current status.
+
+| Phase | Scope | Core Files | Status |
+|------|-------|------------|--------|
+| 1 – Database Migration | Add Guest, Visit, BrowserSession, Invoice, Receipt tables; keep compatibility with existing Customer/Order tables. | [api/db/schema.ts](api/db/schema.ts), [api/db/index.ts](api/db/index.ts), [api/routers/hotelRouter.ts](api/routers/hotelRouter.ts) | ⏳ Planned |
+| 2 – Backend | Split domain logic into guest, visit, order, invoice, payment, kitchen, system procedures; keep router stable. | [api/routers/hotelRouter.ts](api/routers/hotelRouter.ts), [api/routers/index.ts](api/routers/index.ts), [api/lib/trpc.ts](api/lib/trpc.ts), [api/lib/context.ts](api/lib/context.ts) | ⏳ Planned |
+| 3 – Frontend | Migrate Home into Guest/Visit flow while preserving Dashboard, Kitchen, Waiter screens. | [src/pages/Home.tsx](src/pages/Home.tsx), [src/pages/Dashboard.tsx](src/pages/Dashboard.tsx), [src/pages/Kitchen.tsx](src/pages/Kitchen.tsx), [src/pages/Waiter.tsx](src/pages/Waiter.tsx) | ⏳ Planned |
+| 4 – Realtime | Implement command/event catalog and wire socket events to persisted state transitions. | [specs/006-realtime.md](specs/006-realtime.md), [specs/018-event-catalog.md](specs/018-event-catalog.md), [api/routers/*.ts](api/routers) | ⏳ Planned |
+| 5 – Captive Portal | Add portal adapter, session recovery flow, and isolate vendor integrations. | [specs/009-captive-portal.md](specs/009-captive-portal.md), [specs/023-session-recovery.md](specs/023-session-recovery.md) | ⏳ Planned |
+| 6 – Testing | Acceptance tests for core business cycle, recovery, billing, and payment edge cases. | [specs/020-acceptance-criteria.md](specs/020-acceptance-criteria.md), [specs/027-error-handling.md](specs/027-error-handling.md), [api/routers/auth.logout.test.ts](api/routers/auth.logout.test.ts) | ⏳ Planned |
 
 ---
 

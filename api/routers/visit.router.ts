@@ -87,6 +87,23 @@ const resumeVisitInput = z.object({
 // ── router ────────────────────────────────────────────────────────────────────
 
 export const visitRouter = router({
+  /**
+   * Lightweight query to check if a stored visitId is still open.
+   * Used by Home.tsx on mount to verify a localStorage-restored session
+   * before trusting it — prevents serving a stale closed visitId.
+   */
+  getVisitStatus: publicProcedure
+    .input(z.object({ visitId: z.number() }))
+    .query(async ({ input }) => {
+      const db = getDb();
+      const visit = db
+        .select({ id: visits.id, status: visits.status, guestId: visits.guestId, ticketNo: visits.ticketNo })
+        .from(visits)
+        .where(eq(visits.id, input.visitId))
+        .all()[0];
+      return visit ?? null;
+    }),
+
   openVisit: publicProcedure
     .input(openVisitInput)
     .mutation(async ({ input }): Promise<DomainCommandResult<any>> => {

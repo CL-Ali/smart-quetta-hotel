@@ -40,7 +40,6 @@ export default function NavBar() {
       >
         {/* Logo */}
         <Logo size="md" showText={true} />
-
         {/* Desktop links */}
         <div
           className="nav-desktop-links"

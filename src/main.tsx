@@ -7,6 +7,7 @@ import superjson from "superjson";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import { getLoginUrl } from "./const";
+import { getDashboardPin } from "./lib/dashboardAuth";
 import "./index.css";
 
 // Register service worker — auto-updates in background
@@ -66,6 +67,14 @@ const trpcClient = trpc.createClient({
     httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,
+      // Dynamically read the PIN from sessionStorage on every request so it's
+      // picked up immediately after the user enters it on the PIN screen.
+      headers() {
+        const pin = getDashboardPin();
+        return {
+          ...(pin ? { "x-dashboard-pin": pin } : {}),
+        };
+      },
       fetch(input, init) {
         return globalThis.fetch(input, {
           ...(init ?? {}),

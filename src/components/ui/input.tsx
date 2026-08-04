@@ -2,6 +2,7 @@ import { useDialogComposition } from "@/components/ui/dialog";
 import { useComposition } from "@/hooks/useComposition";
 import { cn } from "@/lib/utils";
 import * as React from "react";
+import { useId } from "react";
 
 function Input({
   className,
@@ -13,6 +14,7 @@ function Input({
 }: React.ComponentProps<"input">) {
   // Get dialog composition context if available (will be no-op if not inside Dialog)
   const dialogComposition = useDialogComposition();
+  const generatedId = useId();
 
   // Add composition event handlers to support input method editor (IME) for CJK languages.
   const {

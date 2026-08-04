@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import React from "react";
 import { trpc } from "@/lib/trpc";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -6,7 +7,7 @@ import {
   Loader2, Banknote, Smartphone, Search,
   Package, Droplet, AlertTriangle, ChefHat, Plus,
   Hotel, ClipboardList, Boxes, Utensils, Clock,
-  UserCheck, Ban, CheckCircle2, Wallet, X,
+  UserCheck, Ban, CheckCircle2, Wallet, X, Users, Phone,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -26,6 +27,9 @@ import { useLang } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 import { NewOrderSheet } from "@/components/NewOrderSheet";
 import { useSocket } from "@/hooks/useSocket";
+import { fmtTime, fmtDate } from "@/lib/time";
+import { DashboardPinGate } from "@/components/DashboardPinGate";
+import { getDashboardPin, clearDashboardPin } from "@/lib/dashboardAuth";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -157,7 +161,7 @@ function PaymentSheet({ order, open, onClose, onDone }: {
                       {p.method === "cash" ? t.cash : (p.transactionId || t.bank)}
                     </span>
                     <p className="text-[10px] text-gray-400">
-                      {new Date(p.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {fmtTime(p.createdAt)}
                     </p>
                   </div>
                 </div>
@@ -320,7 +324,7 @@ type FilterKey = "all" | "unpaid" | "pending" | "ready" | "paid";
 
 export default function Dashboard() {
   const { t } = useLang();
-  const [tab, setTab] = useState<"orders" | "inventory" | "stock">("orders");
+  const [tab, setTab] = useState<"orders" | "inventory" | "stock" | "guests">("orders");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
   const [payOrder, setPayOrder] = useState<any>(null);
@@ -329,13 +333,29 @@ export default function Dashboard() {
   const [invEdits, setInvEdits] = useState<Record<number, string>>({});
   const [stockEdits, setStockEdits] = useState<Record<number, { total: number; inUse: number; broken: number }>>({});
 
-  const { data: orders, isLoading, refetch } =
-    trpc.hotel.getOrders.useQuery(undefined, { refetchInterval: 15000 });
-  const { data: invData, refetch: refetchInv } = trpc.hotel.getInventory.useQuery();
-  const { data: stockData, refetch: refetchStock } = trpc.hotel.getStock.useQuery();
-  const { data: cash, refetch: refetchCash } = trpc.hotel.getCashReport.useQuery(undefined, { refetchInterval: 15000 });
+  // ── PIN gate ─────────────────────────────────────────────────────────────
+  const [pinUnlocked, setPinUnlocked] = useState(() => !!getDashboardPin());
+  const pinErrorRef = React.useRef<((msg: string) => void) | null>(null);
 
-  // ── Realtime: subscribe to order and payment events ─────────────────────
+  const { data: orders, isLoading, refetch } =
+    trpc.hotel.getOrders.useQuery(undefined, {
+      refetchInterval: 15000,
+      enabled: pinUnlocked,
+      retry: (failureCount: number, err: any) => {
+        if (err?.data?.code === "UNAUTHORIZED") {
+          clearDashboardPin();
+          setPinUnlocked(false);
+          pinErrorRef.current?.("Incorrect PIN — try again");
+          return false;
+        }
+        return failureCount < 2;
+      },
+    });
+  const { data: invData, refetch: refetchInv } = trpc.hotel.getInventory.useQuery(undefined, { enabled: pinUnlocked });
+  const { data: stockData, refetch: refetchStock } = trpc.hotel.getStock.useQuery(undefined, { enabled: pinUnlocked });
+  const { data: cash, refetch: refetchCash } = trpc.hotel.getCashReport.useQuery(undefined, { refetchInterval: 15000, enabled: pinUnlocked });
+  const { data: guestsData, isLoading: guestsLoading } = trpc.guest.getGuests.useQuery(undefined, { refetchInterval: 30000, enabled: pinUnlocked });
+  const [guestSearch, setGuestSearch] = useState("");
   const socket = useSocket();
   useEffect(() => {
     const onOrderChange = () => refetch();
@@ -397,6 +417,11 @@ export default function Dashboard() {
   };
 
   if (isLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8" /></div>;
+
+  // Show PIN screen if not yet unlocked
+  if (!pinUnlocked) {
+    return <DashboardPinGate onUnlocked={(onErr) => { pinErrorRef.current = onErr; setPinUnlocked(true); }} />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -463,9 +488,10 @@ export default function Dashboard() {
         {/* Tab Buttons */}
         <div className="flex gap-1 bg-gray-200/80 rounded-xl p-1 mb-4">
           {[
-            { key: "orders", label: t.orders, icon: ClipboardList },
+            { key: "orders",    label: t.orders,    icon: ClipboardList },
+            { key: "guests",    label: "Guests",    icon: Users },
             { key: "inventory", label: t.inventory, icon: Boxes },
-            { key: "stock", label: t.stock, icon: Utensils }
+            { key: "stock",     label: t.stock,     icon: Utensils },
           ].map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -529,7 +555,7 @@ export default function Dashboard() {
                         </span>
                       </div>
                       <p className="font-semibold text-base mt-0.5">{order.customerName}</p>
-                      <p className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+                      <p className="text-xs text-gray-400">{fmtTime(order.createdAt)}</p>
                     </div>
                     <p className="text-xl font-bold text-orange-600">Rs. {(order.totalAmount ?? 0).toFixed(0)}</p>
                   </div>
@@ -583,7 +609,7 @@ export default function Dashboard() {
                               {p.method === "cash" ? t.cash : (p.transactionId || t.bank)}
                             </span>
                             <span className="text-[10px] text-gray-400">
-                              {new Date(p.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              {fmtTime(p.createdAt)}
                             </span>
                           </div>
                           <span className="text-xs font-bold text-gray-700">Rs. {(p.amount ?? 0).toFixed(0)}</span>
@@ -659,6 +685,133 @@ export default function Dashboard() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* ── Guests Tab ── */}
+        {tab === "guests" && (
+          <div className="space-y-3 pb-8">
+            {/* Search bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Search by name or phone…"
+                value={guestSearch}
+                onChange={e => setGuestSearch(e.target.value)}
+                className="pl-9 h-11 bg-white"
+              />
+            </div>
+
+            {guestsLoading && (
+              <div className="flex justify-center py-16">
+                <Loader2 className="animate-spin h-7 w-7 text-orange-500" />
+              </div>
+            )}
+
+            {!guestsLoading && (!guestsData || guestsData.length === 0) && (
+              <div className="text-center py-20 text-gray-400">
+                <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No guests yet</p>
+                <p className="text-xs mt-1 text-gray-400">Guests appear here after they place their first order</p>
+              </div>
+            )}
+
+            {!guestsLoading && guestsData && (() => {
+              const q = guestSearch.toLowerCase().trim();
+              const filtered = q
+                ? guestsData.filter(g =>
+                    g.name.toLowerCase().includes(q) ||
+                    (g.phone ?? "").includes(q)
+                  )
+                : guestsData;
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="text-center py-16 text-gray-400">
+                    <Search className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No guests match "{guestSearch}"</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2">
+                  {/* Summary row */}
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-2.5 text-center">
+                      <p className="text-lg font-black text-blue-700">{filtered.length}</p>
+                      <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">Guests</p>
+                    </div>
+                    <div className="bg-purple-50 border border-purple-100 rounded-xl p-2.5 text-center">
+                      <p className="text-lg font-black text-purple-700">
+                        {filtered.filter(g => g.visitCount > 1).length}
+                      </p>
+                      <p className="text-[10px] font-semibold text-purple-600 uppercase tracking-wider">Repeat</p>
+                    </div>
+                    <div className="bg-orange-50 border border-orange-100 rounded-xl p-2.5 text-center">
+                      <p className="text-lg font-black text-orange-700">
+                        {filtered.filter(g => g.phone).length}
+                      </p>
+                      <p className="text-[10px] font-semibold text-orange-600 uppercase tracking-wider">With Phone</p>
+                    </div>
+                  </div>
+
+                  {/* Guest cards */}
+                  {filtered.map(guest => (
+                    <div
+                      key={guest.id}
+                      className="bg-white border border-gray-100 rounded-2xl px-4 py-3 flex items-center gap-3"
+                    >
+                      {/* Avatar circle */}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-bold
+                        ${guest.visitCount > 2
+                          ? "bg-orange-100 text-orange-700"
+                          : "bg-gray-100 text-gray-600"
+                        }`}>
+                        {guest.name.charAt(0).toUpperCase()}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-semibold text-sm text-gray-900 truncate">{guest.name}</p>
+                          {guest.visitCount > 1 && (
+                            <span className="text-[10px] bg-orange-100 text-orange-700 font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                              Repeat
+                            </span>
+                          )}
+                        </div>
+                        {guest.phone ? (
+                          <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                            <Phone className="w-3 h-3 shrink-0" />
+                            {guest.phone}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-300 mt-0.5">No phone</p>
+                        )}
+                        {guest.lastVisit && (
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            Last visit: {fmtDate(guest.lastVisit)}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Stats */}
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold text-orange-600">
+                          Rs. {guest.totalSpend.toFixed(0)}
+                        </p>
+                        <p className="text-[10px] text-gray-400">
+                          {guest.visitCount} visit{guest.visitCount !== 1 ? "s" : ""}
+                          {" · "}
+                          {guest.orderCount} order{guest.orderCount !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
 

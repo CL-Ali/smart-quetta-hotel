@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
+import React from "react";
 import { trpc } from "@/lib/trpc";
 import { Loader2, Clock, ChefHat, Check, Coffee, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { useLang } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
+import { fmtTime } from "@/lib/time";
 import { useSocket } from "@/hooks/useSocket";
+import { DashboardPinGate } from "@/components/DashboardPinGate";
+import { getDashboardPin, clearDashboardPin } from "@/lib/dashboardAuth";
 
 // Item-level status badge colors
 const ITEM_STATUS: Record<string, { bg: string; text: string; label: string }> = {
@@ -17,10 +21,19 @@ const ITEM_STATUS: Record<string, { bg: string; text: string; label: string }> =
 export default function Kitchen() {
   const { t } = useLang();
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
-  const [loadingItems, setLoadingItems] = useState<Set<number>>(new Set()); // per-item loading
+  const [loadingItems, setLoadingItems] = useState<Set<number>>(new Set());
+  const [pinUnlocked, setPinUnlocked] = useState(() => !!getDashboardPin());
+  const pinErrorRef = React.useRef<((msg: string) => void) | null>(null);
 
   const { data: orders, isLoading, refetch } = trpc.hotel.getOrders.useQuery(
-    undefined, { refetchInterval: 15000 }   // fallback polling — socket is primary
+    undefined, {
+      refetchInterval: 15000,
+      enabled: pinUnlocked,
+      retry: (failureCount: number, err: any) => {
+        if (err?.data?.code === "UNAUTHORIZED") { clearDashboardPin(); setPinUnlocked(false); pinErrorRef.current?.("Incorrect PIN — try again"); return false; }
+        return failureCount < 2;
+      },
+    }
   );
   const updateItemStatus = trpc.hotel.updateItemStatus.useMutation();
   const updateOrderStatus = trpc.hotel.updateOrderStatus.useMutation();
@@ -38,6 +51,8 @@ export default function Kitchen() {
       socket.off("kitchen.ready",  handler);
     };
   }, [socket, refetch]);
+
+  if (!pinUnlocked) return <DashboardPinGate onUnlocked={(onErr) => { pinErrorRef.current = onErr; setPinUnlocked(true); }} />;
 
   const toggleExpand = (id: number) => {
     setExpandedOrders(prev => {
@@ -168,7 +183,7 @@ export default function Kitchen() {
                             order.status === "ready" ? "Ready" : "Pending"}
                         </span>
                         <span className="text-xs text-gray-400">
-                          {new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {fmtTime(order.createdAt)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">

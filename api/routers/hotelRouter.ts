@@ -1,4 +1,4 @@
-import { publicProcedure, router } from "../lib/trpc";
+import { publicProcedure, dashboardProcedure, router } from "../lib/trpc";
 import { getDb } from "../db";
 import {
   menuItems,
@@ -220,7 +220,7 @@ export const hotelRouter = router({
     }),
 
   // ── All orders (kitchen / waiter / dashboard) ────────────────────────────────
-  getOrders: publicProcedure.query(async () => {
+  getOrders: dashboardProcedure.query(async () => {
     const db = getDb();
     const allOrders = db
       .select()
@@ -256,7 +256,7 @@ export const hotelRouter = router({
   }),
 
   // ── Update item kitchen status ───────────────────────────────────────────────
-  updateItemStatus: publicProcedure
+  updateItemStatus: dashboardProcedure
     .input(
       z.object({
         itemId: z.number(),
@@ -373,7 +373,7 @@ export const hotelRouter = router({
     }),
 
   // ── Update order status ──────────────────────────────────────────────────────
-  updateOrderStatus: publicProcedure
+  updateOrderStatus: dashboardProcedure
     .input(z.object({ orderId: z.number(), status: z.string() }))
     .mutation(async ({ input }) => {
       const db = getDb();
@@ -390,7 +390,7 @@ export const hotelRouter = router({
     }),
 
   // ── Record payment ───────────────────────────────────────────────────────────
-  recordPayment: publicProcedure
+  recordPayment: dashboardProcedure
     .input(
       z.object({
         orderId: z.number(),
@@ -422,6 +422,7 @@ export const hotelRouter = router({
           method: input.method,
           status: "completed",
           transactionId: input.bankName ?? null,
+          receivedAt: new Date().toISOString(),
         })
         .run();
 
@@ -455,7 +456,7 @@ export const hotelRouter = router({
     }),
 
   // ── Order bill detail ────────────────────────────────────────────────────────
-  getOrderBill: publicProcedure
+  getOrderBill: dashboardProcedure
     .input(z.object({ orderId: z.number() }))
     .query(async ({ input }) => {
       const db = getDb();
@@ -480,11 +481,11 @@ export const hotelRouter = router({
     }),
 
   // ── Inventory ────────────────────────────────────────────────────────────────
-  getInventory: publicProcedure.query(async () => {
+  getInventory: dashboardProcedure.query(async () => {
     return getDb().select().from(inventory).all();
   }),
 
-  updateInventory: publicProcedure
+  updateInventory: dashboardProcedure
     .input(z.object({ inventoryId: z.number(), quantity: z.number() }))
     .mutation(async ({ input }) => {
       getDb()
@@ -499,11 +500,11 @@ export const hotelRouter = router({
     }),
 
   // ── Stock ────────────────────────────────────────────────────────────────────
-  getStock: publicProcedure.query(async () => {
+  getStock: dashboardProcedure.query(async () => {
     return getDb().select().from(stock).all();
   }),
 
-  updateStock: publicProcedure
+  updateStock: dashboardProcedure
     .input(
       z.object({
         stockId: z.number(),
@@ -529,7 +530,7 @@ export const hotelRouter = router({
     }),
 
   // ── Reports ──────────────────────────────────────────────────────────────────
-  getCashReport: publicProcedure.query(async () => {
+  getCashReport: dashboardProcedure.query(async () => {
     const db = getDb();
     const paidOrders = db
       .select()
@@ -559,7 +560,7 @@ export const hotelRouter = router({
     };
   }),
 
-  getEndOfDayReport: publicProcedure.query(async () => {
+  getEndOfDayReport: dashboardProcedure.query(async () => {
     const db = getDb();
     const dayOrders = db
       .select()

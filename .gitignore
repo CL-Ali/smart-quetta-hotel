@@ -103,7 +103,7 @@ tmp/
 temp/
 
 # Database
-*.db
+#*.db
 *.db-shm
 *.db-wal
 *.sqlite

@@ -16,8 +16,7 @@ export default function Logo({ size = "md", showText = true, className = "" }: L
   const { img, text } = sizes[size];
 
   return (
-    <Link href="/">
-      <a className={`flex items-center gap-2 select-none group ${className}`}>
+    <Link href="/" className={`flex items-center gap-2 select-none group ${className}`}>
         <img
           src="/logo.png"
           alt="Smart Quetta Hotel Logo"
@@ -39,7 +38,6 @@ export default function Logo({ size = "md", showText = true, className = "" }: L
             Smart Quetta Hotel
           </span>
         )}
-      </a>
     </Link>
   );
 }

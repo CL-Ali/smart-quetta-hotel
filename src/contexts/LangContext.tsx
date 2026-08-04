@@ -578,10 +578,11 @@ export type Translations = {
     : { [SubK in keyof typeof T["en"][K]]: string };
 };
 
-const LangContext = createContext<{ lang: Lang; t: Translations; setLang: (l: Lang) => void }>({
+const LangContext = createContext<{ lang: Lang; t: Translations; setLang: (l: Lang) => void; langSelected: boolean }>({
   lang: "en",
   t: T.en,
   setLang: () => {},
+  langSelected: false,
 });
 
 export function LangProvider({ children }: { children: ReactNode }) {
@@ -589,21 +590,26 @@ export function LangProvider({ children }: { children: ReactNode }) {
     return (localStorage.getItem("qh_lang") as Lang) ?? "en";
   });
 
+  // True if the user has explicitly picked a language at least once.
+  // Used by Home to decide whether to show the language-selection step.
+  const [langSelected, setLangSelectedState] = useState<boolean>(
+    () => !!localStorage.getItem("qh_lang")
+  );
+
   const setLang = (l: Lang) => {
     setLangState(l);
+    setLangSelectedState(true);
     localStorage.setItem("qh_lang", l);
   };
 
   useEffect(() => {
-    // Dynamic HTML text direction handling
-    // English is LTR. All other regional languages listed (Urdu, Pushto, Balochi, Brahui, Persian, Punjabi, Sindhi) write RTL.
     const isRtl = lang !== "en";
     document.documentElement.dir = isRtl ? "rtl" : "ltr";
     document.documentElement.lang = lang;
   }, [lang]);
 
   return (
-    <LangContext.Provider value={{ lang, t: T[lang], setLang }}>
+    <LangContext.Provider value={{ lang, t: T[lang], setLang, langSelected }}>
       {children}
     </LangContext.Provider>
   );

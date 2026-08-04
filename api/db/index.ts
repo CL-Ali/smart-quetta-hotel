@@ -265,7 +265,9 @@ function initSchema(sqlite: Database.Database) {
   addColumnIfMissing(
     "payments",
     "receivedAt",
-    "receivedAt TEXT NOT NULL DEFAULT (datetime('now'))"
+    // SQLite ALTER TABLE does not support datetime() as a column default.
+    // Nullable is safe — new rows set this explicitly in code.
+    "receivedAt TEXT"
   );
 
   // Seed default menu items if empty
