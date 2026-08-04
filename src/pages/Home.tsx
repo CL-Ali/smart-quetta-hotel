@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -10,15 +10,66 @@ import {
 import { useLang } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 
-const LS_NAME = "qh_customer_name";
-const LS_ID = "qh_customer_id";
+// ── localStorage keys ──────────────────────────────────────────────────────
+// Phase 3: new domain-aligned keys
+const LS_GUEST_NAME = "qh_guest_name";
+const LS_GUEST_ID   = "qh_guest_id";
+const LS_VISIT_ID   = "qh_visit_id";
+const LS_PREV_NAME  = "qh_previous_name";
+
+// Legacy keys (pre-Phase 3) — read-only for autofill hint fallback
+const LS_LEGACY_NAME = "qh_customer_name";
+const LS_LEGACY_ID   = "qh_customer_id";
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Read a numeric value from localStorage. Returns null if missing or invalid.
+ */
+function readStoredInt(key: string): number | null {
+  const s = localStorage.getItem(key);
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * Both guestId AND visitId must be present and positive integers for the
+ * stored session to be considered valid. If only one exists we treat the
+ * whole session as incomplete and restart the flow.
+ */
+function readStoredSession(): { guestId: number; visitId: number; guestName: string } | null {
+  const guestId  = readStoredInt(LS_GUEST_ID);
+  const visitId  = readStoredInt(LS_VISIT_ID);
+  const guestName = localStorage.getItem(LS_GUEST_NAME) ?? "";
+  if (guestId && visitId && guestName) return { guestId, visitId, guestName };
+  return null;
+}
+
+function clearStoredSession() {
+  localStorage.removeItem(LS_GUEST_NAME);
+  localStorage.removeItem(LS_GUEST_ID);
+  localStorage.removeItem(LS_VISIT_ID);
+  // Legacy keys — clear on explicit sign-out so they don't resurface
+  localStorage.removeItem(LS_LEGACY_NAME);
+  localStorage.removeItem(LS_LEGACY_ID);
+}
+
+function saveStoredSession(guestId: number, visitId: number, name: string) {
+  localStorage.setItem(LS_GUEST_NAME, name);
+  localStorage.setItem(LS_GUEST_ID,   String(guestId));
+  localStorage.setItem(LS_VISIT_ID,   String(visitId));
+  localStorage.setItem(LS_PREV_NAME,  name);
+}
+
+// ── OrderCard ──────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800",
+  pending:   "bg-yellow-100 text-yellow-800",
   preparing: "bg-blue-100 text-blue-800",
-  ready: "bg-green-100 text-green-800",
-  served: "bg-gray-200 text-gray-700",
-  paid: "bg-emerald-100 text-emerald-800",
+  ready:     "bg-green-100 text-green-800",
+  served:    "bg-gray-200 text-gray-700",
+  paid:      "bg-emerald-100 text-emerald-800",
   cancelled: "bg-red-100 text-red-800",
 };
 
@@ -82,57 +133,118 @@ function OrderCard({ order }: { order: any }) {
   );
 }
 
+// ── Home ───────────────────────────────────────────────────────────────────
+
 export default function Home() {
   const { t } = useLang();
 
-  const [customerName, setCustomerName] = useState(() => localStorage.getItem(LS_NAME) ?? "");
-  const [previousName, setPreviousName] = useState(() => localStorage.getItem("qh_previous_name") ?? "");
-  const [customerId, setCustomerId] = useState<number | null>(() => {
-    const s = localStorage.getItem(LS_ID); return s ? Number(s) : null;
-  });
-  const [cart, setCart] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"menu" | "history">("menu");
-  const [placing, setPlacing] = useState(false);
+  // ── Session state ──────────────────────────────────────────────────────
+  // Initialise from localStorage only when BOTH guestId and visitId are
+  // present. If only one key exists the session is incomplete — start fresh.
+  const storedSession = readStoredSession();
 
+  const [guestName,  setGuestName]  = useState(storedSession?.guestName ?? "");
+  const [guestId,    setGuestId]    = useState<number | null>(storedSession?.guestId ?? null);
+  const [visitId,    setVisitId]    = useState<number | null>(storedSession?.visitId ?? null);
+
+  // Autofill hint: prefer new key, fall back to legacy key
+  const [previousName, setPreviousName] = useState(
+    () => localStorage.getItem(LS_PREV_NAME) ?? localStorage.getItem(LS_LEGACY_NAME) ?? ""
+  );
+
+  const [cart,       setCart]       = useState<any[]>([]);
+  const [activeTab,  setActiveTab]  = useState<"menu" | "history">("menu");
+  const [placing,    setPlacing]    = useState(false);
+
+  // Guard against concurrent / double-tap submissions (idempotency)
+  const submittingRef = useRef(false);
+
+  // Derived: is the session fully established?
+  const sessionActive = guestId !== null && visitId !== null;
+
+  // ── tRPC queries ───────────────────────────────────────────────────────
   const { data: menu, isLoading: menuLoading } =
-    trpc.hotel.getMenu.useQuery(undefined, { enabled: !!customerId });
+    trpc.hotel.getMenu.useQuery(undefined, { enabled: sessionActive });
+
+  // Use guestName for order history — same backend query, backward compat
   const { data: myOrders, isLoading: ordersLoading, refetch: refetchOrders } =
     trpc.hotel.getCustomerOrders.useQuery(
-      { customerName }, { enabled: !!customerId, refetchInterval: 5000 }
+      { customerName: guestName },
+      { enabled: sessionActive && !!guestName, refetchInterval: 5000 }
     );
 
-  const getOrCreateCustomer = trpc.hotel.getOrCreateCustomer.useMutation();
-  const placeOrder = trpc.hotel.placeOrder.useMutation();
+  // ── tRPC mutations ─────────────────────────────────────────────────────
+  const createGuest = trpc.guest.createGuest.useMutation();
+  const openVisit   = trpc.visit.openVisit.useMutation();
+  const placeOrder  = trpc.hotel.placeOrder.useMutation();
 
+  // ── Sync effect: restore session on mount ─────────────────────────────
+  // Extra safety: if component mounts and localStorage has a valid session
+  // but state hasn't been set yet (edge case with strict-mode double invoke),
+  // restore it. No-op if already restored from useState initialiser.
   useEffect(() => {
-    const sn = localStorage.getItem(LS_NAME);
-    const si = localStorage.getItem(LS_ID);
-    if (sn && si && !customerId) { setCustomerName(sn); setCustomerId(Number(si)); }
+    if (!sessionActive) {
+      const s = readStoredSession();
+      if (s) {
+        setGuestName(s.guestName);
+        setGuestId(s.guestId);
+        setVisitId(s.visitId);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hasOrders = (myOrders?.length ?? 0) > 0;
-  const cartTotal = useMemo(() => cart.reduce((s, i) => s + i.price * i.quantity, 0), [cart]);
-  const cartCount = useMemo(() => cart.reduce((s, i) => s + i.quantity, 0), [cart]);
-  const getQty = (id: number) => cart.find(c => c.id === id)?.quantity ?? 0;
+  // ── Derived cart values ────────────────────────────────────────────────
+  const hasOrders  = (myOrders?.length ?? 0) > 0;
+  const cartTotal  = useMemo(() => cart.reduce((s, i) => s + i.price * i.quantity, 0), [cart]);
+  const cartCount  = useMemo(() => cart.reduce((s, i) => s + i.quantity, 0), [cart]);
+  const getQty     = (id: number) => cart.find(c => c.id === id)?.quantity ?? 0;
 
+  // ── Handlers ───────────────────────────────────────────────────────────
+
+  /**
+   * Entry flow: createGuest → openVisit
+   * Double-submission is prevented by both the mutation isPending flag and
+   * a ref guard that survives React re-renders within the same event flush.
+   */
   const handleSubmit = async () => {
-    if (!customerName.trim()) { toast.error("Enter your name"); return; }
+    if (!guestName.trim()) { toast.error("Enter your name"); return; }
+
+    // Idempotency guard — prevents double-tap / concurrent calls
+    if (submittingRef.current || createGuest.isPending || openVisit.isPending) return;
+    submittingRef.current = true;
+
     try {
-      const customer = await getOrCreateCustomer.mutateAsync({ name: customerName.trim() });
-      setCustomerId(customer.id);
-      localStorage.setItem(LS_NAME, customerName.trim());
-      localStorage.setItem("qh_previous_name", customerName.trim());
-      setPreviousName(customerName.trim());
-      localStorage.setItem(LS_ID, String(customer.id));
-      toast.success(`${t.welcome}, ${customerName}!`);
-    } catch { toast.error("Failed"); }
+      // Step 1: create (or resume) guest by name
+      const guestResult = await createGuest.mutateAsync({ name: guestName.trim() });
+      const newGuestId  = guestResult.data.id;
+
+      // Step 2: open a new visit for this guest
+      const visitResult = await openVisit.mutateAsync({ guestId: newGuestId });
+      const newVisitId  = visitResult.data.id;
+
+      // Persist session — both keys written atomically from the caller's POV
+      saveStoredSession(newGuestId, newVisitId, guestName.trim());
+      setPreviousName(guestName.trim());
+
+      setGuestId(newGuestId);
+      setVisitId(newVisitId);
+
+      toast.success(`${t.welcome}, ${guestName.trim()}!`);
+    } catch {
+      toast.error("Failed to start visit");
+    } finally {
+      submittingRef.current = false;
+    }
   };
 
+  /** Reset to name-entry screen and wipe the stored session. */
   const handleChangeName = () => {
-    setCustomerId(null);
+    setGuestId(null);
+    setVisitId(null);
+    setGuestName("");
     setCart([]);
-    localStorage.removeItem(LS_NAME);
-    localStorage.removeItem(LS_ID);
+    clearStoredSession();
   };
 
   const handleAdd = (item: any) => {
@@ -153,24 +265,29 @@ export default function Home() {
   };
 
   const handlePlaceOrder = async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0 || !guestId || !visitId) return;
     setPlacing(true);
     try {
       const result = await placeOrder.mutateAsync({
-        customerName,
-        customerId: customerId ?? undefined,
+        customerName: guestName,
+        customerId:   guestId,
+        visitId,
         items: cart.map(i => ({ menuItemId: i.id, quantity: i.quantity, unitPrice: i.price })),
       });
       toast.success(`${t.orderPlaced} #${result.orderId} 🎉`);
       setCart([]);
       refetchOrders();
       setActiveTab("history");
-    } catch { toast.error("Failed to place order"); }
+    } catch {
+      toast.error("Failed to place order");
+    }
     setPlacing(false);
   };
 
-  // ── Name entry ───────────────────────────────────────────────────────────
-  if (!customerId) {
+  // ── Name entry screen ──────────────────────────────────────────────────
+  if (!sessionActive) {
+    const isBusy = createGuest.isPending || openVisit.isPending || submittingRef.current;
+
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
         <div className="w-full max-w-sm">
@@ -187,30 +304,35 @@ export default function Home() {
           <div className="space-y-3">
             <Input
               placeholder={t.namePlaceholder}
-              value={customerName}
-              onChange={e => setCustomerName(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleSubmit()}
+              value={guestName}
+              onChange={e => setGuestName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !isBusy && handleSubmit()}
               className="h-14 text-lg text-center"
               autoFocus
+              disabled={isBusy}
             />
-            {previousName && customerName.trim() !== previousName.trim() && (
+
+            {/* Autofill hint — shows legacy name OR previous name if different */}
+            {previousName && guestName.trim() !== previousName.trim() && (
               <div className="flex justify-center">
                 <button
                   type="button"
-                  onClick={() => setCustomerName(previousName)}
-                  className="text-xs flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200/50 rounded-lg shadow-sm transition-all duration-200 cursor-pointer group"
+                  onClick={() => setGuestName(previousName)}
+                  disabled={isBusy}
+                  className="text-xs flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200/50 rounded-lg shadow-sm transition-all duration-200 cursor-pointer group disabled:opacity-50"
                 >
                   <span>{t.tapToAutofill}</span>
                   <span className="font-semibold underline group-hover:text-orange-950">{previousName}</span>
                 </button>
               </div>
             )}
+
             <button
               onClick={handleSubmit}
-              disabled={getOrCreateCustomer.isPending}
-              className="w-full h-14 bg-black hover:bg-black/90 active:scale-[0.98] transition-transform text-white text-lg font-semibold rounded-xl flex items-center justify-center cursor-pointer"
+              disabled={isBusy}
+              className="w-full h-14 bg-black hover:bg-black/90 active:scale-[0.98] transition-transform text-white text-lg font-semibold rounded-xl flex items-center justify-center cursor-pointer disabled:opacity-60"
             >
-              {getOrCreateCustomer.isPending ? <Loader2 className="animate-spin" /> : t.continueBtn}
+              {isBusy ? <Loader2 className="animate-spin" /> : t.continueBtn}
             </button>
           </div>
 
@@ -223,7 +345,7 @@ export default function Home() {
     );
   }
 
-  // ── Main app ─────────────────────────────────────────────────────────────
+  // ── Main app (session active) ──────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50" style={{ paddingBottom: cartCount > 0 ? "9rem" : "1.5rem" }}>
 
@@ -233,12 +355,14 @@ export default function Home() {
           <div className="flex justify-between items-center mb-3">
             <div>
               <h1 className="text-lg font-bold">{t.hotelName}</h1>
-              <p className="text-xs text-gray-500">{t.welcome}, {customerName}</p>
+              <p className="text-xs text-gray-500">{t.welcome}, {guestName}</p>
             </div>
             <div className="flex items-center gap-2">
               <LangSwitcher />
-              <button onClick={handleChangeName}
-                className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-500 hover:bg-gray-50">
+              <button
+                onClick={handleChangeName}
+                className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-500 hover:bg-gray-50"
+              >
                 {t.changeName}
               </button>
             </div>
@@ -246,8 +370,10 @@ export default function Home() {
 
           {/* Tab bar */}
           <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-            <button onClick={() => setActiveTab("menu")}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${activeTab === "menu" ? "bg-white shadow text-black" : "text-gray-500"}`}>
+            <button
+              onClick={() => setActiveTab("menu")}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${activeTab === "menu" ? "bg-white shadow text-black" : "text-gray-500"}`}
+            >
               {t.menu}
             </button>
             <button
@@ -307,13 +433,17 @@ export default function Home() {
                             </button>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <button onClick={() => handleDec(item.id)}
-                                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
+                              <button
+                                onClick={() => handleDec(item.id)}
+                                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"
+                              >
                                 <Minus className="w-3.5 h-3.5" />
                               </button>
                               <span className="w-5 text-center font-bold text-sm">{qty}</span>
-                              <button onClick={() => handleAdd(item)}
-                                className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center hover:bg-gray-800">
+                              <button
+                                onClick={() => handleAdd(item)}
+                                className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center hover:bg-gray-800"
+                              >
                                 <Plus className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -356,8 +486,10 @@ export default function Home() {
                   <span className="font-medium">{item.name} <span className="text-gray-400">×{item.quantity}</span></span>
                   <div className="flex items-center gap-2">
                     <span className="text-orange-600 font-semibold">Rs. {(item.price * item.quantity).toFixed(0)}</span>
-                    <button onClick={() => setCart(c => c.filter(i => i.id !== item.id))}
-                      className="text-gray-300 hover:text-red-400">
+                    <button
+                      onClick={() => setCart(c => c.filter(i => i.id !== item.id))}
+                      className="text-gray-300 hover:text-red-400"
+                    >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>

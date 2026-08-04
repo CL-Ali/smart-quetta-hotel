@@ -100,6 +100,8 @@ export const hotelRouter = router({
         seatingAreaId: z.number().optional(),
         customerName: z.string(),
         customerId: z.number().optional(),
+        // Phase 3: link order to a Visit when available; optional for backward compat
+        visitId: z.number().optional(),
         items: z.array(
           z.object({
             menuItemId: z.number(),
@@ -154,6 +156,10 @@ export const hotelRouter = router({
             totalAmount: newTotal,
             paymentStatus: newPaymentStatus,
             status: newOrderStatus,
+            // Stamp visitId if provided and not already set on this order
+            ...(input.visitId != null && existingOrders[0].visitId == null
+              ? { visitId: input.visitId }
+              : {}),
             updatedAt: new Date().toISOString(),
           })
           .where(eq(orders.id, existingOrders[0].id))
@@ -175,6 +181,7 @@ export const hotelRouter = router({
             customerId: validCustomerId,
             seatingAreaId: input.seatingAreaId ?? null,
             customerName: input.customerName,
+            visitId: input.visitId ?? null,
             totalAmount,
             status: "pending",
             paymentStatus: "unpaid",
