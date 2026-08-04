@@ -10,6 +10,7 @@ import {
   findVisitById,
   type DomainCommandResult,
 } from "../lib/domain";
+import { getIo, SOCKET_EVENT } from "../lib/socket";
 
 const openVisitInput = z.object({
   guestId: z.number(),
@@ -38,7 +39,7 @@ export const visitRouter = router({
         .returning()
         .all()[0];
 
-      return {
+      const result: DomainCommandResult<any> = {
         command: { name: "OpenVisit", occurredAt: new Date().toISOString() },
         events: [
           createDomainEvent({
@@ -50,6 +51,9 @@ export const visitRouter = router({
         ],
         data: inserted,
       };
+
+      getIo()?.emit(SOCKET_EVENT.VisitOpened, { visitId: inserted.id, guestId: input.guestId });
+      return result;
     }),
 
   closeVisit: publicProcedure
@@ -66,7 +70,7 @@ export const visitRouter = router({
           .returning()
           .all()[0] ?? current;
 
-      return {
+      const result: DomainCommandResult<any> = {
         command: { name: "CloseVisit", occurredAt: new Date().toISOString() },
         events: [
           createDomainEvent({
@@ -78,5 +82,8 @@ export const visitRouter = router({
         ],
         data: updated,
       };
+
+      getIo()?.emit(SOCKET_EVENT.VisitClosed, { visitId: updated.id });
+      return result;
     }),
 });

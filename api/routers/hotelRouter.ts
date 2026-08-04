@@ -18,6 +18,7 @@ import {
   listOrderItemsWithMenuForOrder,
   settleBalance,
 } from "../lib/domain";
+import { getIo, SOCKET_EVENT } from "../lib/socket";
 
 export const hotelRouter = router({
   // ── Menu ────────────────────────────────────────────────────────────────────
@@ -210,6 +211,11 @@ export const hotelRouter = router({
           .run();
       }
 
+      getIo()?.emit(SOCKET_EVENT.OrderCreated, {
+        orderId,
+        customerName: input.customerName,
+        visitId: input.visitId ?? null,
+      });
       return { success: true, orderId };
     }),
 
@@ -352,6 +358,17 @@ export const hotelRouter = router({
         .where(eq(orders.id, orderId))
         .run();
 
+      // Emit the most specific event for this status transition.
+      // kitchen.ready fires when any item reaches ready; order.updated covers all other transitions.
+      const socketEvent = finalStatus === "ready"
+        ? SOCKET_EVENT.OrderReady
+        : SOCKET_EVENT.OrderServed;
+      getIo()?.emit(socketEvent, {
+        itemId: input.itemId,
+        orderId,
+        kitchenStatus: finalStatus,
+      });
+
       return { success: true, newServedQty, finalStatus, newOrderStatus };
     }),
 
@@ -364,6 +381,11 @@ export const hotelRouter = router({
         .set({ status: input.status, updatedAt: new Date().toISOString() })
         .where(eq(orders.id, input.orderId))
         .run();
+
+      getIo()?.emit(SOCKET_EVENT.OrderAccepted, {
+        orderId: input.orderId,
+        status: input.status,
+      });
       return { success: true };
     }),
 
@@ -417,6 +439,12 @@ export const hotelRouter = router({
         })
         .where(eq(orders.id, input.orderId))
         .run();
+
+      getIo()?.emit(SOCKET_EVENT.PaymentReceived, {
+        orderId: input.orderId,
+        amount: input.amount,
+        paymentStatus: newPaymentStatus,
+      });
 
       return {
         success: true,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { useLang } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 import { NewOrderSheet } from "@/components/NewOrderSheet";
+import { useSocket } from "@/hooks/useSocket";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -329,10 +330,27 @@ export default function Dashboard() {
   const [stockEdits, setStockEdits] = useState<Record<number, { total: number; inUse: number; broken: number }>>({});
 
   const { data: orders, isLoading, refetch } =
-    trpc.hotel.getOrders.useQuery(undefined, { refetchInterval: 4000 });
+    trpc.hotel.getOrders.useQuery(undefined, { refetchInterval: 15000 });
   const { data: invData, refetch: refetchInv } = trpc.hotel.getInventory.useQuery();
   const { data: stockData, refetch: refetchStock } = trpc.hotel.getStock.useQuery();
-  const { data: cash } = trpc.hotel.getCashReport.useQuery(undefined, { refetchInterval: 6000 });
+  const { data: cash, refetch: refetchCash } = trpc.hotel.getCashReport.useQuery(undefined, { refetchInterval: 15000 });
+
+  // ── Realtime: subscribe to order and payment events ─────────────────────
+  const socket = useSocket();
+  useEffect(() => {
+    const onOrderChange = () => refetch();
+    const onPayment     = () => { refetch(); refetchCash(); };
+    socket.on("order.created",   onOrderChange);
+    socket.on("order.updated",   onOrderChange);
+    socket.on("kitchen.ready",   onOrderChange);
+    socket.on("payment.received", onPayment);
+    return () => {
+      socket.off("order.created",   onOrderChange);
+      socket.off("order.updated",   onOrderChange);
+      socket.off("kitchen.ready",   onOrderChange);
+      socket.off("payment.received", onPayment);
+    };
+  }, [socket, refetch, refetchCash]);
 
   const updateStatus = trpc.hotel.updateOrderStatus.useMutation();
   const updateInv = trpc.hotel.updateInventory.useMutation();

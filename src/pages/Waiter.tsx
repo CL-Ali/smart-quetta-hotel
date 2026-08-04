@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Loader2, Utensils, Coffee, Check, UserCheck, ChevronDown, ChevronUp } from "lucide-react";
 import { FloatingAddButton } from "@/components/FloatingAddButton";
@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useLang } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 import { NewOrderSheet } from "@/components/NewOrderSheet";
+import { useSocket } from "@/hooks/useSocket";
 
 export default function Waiter() {
   const { t } = useLang();
@@ -14,9 +15,23 @@ export default function Waiter() {
   const [serving, setServing] = useState<Set<number>>(new Set()); // itemIds being processed
 
   const { data: orders, isLoading, refetch } = trpc.hotel.getOrders.useQuery(
-    undefined, { refetchInterval: 3000 }
+    undefined, { refetchInterval: 15000 }   // fallback polling — socket is primary
   );
   const updateItemStatus = trpc.hotel.updateItemStatus.useMutation();
+
+  // ── Realtime: refetch when kitchen marks items ready or order changes ───
+  const socket = useSocket();
+  useEffect(() => {
+    const handler = () => refetch();
+    socket.on("kitchen.ready",  handler);
+    socket.on("order.updated",  handler);
+    socket.on("order.created",  handler);
+    return () => {
+      socket.off("kitchen.ready",  handler);
+      socket.off("order.updated",  handler);
+      socket.off("order.created",  handler);
+    };
+  }, [socket, refetch]);
 
   const toggleExpand = (id: number) => {
     setExpandedOrders(prev => {

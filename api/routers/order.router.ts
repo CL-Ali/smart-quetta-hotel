@@ -14,6 +14,7 @@ import {
   getOrderEventName,
   type DomainCommandResult,
 } from "../lib/domain";
+import { getIo, SOCKET_EVENT } from "../lib/socket";
 
 const createOrderInput = z.object({
   visitId: z.number(),
@@ -87,7 +88,7 @@ export const orderRouter = router({
           .all()[0];
       });
 
-      return {
+      const createResult: DomainCommandResult<any> = {
         command: { name: "CreateOrder", occurredAt: new Date().toISOString() },
         events: [
           createDomainEvent({
@@ -99,6 +100,13 @@ export const orderRouter = router({
         ],
         data: { order: inserted, items: insertedItems },
       };
+
+      getIo()?.emit(SOCKET_EVENT.OrderCreated, {
+        orderId: inserted.id,
+        visitId: input.visitId,
+        customerName: inserted.customerName,
+      });
+      return createResult;
     }),
 
   updateOrder: publicProcedure
@@ -126,11 +134,12 @@ export const orderRouter = router({
           .returning()
           .all()[0] ?? current;
 
-      return {
+      const eventName = getOrderEventName(nextStatus);
+      const updateResult: DomainCommandResult<any> = {
         command: { name: "UpdateOrder", occurredAt: new Date().toISOString() },
         events: [
           createDomainEvent({
-            name: getOrderEventName(nextStatus),
+            name: eventName,
             entityId: updated.id,
             entityType: "order",
             payload: { status: nextStatus },
@@ -138,6 +147,9 @@ export const orderRouter = router({
         ],
         data: updated,
       };
+
+      getIo()?.emit(SOCKET_EVENT[eventName], { orderId: updated.id, status: nextStatus });
+      return updateResult;
     }),
 
   getOrders: publicProcedure.query(async () => {

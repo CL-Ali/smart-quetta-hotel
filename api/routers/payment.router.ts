@@ -11,6 +11,7 @@ import {
   settleBalance,
   type DomainCommandResult,
 } from "../lib/domain";
+import { getIo, SOCKET_EVENT } from "../lib/socket";
 
 const receivePaymentInput = z.object({
   invoiceId: z.number(),
@@ -70,7 +71,7 @@ export const paymentRouter = router({
         .returning()
         .all()[0];
 
-      return {
+      const paymentResult: DomainCommandResult<any> = {
         command: {
           name: "ReceivePayment",
           occurredAt: new Date().toISOString(),
@@ -92,5 +93,13 @@ export const paymentRouter = router({
           invoice: { ...invoice, ...settlement },
         },
       };
+
+      getIo()?.emit(SOCKET_EVENT.PaymentReceived, {
+        invoiceId: input.invoiceId,
+        paymentId: insertedPayment.id,
+        amount: input.amount,
+        receiptNo: insertedReceipt.receiptNo,
+      });
+      return paymentResult;
     }),
 });

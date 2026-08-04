@@ -15,6 +15,7 @@ import {
   listOrdersForVisit,
   type DomainCommandResult,
 } from "../lib/domain";
+import { getIo, SOCKET_EVENT } from "../lib/socket";
 
 const invoiceInput = z.object({ visitId: z.number() });
 
@@ -57,7 +58,7 @@ export const invoiceRouter = router({
         .returning()
         .all()[0];
 
-      return {
+      const invoiceResult: DomainCommandResult<any> = {
         command: {
           name: "GenerateInvoice",
           occurredAt: new Date().toISOString(),
@@ -72,6 +73,13 @@ export const invoiceRouter = router({
         ],
         data: inserted,
       };
+
+      getIo()?.emit(SOCKET_EVENT.InvoiceGenerated, {
+        invoiceId: inserted.id,
+        visitId: input.visitId,
+        total: inserted.total,
+      });
+      return invoiceResult;
     }),
 
   getInvoice: publicProcedure

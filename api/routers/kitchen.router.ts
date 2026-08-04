@@ -7,6 +7,7 @@ import {
   getOrderEventName,
   type DomainCommandResult,
 } from "../lib/domain";
+import { getIo, SOCKET_EVENT } from "../lib/socket";
 import { z } from "zod";
 
 export const kitchenRouter = router({
@@ -51,14 +52,15 @@ export const kitchenRouter = router({
           .returning()
           .all()[0] ?? current;
 
-      return {
+      const kitchenEventName = getOrderEventName(input.status);
+      const kitchenResult: DomainCommandResult<any> = {
         command: {
           name: "UpdateKitchenStatus",
           occurredAt: new Date().toISOString(),
         },
         events: [
           createDomainEvent({
-            name: getOrderEventName(input.status),
+            name: kitchenEventName,
             entityId: updatedItem.id,
             entityType: "order",
             payload: { status: input.status },
@@ -66,5 +68,12 @@ export const kitchenRouter = router({
         ],
         data: updatedItem,
       };
+
+      getIo()?.emit(SOCKET_EVENT[kitchenEventName], {
+        itemId: updatedItem.id,
+        orderId: updatedItem.orderId,
+        status: input.status,
+      });
+      return kitchenResult;
     }),
 });

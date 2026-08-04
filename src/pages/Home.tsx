@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useLang } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
+import { useSocket } from "@/hooks/useSocket";
 
 // ── localStorage keys ──────────────────────────────────────────────────────
 // Phase 3: new domain-aligned keys
@@ -172,7 +173,7 @@ export default function Home() {
   const { data: myOrders, isLoading: ordersLoading, refetch: refetchOrders } =
     trpc.hotel.getCustomerOrders.useQuery(
       { customerName: guestName },
-      { enabled: sessionActive && !!guestName, refetchInterval: 5000 }
+      { enabled: sessionActive && !!guestName, refetchInterval: 15000 }
     );
 
   // ── tRPC mutations ─────────────────────────────────────────────────────
@@ -195,6 +196,19 @@ export default function Home() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Realtime: keep order history live for this guest ───────────────────
+  const socket = useSocket();
+  useEffect(() => {
+    if (!sessionActive) return;
+    const handler = () => refetchOrders();
+    socket.on("order.updated", handler);
+    socket.on("order.created", handler);
+    return () => {
+      socket.off("order.updated", handler);
+      socket.off("order.created", handler);
+    };
+  }, [socket, sessionActive, refetchOrders]);
 
   // ── Derived cart values ────────────────────────────────────────────────
   const hasOrders  = (myOrders?.length ?? 0) > 0;

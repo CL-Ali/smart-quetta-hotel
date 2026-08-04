@@ -10,6 +10,7 @@ import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Kitchen from "./pages/Kitchen";
 import Waiter from "./pages/Waiter";
+import { useSocket } from "./hooks/useSocket";
 
 // NavBar is only shown on staff-facing routes (dashboard, kitchen, waiter)
 const STAFF_ROUTES = ["/dashboard", "/kitchen", "/waiter"];
@@ -34,6 +35,13 @@ function Router() {
   );
 }
 
+// Opens the Socket.io connection once for the entire app lifetime.
+// Individual pages call useSocket() to get the same instance and attach listeners.
+function SocketOwner() {
+  useSocket({ owner: true });
+  return null;
+}
+
 function App() {
   return (
     <ErrorBoundary>
@@ -41,6 +49,7 @@ function App() {
         <LangProvider>
           <TooltipProvider>
             <Toaster />
+            <SocketOwner />
             <Router />
           </TooltipProvider>
         </LangProvider>
