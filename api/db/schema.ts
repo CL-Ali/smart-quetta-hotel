@@ -79,6 +79,9 @@ export const visits = sqliteTable("visits", {
     .references(() => guests.id)
     .notNull(),
   tableNo: text("tableNo"),
+  // Server-issued recovery ticket — VIS-{id}-{48-bit hex}. Shown to guest at
+  // visit open; also encoded in QR code. High-entropy opaque token.
+  ticketNo: text("ticketNo"),
   status: text("status").default("created").notNull(),
   startedAt: text("startedAt")
     .default(sql`(datetime('now'))`)

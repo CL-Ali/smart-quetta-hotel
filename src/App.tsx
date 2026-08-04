@@ -10,6 +10,7 @@ import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Kitchen from "./pages/Kitchen";
 import Waiter from "./pages/Waiter";
+import Portal from "./pages/Portal";
 import { useSocket } from "./hooks/useSocket";
 
 // NavBar is only shown on staff-facing routes (dashboard, kitchen, waiter)
@@ -24,6 +25,7 @@ function Router() {
       {isStaffRoute && <NavBar />}
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/portal" component={Portal} />
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/kitchen" component={Kitchen} />
         <Route path="/waiter" component={Waiter} />

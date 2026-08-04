@@ -13,10 +13,12 @@ import { useSocket } from "@/hooks/useSocket";
 
 // ── localStorage keys ──────────────────────────────────────────────────────
 // Phase 3: new domain-aligned keys
-const LS_GUEST_NAME = "qh_guest_name";
-const LS_GUEST_ID   = "qh_guest_id";
-const LS_VISIT_ID   = "qh_visit_id";
-const LS_PREV_NAME  = "qh_previous_name";
+const LS_GUEST_NAME  = "qh_guest_name";
+const LS_GUEST_ID    = "qh_guest_id";
+const LS_VISIT_ID    = "qh_visit_id";
+const LS_PREV_NAME   = "qh_previous_name";
+// Phase 5: server-issued cookie hash for session resume (UUID v4, 122 bits)
+const LS_COOKIE_HASH = "qh_cookie_hash";
 
 // Legacy keys (pre-Phase 3) — read-only for autofill hint fallback
 const LS_LEGACY_NAME = "qh_customer_name";
@@ -51,6 +53,7 @@ function clearStoredSession() {
   localStorage.removeItem(LS_GUEST_NAME);
   localStorage.removeItem(LS_GUEST_ID);
   localStorage.removeItem(LS_VISIT_ID);
+  localStorage.removeItem(LS_COOKIE_HASH);
   // Clear previous name so it does not surface as autofill hint for the next guest
   localStorage.removeItem(LS_PREV_NAME);
   // Legacy keys — clear on explicit sign-out so they don't resurface
@@ -58,11 +61,12 @@ function clearStoredSession() {
   localStorage.removeItem(LS_LEGACY_ID);
 }
 
-function saveStoredSession(guestId: number, visitId: number, name: string) {
-  localStorage.setItem(LS_GUEST_NAME, name);
-  localStorage.setItem(LS_GUEST_ID,   String(guestId));
-  localStorage.setItem(LS_VISIT_ID,   String(visitId));
-  localStorage.setItem(LS_PREV_NAME,  name);
+function saveStoredSession(guestId: number, visitId: number, name: string, cookieHash: string) {
+  localStorage.setItem(LS_GUEST_NAME,  name);
+  localStorage.setItem(LS_GUEST_ID,    String(guestId));
+  localStorage.setItem(LS_VISIT_ID,    String(visitId));
+  localStorage.setItem(LS_COOKIE_HASH, cookieHash);
+  localStorage.setItem(LS_PREV_NAME,   name);
 }
 
 // ── OrderCard ──────────────────────────────────────────────────────────────
@@ -179,6 +183,7 @@ export default function Home() {
   // ── tRPC mutations ─────────────────────────────────────────────────────
   const createGuest = trpc.guest.createGuest.useMutation();
   const openVisit   = trpc.visit.openVisit.useMutation();
+  const resumeVisit = trpc.visit.resumeVisit.useMutation();
   const placeOrder  = trpc.hotel.placeOrder.useMutation();
 
   // ── Sync effect: restore session on mount ─────────────────────────────
@@ -196,6 +201,83 @@ export default function Home() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Phase 5: URL-param and cookie resume flow ─────────────────────────
+  // Decision tree on mount (runs only when sessionActive is false):
+  //
+  // 1. Valid Phase 3 localStorage (guestId + visitId + guestName) present
+  //    → Already restored by useState initialiser → sessionActive = true
+  //    → This effect never runs (guard at top).
+  //
+  // 2. ?ticket= in URL, no valid localStorage session
+  //    → Call resumeVisit({ ticketNo }) to restore from server
+  //    → On success: write full session to localStorage
+  //    → On failure: only remove the ticket param — DO NOT clear other keys
+  //
+  // 3. qh_cookie_hash in localStorage, no valid guestId/visitId
+  //    → Call resumeVisit({ cookieHash }) to restore from server
+  //    → On success: write full session to localStorage
+  //    → On failure: remove ONLY qh_cookie_hash (stale token) — DO NOT clear
+  //      guestId/visitId/guestName if they exist, those are still valid
+  //
+  // clearStoredSession() is NEVER called here — only handleChangeName()
+  // (explicit user action) should wipe the whole session.
+  useEffect(() => {
+    if (sessionActive) return; // Phase 3 keys valid — nothing to do
+
+    const params     = new URLSearchParams(window.location.search);
+    const ticket     = params.get("ticket");
+    const cookieHash = localStorage.getItem(LS_COOKIE_HASH);
+
+    // No resume token available at all — show name-entry screen
+    if (!ticket && !cookieHash) return;
+
+    let cancelled = false;
+
+    const attempt = async () => {
+      try {
+        const result = await resumeVisit.mutateAsync(
+          ticket ? { ticketNo: ticket } : { cookieHash: cookieHash! }
+        );
+
+        if (cancelled) return;
+
+        const { visit, guest, cookieHash: newCookieHash } = result.data;
+
+        saveStoredSession(guest.id, visit.id, guest.name, newCookieHash);
+        setPreviousName(guest.name);
+        setGuestId(guest.id);
+        setVisitId(visit.id);
+        setGuestName(guest.name);
+
+        // Clean ?ticket= from URL without reload
+        if (ticket) {
+          const cleanUrl = window.location.pathname + window.location.hash;
+          window.history.replaceState(null, "", cleanUrl);
+        }
+      } catch {
+        // Resume failed. Distinguish the failure cause:
+        //
+        // - If this was a TICKET attempt: the ticket may be expired/invalid.
+        //   Do not clear anything — the guest may still have valid Phase 3
+        //   keys in localStorage. Just fall through to name-entry screen.
+        //
+        // - If this was a COOKIE attempt: the cookieHash is stale (the
+        //   BrowserSession was expired or deleted on the server). Remove ONLY
+        //   the stale cookieHash — never touch guestId/visitId/guestName.
+        //   If those keys are present the Phase 3 restore path will use them
+        //   on next mount.
+        if (!ticket && cookieHash) {
+          localStorage.removeItem(LS_COOKIE_HASH);
+        }
+        // Fall through to name-entry screen. No clearStoredSession() call.
+      }
+    };
+
+    attempt();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionActive]);
 
   // ── Realtime: keep order history live for this guest ───────────────────
   const socket = useSocket();
@@ -238,9 +320,10 @@ export default function Home() {
       // Step 2: open a new visit for this guest
       const visitResult = await openVisit.mutateAsync({ guestId: newGuestId });
       const newVisitId  = visitResult.data.id;
+      const cookieHash  = visitResult.data.cookieHash as string;
 
       // Persist session — both keys written atomically from the caller's POV
-      saveStoredSession(newGuestId, newVisitId, guestName.trim());
+      saveStoredSession(newGuestId, newVisitId, guestName.trim(), cookieHash);
       setPreviousName(guestName.trim());
 
       setGuestId(newGuestId);
@@ -304,60 +387,70 @@ export default function Home() {
   // ── Name entry screen ──────────────────────────────────────────────────
   if (!sessionActive) {
     const isBusy = createGuest.isPending || openVisit.isPending || submittingRef.current;
+    // Show spinner while a background resume attempt is running
+    const isResuming = resumeVisit.isPending;
 
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-8 flex flex-col items-center">
-            <div className="p-4 bg-orange-50 text-orange-600 rounded-full mb-3 shadow-inner">
-              <Hotel className="w-10 h-10" />
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight">{t.hotelName}</h1>
-            <p className="text-sm text-gray-500 mt-1">{t.enterName}</p>
+        {/* Resume spinner — shown while background cookie/ticket recovery runs */}
+        {isResuming ? (
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="animate-spin h-10 w-10 text-orange-500" />
+            <p className="text-sm text-gray-500">Resuming your visit…</p>
           </div>
-
-          <LangSwitcher className="justify-center mb-6" />
-
-          <div className="space-y-3">
-            <Input
-              placeholder={t.namePlaceholder}
-              value={guestName}
-              onChange={e => setGuestName(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && !isBusy && handleSubmit()}
-              className="h-14 text-lg text-center"
-              autoFocus
-              disabled={isBusy}
-            />
-
-            {/* Autofill hint — shows legacy name OR previous name if different */}
-            {previousName && guestName.trim() !== previousName.trim() && (
-              <div className="flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => setGuestName(previousName)}
-                  disabled={isBusy}
-                  className="text-xs flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200/50 rounded-lg shadow-sm transition-all duration-200 cursor-pointer group disabled:opacity-50"
-                >
-                  <span>{t.tapToAutofill}</span>
-                  <span className="font-semibold underline group-hover:text-orange-950">{previousName}</span>
-                </button>
+        ) : (
+          <div className="w-full max-w-sm">
+            <div className="text-center mb-8 flex flex-col items-center">
+              <div className="p-4 bg-orange-50 text-orange-600 rounded-full mb-3 shadow-inner">
+                <Hotel className="w-10 h-10" />
               </div>
-            )}
+              <h1 className="text-3xl font-bold tracking-tight">{t.hotelName}</h1>
+              <p className="text-sm text-gray-500 mt-1">{t.enterName}</p>
+            </div>
 
-            <button
-              onClick={handleSubmit}
-              disabled={isBusy}
-              className="w-full h-14 bg-black hover:bg-black/90 active:scale-[0.98] transition-transform text-white text-lg font-semibold rounded-xl flex items-center justify-center cursor-pointer disabled:opacity-60"
-            >
-              {isBusy ? <Loader2 className="animate-spin" /> : t.continueBtn}
-            </button>
-          </div>
+            <LangSwitcher className="justify-center mb-6" />
 
-          <div className="mt-6 p-3 bg-orange-50 rounded-xl border border-orange-100 flex items-center justify-center gap-2">
-            <Flame className="w-4 h-4 text-orange-600 animate-pulse shrink-0" />
-            <p className="text-xs text-gray-600">Cricket Live: Pakistan needs 40 runs in 5 overs</p>
+            <div className="space-y-3">
+              <Input
+                placeholder={t.namePlaceholder}
+                value={guestName}
+                onChange={e => setGuestName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && !isBusy && handleSubmit()}
+                className="h-14 text-lg text-center"
+                autoFocus
+                disabled={isBusy}
+              />
+
+              {/* Autofill hint — shows legacy name OR previous name if different */}
+              {previousName && guestName.trim() !== previousName.trim() && (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setGuestName(previousName)}
+                    disabled={isBusy}
+                    className="text-xs flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200/50 rounded-lg shadow-sm transition-all duration-200 cursor-pointer group disabled:opacity-50"
+                  >
+                    <span>{t.tapToAutofill}</span>
+                    <span className="font-semibold underline group-hover:text-orange-950">{previousName}</span>
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={handleSubmit}
+                disabled={isBusy}
+                className="w-full h-14 bg-black hover:bg-black/90 active:scale-[0.98] transition-transform text-white text-lg font-semibold rounded-xl flex items-center justify-center cursor-pointer disabled:opacity-60"
+              >
+                {isBusy ? <Loader2 className="animate-spin" /> : t.continueBtn}
+              </button>
+            </div>
+
+            <div className="mt-6 p-3 bg-orange-50 rounded-xl border border-orange-100 flex items-center justify-center gap-2">
+              <Flame className="w-4 h-4 text-orange-600 animate-pulse shrink-0" />
+              <p className="text-xs text-gray-600">Cricket Live: Pakistan needs 40 runs in 5 overs</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }

@@ -235,6 +235,9 @@ function initSchema(sqlite: Database.Database) {
   addColumnIfMissing("orders", "discount", "discount REAL DEFAULT 0");
   addColumnIfMissing("orders", "total", "total REAL DEFAULT 0");
 
+  // Phase 5: visit recovery ticket — additive, nullable, safe on existing DBs
+  addColumnIfMissing("visits", "ticketNo", "ticketNo TEXT");
+
   addColumnIfMissing("order_items", "nameSnapshot", "nameSnapshot TEXT");
   addColumnIfMissing(
     "order_items",

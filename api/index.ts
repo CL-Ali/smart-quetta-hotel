@@ -5,6 +5,7 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./middleware/oauth";
 import { registerStorageProxy } from "./middleware/storageProxy";
+import { registerPortalRoutes } from "./middleware/portal";
 import { appRouter } from "./routers";
 import { createContext } from "./lib/context";
 import { serveStatic, setupVite } from "./middleware/vite";
@@ -38,6 +39,7 @@ async function startServer() {
 
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  registerPortalRoutes(app);
 
   app.use(
     "/api/trpc",
