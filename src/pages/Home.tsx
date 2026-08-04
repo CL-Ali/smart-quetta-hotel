@@ -50,6 +50,8 @@ function clearStoredSession() {
   localStorage.removeItem(LS_GUEST_NAME);
   localStorage.removeItem(LS_GUEST_ID);
   localStorage.removeItem(LS_VISIT_ID);
+  // Clear previous name so it does not surface as autofill hint for the next guest
+  localStorage.removeItem(LS_PREV_NAME);
   // Legacy keys — clear on explicit sign-out so they don't resurface
   localStorage.removeItem(LS_LEGACY_NAME);
   localStorage.removeItem(LS_LEGACY_ID);
@@ -243,6 +245,7 @@ export default function Home() {
     setGuestId(null);
     setVisitId(null);
     setGuestName("");
+    setPreviousName("");   // clear autofill hint — next guest should not see previous guest's name
     setCart([]);
     clearStoredSession();
   };
