@@ -1,11 +1,23 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "../lib/cookies";
+import { guestRouter } from "./guest.router";
+import { visitRouter } from "./visit.router";
 import { systemRouter } from "./systemRouter";
 import { publicProcedure, router } from "../lib/trpc";
 import { hotelRouter } from "./hotelRouter";
+import { invoiceRouter } from "./invoice.router";
+import { paymentRouter } from "./payment.router";
+import { orderRouter } from "./order.router";
+import { kitchenRouter } from "./kitchen.router";
 
 export const appRouter = router({
   system: systemRouter,
+  guest: guestRouter,
+  visit: visitRouter,
+  order: orderRouter,
+  invoice: invoiceRouter,
+  payment: paymentRouter,
+  kitchen: kitchenRouter,
   hotel: hotelRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),

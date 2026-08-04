@@ -8,7 +8,8 @@ import type { InsertUser, User } from "./schema";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Allow overriding via env (used in Docker so the DB lives on a named volume)
 // Fallback: project root
-const DB_PATH = process.env.DB_PATH ?? path.resolve(__dirname, "../..", "hotel.db");
+const DB_PATH =
+  process.env.DB_PATH ?? path.resolve(__dirname, "../..", "hotel.db");
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -27,6 +28,61 @@ export function getDb() {
 /** Create tables if they don't exist yet — no migration files needed */
 function initSchema(sqlite: Database.Database) {
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS menus (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      isActive INTEGER NOT NULL DEFAULT 1,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      menuId INTEGER NOT NULL REFERENCES menus(id),
+      name TEXT NOT NULL,
+      sortOrder INTEGER NOT NULL DEFAULT 0,
+      isActive INTEGER NOT NULL DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS staff (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      passwordHash TEXT NOT NULL,
+      role TEXT NOT NULL,
+      isActive INTEGER NOT NULL DEFAULT 1,
+      lastLoginAt TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS guests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      phone TEXT,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guestId INTEGER NOT NULL REFERENCES guests(id),
+      tableNo TEXT,
+      status TEXT NOT NULL DEFAULT 'created',
+      startedAt TEXT NOT NULL DEFAULT (datetime('now')),
+      closedAt TEXT,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS browser_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guestId INTEGER NOT NULL REFERENCES guests(id),
+      visitId INTEGER REFERENCES visits(id),
+      cookieHash TEXT NOT NULL UNIQUE,
+      deviceFingerprint TEXT,
+      lastSeenAt TEXT NOT NULL DEFAULT (datetime('now')),
+      expiredAt TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS menu_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -60,6 +116,11 @@ function initSchema(sqlite: Database.Database) {
       customerId INTEGER REFERENCES customers(id),
       seatingAreaId INTEGER REFERENCES seating_areas(id),
       customerName TEXT,
+      visitId INTEGER REFERENCES visits(id),
+      orderNo TEXT,
+      subtotal REAL DEFAULT 0,
+      discount REAL DEFAULT 0,
+      total REAL DEFAULT 0,
       totalAmount REAL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'pending',
       paymentStatus TEXT NOT NULL DEFAULT 'unpaid',
@@ -73,10 +134,36 @@ function initSchema(sqlite: Database.Database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       orderId INTEGER REFERENCES orders(id),
       menuItemId INTEGER REFERENCES menu_items(id),
+      nameSnapshot TEXT,
       quantity INTEGER NOT NULL,
       unitPrice REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
       kitchenStatus TEXT NOT NULL DEFAULT 'pending',
-      servedQty INTEGER NOT NULL DEFAULT 0
+      servedQty INTEGER NOT NULL DEFAULT 0,
+      remarks TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      visitId INTEGER NOT NULL REFERENCES visits(id),
+      invoiceNo TEXT NOT NULL UNIQUE,
+      subtotal REAL NOT NULL DEFAULT 0,
+      tax REAL NOT NULL DEFAULT 0,
+      discount REAL NOT NULL DEFAULT 0,
+      total REAL NOT NULL DEFAULT 0,
+      paidAmount REAL NOT NULL DEFAULT 0,
+      balance REAL NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'draft',
+      generatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS receipts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoiceId INTEGER NOT NULL REFERENCES invoices(id),
+      receiptNo TEXT NOT NULL UNIQUE,
+      issuedAt TEXT NOT NULL DEFAULT (datetime('now')),
+      summary TEXT NOT NULL,
+      qrCodeData TEXT
     );
 
     CREATE TABLE IF NOT EXISTS inventory (
@@ -108,26 +195,80 @@ function initSchema(sqlite: Database.Database) {
     CREATE TABLE IF NOT EXISTS payments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       orderId INTEGER REFERENCES orders(id),
+      invoiceId INTEGER REFERENCES invoices(id),
       amount REAL NOT NULL,
       method TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending',
       transactionId TEXT,
+      reference TEXT,
+      receivedAt TEXT NOT NULL DEFAULT (datetime('now')),
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
 
   // Migrate existing DBs — add new columns if they don't exist yet
-  const cols = sqlite.prepare("PRAGMA table_info(order_items)").all() as { name: string }[];
-  const colNames = cols.map(c => c.name);
-  if (!colNames.includes("kitchenStatus")) {
-    sqlite.exec(`ALTER TABLE order_items ADD COLUMN kitchenStatus TEXT NOT NULL DEFAULT 'pending'`);
-  }
-  if (!colNames.includes("servedQty")) {
-    sqlite.exec(`ALTER TABLE order_items ADD COLUMN servedQty INTEGER NOT NULL DEFAULT 0`);
-  }
+  const tableColumns = (tableName: string) => {
+    const cols = sqlite.prepare(`PRAGMA table_info(${tableName})`).all() as {
+      name: string;
+    }[];
+    return new Set(cols.map(col => col.name));
+  };
+
+  const addColumnIfMissing = (
+    tableName: string,
+    columnName: string,
+    ddl: string
+  ) => {
+    const columns = tableColumns(tableName);
+    if (!columns.has(columnName)) {
+      sqlite.exec(`ALTER TABLE ${tableName} ADD COLUMN ${ddl}`);
+    }
+  };
+
+  addColumnIfMissing(
+    "orders",
+    "visitId",
+    "visitId INTEGER REFERENCES visits(id)"
+  );
+  addColumnIfMissing("orders", "orderNo", "orderNo TEXT");
+  addColumnIfMissing("orders", "subtotal", "subtotal REAL DEFAULT 0");
+  addColumnIfMissing("orders", "discount", "discount REAL DEFAULT 0");
+  addColumnIfMissing("orders", "total", "total REAL DEFAULT 0");
+
+  addColumnIfMissing("order_items", "nameSnapshot", "nameSnapshot TEXT");
+  addColumnIfMissing(
+    "order_items",
+    "status",
+    "status TEXT NOT NULL DEFAULT 'pending'"
+  );
+  addColumnIfMissing("order_items", "remarks", "remarks TEXT");
+  addColumnIfMissing(
+    "order_items",
+    "kitchenStatus",
+    "kitchenStatus TEXT NOT NULL DEFAULT 'pending'"
+  );
+  addColumnIfMissing(
+    "order_items",
+    "servedQty",
+    "servedQty INTEGER NOT NULL DEFAULT 0"
+  );
+
+  addColumnIfMissing(
+    "payments",
+    "invoiceId",
+    "invoiceId INTEGER REFERENCES invoices(id)"
+  );
+  addColumnIfMissing("payments", "reference", "reference TEXT");
+  addColumnIfMissing(
+    "payments",
+    "receivedAt",
+    "receivedAt TEXT NOT NULL DEFAULT (datetime('now'))"
+  );
 
   // Seed default menu items if empty
-  const count = sqlite.prepare("SELECT COUNT(*) as c FROM menu_items").get() as { c: number };
+  const count = sqlite
+    .prepare("SELECT COUNT(*) as c FROM menu_items")
+    .get() as { c: number };
   if (count.c === 0) {
     sqlite.exec(`
       INSERT INTO menu_items (name, description, price, category, imageUrl, isAvailable) VALUES
@@ -168,6 +309,8 @@ export async function upsertUser(_user: InsertUser): Promise<void> {
   // No-op in local SQLite mode
 }
 
-export async function getUserByOpenId(_openId: string): Promise<User | undefined> {
+export async function getUserByOpenId(
+  _openId: string
+): Promise<User | undefined> {
   return undefined;
 }
