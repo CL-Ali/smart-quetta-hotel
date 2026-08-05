@@ -9,6 +9,8 @@ import { invoiceRouter } from "./invoice.router";
 import { paymentRouter } from "./payment.router";
 import { orderRouter } from "./order.router";
 import { kitchenRouter } from "./kitchen.router";
+import { productRouter } from "./product.router";
+import { departmentRouter } from "./department.router";
 
 export const appRouter = router({
   system: systemRouter,
@@ -18,7 +20,9 @@ export const appRouter = router({
   invoice: invoiceRouter,
   payment: paymentRouter,
   kitchen: kitchenRouter,
-  hotel: hotelRouter,
+  product: productRouter,
+    department: departmentRouter,
+    hotel: hotelRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

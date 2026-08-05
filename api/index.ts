@@ -10,6 +10,7 @@ import { appRouter } from "./routers";
 import { createContext } from "./lib/context";
 import { serveStatic, setupVite } from "./middleware/vite";
 import { initIo } from "./lib/socket";
+import { upload, getPublicUrl } from "./middleware/upload";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -45,6 +46,15 @@ async function startServer() {
     "/api/trpc",
     createExpressMiddleware({ router: appRouter, createContext })
   );
+
+  // New endpoint for image upload using multer
+  app.post("/api/upload", upload.single("image"), (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+    const url = getPublicUrl(req.file.filename);
+    res.json({ url });
+  });
 
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);

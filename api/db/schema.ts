@@ -125,11 +125,22 @@ export const menuItems = sqliteTable("menu_items", {
   price: real("price").notNull(),
   category: text("category"),
   imageUrl: text("imageUrl"),
+  departmentId: int("departmentId").references(() => departments.id).notNull(),
   isAvailable: int("isAvailable", { mode: "boolean" }).default(true).notNull(),
   createdAt: text("createdAt")
     .default(sql`(datetime('now'))`)
     .notNull(),
 });
+// Departments table
+export const departments = sqliteTable("departments", {
+  id: int("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  createdAt: text("createdAt").default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text("updatedAt").default(sql`(datetime('now'))`).notNull(),
+});
+
+export type Department = typeof departments.$inferSelect;
+export type InsertDepartment = typeof departments.$inferInsert;
 
 /**
  * Seating Areas

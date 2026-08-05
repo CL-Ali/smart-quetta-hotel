@@ -3,11 +3,14 @@ import React from "react";
 import { trpc } from "@/lib/trpc";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { ProductsTab } from "./Dashboard/ProductsTab";
+import { DepartmentsTab } from "./Dashboard/DepartmentsTab";
 import {
   Loader2, Banknote, Smartphone, Search,
   Package, Droplet, AlertTriangle, ChefHat, Plus,
   Hotel, ClipboardList, Boxes, Utensils, Clock,
   UserCheck, Ban, CheckCircle2, Wallet, X, Users, Phone,
+  Folder,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -324,7 +327,7 @@ type FilterKey = "all" | "unpaid" | "pending" | "ready" | "paid";
 
 export default function Dashboard() {
   const { t } = useLang();
-  const [tab, setTab] = useState<"orders" | "inventory" | "stock" | "guests">("orders");
+  const [tab, setTab] = useState<"orders" | "inventory" | "stock" | "guests" | "products" | "departments">("orders");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
   const [payOrder, setPayOrder] = useState<any>(null);
@@ -486,17 +489,19 @@ export default function Dashboard() {
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex gap-1 bg-gray-200/80 rounded-xl p-1 mb-4">
+        <div className="flex gap-1 bg-gray-200/80 rounded-xl p-1 mb-4 overflow-x-auto no-scrollbar">
           {[
-            { key: "orders",    label: t.orders,    icon: ClipboardList },
-            { key: "guests",    label: "Guests",    icon: Users },
-            { key: "inventory", label: t.inventory, icon: Boxes },
-            { key: "stock",     label: t.stock,     icon: Utensils },
+            { key: "orders",      label: t.orders,      icon: ClipboardList },
+            { key: "guests",      label: "Guests",      icon: Users },
+            { key: "products",    label: "Products",    icon: Package },
+            { key: "departments", label: "Departments", icon: Folder },
+            { key: "inventory",   label: t.inventory,   icon: Boxes },
+            { key: "stock",       label: t.stock,       icon: Utensils },
           ].map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setTab(key as any)}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${tab === key ? "bg-white shadow text-black" : "text-gray-500 hover:text-gray-900"
+              className={`flex-1 shrink-0 py-2 px-3 text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${tab === key ? "bg-white shadow text-black" : "text-gray-500 hover:text-gray-900"
                 }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -853,6 +858,20 @@ export default function Dashboard() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* ── Products Tab ── */}
+        {tab === "products" && (
+          <div className="max-w-lg mx-auto px-4 pt-3 pb-24">
+            <ProductsTab />
+          </div>
+        )}
+
+        {/* ── Departments Tab ── */}
+        {tab === "departments" && (
+          <div className="max-w-lg mx-auto px-4 pt-3 pb-24">
+            <DepartmentsTab />
           </div>
         )}
 

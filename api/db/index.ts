@@ -90,8 +90,16 @@ function initSchema(sqlite: Database.Database) {
       price REAL NOT NULL,
       category TEXT,
       imageUrl TEXT,
+      departmentId INTEGER REFERENCES departments(id) NOT NULL,
       isAvailable INTEGER NOT NULL DEFAULT 1,
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS departments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS seating_areas (
@@ -261,6 +269,11 @@ function initSchema(sqlite: Database.Database) {
     "invoiceId",
     "invoiceId INTEGER REFERENCES invoices(id)"
   );
+  addColumnIfMissing(
+    "menu_items",
+    "departmentId",
+    "departmentId INTEGER REFERENCES departments(id)"
+  );
   addColumnIfMissing("payments", "reference", "reference TEXT");
   addColumnIfMissing(
     "payments",
@@ -285,13 +298,22 @@ function initSchema(sqlite: Database.Database) {
         ('Halwa Puri',  'Weekend special',         100,  'Food',   'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400&q=80', 1),
         ('Samosa',      '2 piece crispy samosa',    30,  'Snacks', 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400&q=80', 1),
         ('Pakora',      'Pyaz aur aloo pakora',     40,  'Snacks', 'https://images.unsplash.com/photo-1630383249896-424e482df921?w=400&q=80', 1);
+    `);
 
-      INSERT INTO seating_areas (name, type) VALUES
-        ('Table 1', 'indoor'),
-        ('Table 2', 'indoor'),
-        ('Table 3', 'outdoor'),
-        ('Counter', 'counter');
+      // Seed default departments if none exist
+  const deptCount = sqlite.prepare("SELECT COUNT(*) as c FROM departments").get() as { c: number };
+  if (deptCount.c === 0) {
+    sqlite.exec(`INSERT INTO departments (name) VALUES ('Tea'), ('Drinks'), ('Parathas'), ('Appetizer');`);
+  }
 
+  // Existing seating areas insertion
+  sqlite.exec(`INSERT INTO seating_areas (name, type) VALUES
+    ('Table 1', 'indoor'),
+    ('Table 2', 'indoor'),
+    ('Table 3', 'outdoor'),
+    ('Counter', 'counter');`);
+
+    sqlite.exec(`
       INSERT INTO inventory (itemName, quantity, unit, minThreshold) VALUES
         ('Doodh (Milk)',    10, 'Liter',  2),
         ('Cheeni (Sugar)',   5, 'Kg',     1),
