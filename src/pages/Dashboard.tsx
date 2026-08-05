@@ -327,6 +327,7 @@ type FilterKey = "all" | "unpaid" | "pending" | "ready" | "paid";
 
 export default function Dashboard() {
   const { t } = useLang();
+  const isMobile = useIsMobile();
   const [tab, setTab] = useState<"orders" | "stock" | "guests" | "products" | "department">("orders");
   // const [tab, setTab] = useState<"orders" | "inventory" | "stock" | "guests" | "products" | "departments">("orders");
   const [filter, setFilter] = useState<FilterKey>("all");
@@ -419,6 +420,33 @@ export default function Dashboard() {
     toast.success("Saved"); refetchStock();
     setStockEdits(p => { const n = { ...p }; delete n[id]; return n; });
   };
+
+  const renderCancelConfirmation = (isMob: boolean) => (
+    <div className="p-4 flex flex-col gap-4 text-center">
+      <div className={`flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2 ${isMob ? "pt-0" : "pt-2"}`}>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-150">{t.confirmCancel}</h3>
+      </div>
+      <p className="text-sm text-gray-500 my-2">
+        {t.confirmCancelDesc}
+      </p>
+      <div className="flex gap-3 pt-2">
+        <button
+          type="button"
+          onClick={() => setCancelConfirm(null)}
+          className="flex-1 h-11 border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-xl text-sm font-semibold cursor-pointer text-gray-600 dark:text-gray-400"
+        >
+          {t.cancel}
+        </button>
+        <button
+          type="button"
+          onClick={() => { handleCancel(cancelConfirm!); setCancelConfirm(null); }}
+          className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm cursor-pointer flex items-center justify-center"
+        >
+          {t.confirm}
+        </button>
+      </div>
+    </div>
+  );
 
   if (isLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8" /></div>;
 
@@ -878,18 +906,20 @@ export default function Dashboard() {
 
         {payOrder && <PaymentSheet order={payOrder} open={!!payOrder} onClose={() => setPayOrder(null)} onDone={() => { refetch(); setPayOrder(null); }} />}
         {cancelConfirm !== null && (
-          <Drawer open={true} onOpenChange={v => !v && setCancelConfirm(null)}>
-            <DrawerContent className="max-w-sm mx-4 max-h-[80vh] overflow-y-auto">
-              <DrawerHeader>
-                <DrawerTitle>{t.confirmCancel}</DrawerTitle>
-                <DrawerDescription>{t.confirmCancelDesc}</DrawerDescription>
-              </DrawerHeader>
-              <DrawerFooter className="flex gap-3 justify-end">
-                <button onClick={() => setCancelConfirm(null)} className="px-4 py-2 bg-gray-200 rounded">{t.cancel}</button>
-                <button onClick={() => { handleCancel(cancelConfirm); setCancelConfirm(null); }} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">{t.confirm}</button>
-              </DrawerFooter>
-            </DrawerContent>
-          </Drawer>
+          isMobile ? (
+            <Drawer open={true} onOpenChange={v => !v && setCancelConfirm(null)}>
+              <DrawerContent className="bg-white dark:bg-gray-950 p-0">
+                <div className="mx-auto w-12 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full my-3 shrink-0" />
+                {renderCancelConfirmation(true)}
+              </DrawerContent>
+            </Drawer>
+          ) : (
+            <AlertDialog open={true} onOpenChange={v => !v && setCancelConfirm(null)}>
+              <AlertDialogContent className="max-w-sm mx-4 bg-white dark:bg-gray-950 p-0 overflow-hidden">
+                {renderCancelConfirmation(false)}
+              </AlertDialogContent>
+            </AlertDialog>
+          )
         )}
         <NewOrderSheet open={showNewOrder} onClose={() => setShowNewOrder(false)} onDone={refetch} />
 

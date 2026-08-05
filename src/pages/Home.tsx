@@ -11,6 +11,9 @@ import { fmtDateTime } from "@/lib/time";
 import { useLang, LANG_OPTIONS } from "@/contexts/LangContext";
 import { useSocket } from "@/hooks/useSocket";
 import { LangSwitcher } from "@/components/LangSwitcher";
+import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
+import { Drawer, DrawerContent } from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/useMobile";
 
 // ── localStorage keys ──────────────────────────────────────────────────────
 const LS_GUEST_NAME  = "qh_guest_name";
@@ -172,6 +175,8 @@ function LangSelectScreen({ onDone }: { onDone: () => void }) {
 
 export default function Home() {
   const { t, langSelected } = useLang();
+  const isMobile = useIsMobile();
+  const [confirmPlace, setConfirmPlace] = useState(false);
 
   // ── Step state: "lang" → "name" → "menu" ──────────────────────────────
   // If language was never chosen, start at lang step.
@@ -361,6 +366,42 @@ export default function Home() {
     } catch { toast.error("Failed to place order"); }
     setPlacing(false);
   };
+
+  const renderPlaceConfirmation = (isMob: boolean) => (
+    <div className="p-4 flex flex-col gap-4 text-center">
+      <div className={`flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2 ${isMob ? "pt-0" : "pt-2"}`}>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-150">Confirm Order</h3>
+      </div>
+      <p className="text-sm text-gray-500 my-1">
+        Are you sure you want to place this order for <strong>Rs. {cartTotal.toFixed(0)}</strong>?
+      </p>
+      {/* Cart item summary for user clarity */}
+      <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-3 text-left max-h-40 overflow-y-auto space-y-1.5 border border-gray-100 dark:border-gray-800">
+        {cart.map(item => (
+          <div key={item.id} className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+            <span>{item.name} ×{item.quantity}</span>
+            <span className="font-semibold text-gray-900 dark:text-gray-200">Rs. {(item.price * item.quantity).toFixed(0)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-3 pt-2">
+        <button
+          type="button"
+          onClick={() => setConfirmPlace(false)}
+          className="flex-1 h-11 border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-xl text-sm font-semibold cursor-pointer text-gray-600 dark:text-gray-400"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => { setConfirmPlace(false); handlePlaceOrder(); }}
+          className="flex-1 h-11 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl text-sm cursor-pointer flex items-center justify-center shadow-sm"
+        >
+          Confirm Order
+        </button>
+      </div>
+    </div>
+  );
 
   // ── Step: Language selection ───────────────────────────────────────────
   if (step === "lang") {
@@ -584,7 +625,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <button onClick={handlePlaceOrder} disabled={placing}
+            <button onClick={() => setConfirmPlace(true)} disabled={placing}
               className="w-full h-14 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-3 disabled:opacity-60">
               {placing ? <Loader2 className="animate-spin w-5 h-5" /> : (
                 <>
@@ -596,6 +637,23 @@ export default function Home() {
             </button>
           </div>
         </div>
+      )}
+
+      {confirmPlace && (
+        isMobile ? (
+          <Drawer open={confirmPlace} onOpenChange={(v) => !v && setConfirmPlace(false)}>
+            <DrawerContent className="bg-white dark:bg-gray-950 p-0">
+              <div className="mx-auto w-12 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full my-3 shrink-0" />
+              {renderPlaceConfirmation(true)}
+            </DrawerContent>
+          </Drawer>
+        ) : (
+          <AlertDialog open={confirmPlace} onOpenChange={(v) => !v && setConfirmPlace(false)}>
+            <AlertDialogContent className="max-w-sm mx-4 bg-white dark:bg-gray-950 p-0 overflow-hidden">
+              {renderPlaceConfirmation(false)}
+            </AlertDialogContent>
+          </AlertDialog>
+        )
       )}
     </div>
   );
