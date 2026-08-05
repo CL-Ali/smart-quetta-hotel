@@ -327,7 +327,8 @@ type FilterKey = "all" | "unpaid" | "pending" | "ready" | "paid";
 
 export default function Dashboard() {
   const { t } = useLang();
-  const [tab, setTab] = useState<"orders" | "inventory" | "stock" | "guests" | "products" | "departments">("orders");
+  const [tab, setTab] = useState<"orders" | "stock" | "guests" | "products" | "department">("orders");
+  // const [tab, setTab] = useState<"orders" | "inventory" | "stock" | "guests" | "products" | "departments">("orders");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
   const [payOrder, setPayOrder] = useState<any>(null);
@@ -494,8 +495,8 @@ export default function Dashboard() {
             { key: "orders",      label: t.orders,      icon: ClipboardList },
             { key: "guests",      label: "Guests",      icon: Users },
             { key: "products",    label: "Products",    icon: Package },
-            { key: "departments", label: "Departments", icon: Folder },
-            { key: "inventory",   label: t.inventory,   icon: Boxes },
+            { key: "department", label: "Department", icon: Folder },
+            // { key: "inventory",   label: t.inventory,   icon: Boxes },
             { key: "stock",       label: t.stock,       icon: Utensils },
           ].map(({ key, label, icon: Icon }) => (
             <button
@@ -656,7 +657,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ── Inventory Tab ── */}
+        {/* ── Inventory Tab ──
         {tab === "inventory" && (
           <div className="max-w-lg mx-auto px-4 pt-3 pb-24 space-y-3">
             {(!invData || invData.length === 0) && (
@@ -691,7 +692,7 @@ export default function Dashboard() {
               );
             })}
           </div>
-        )}
+        )} */}
 
         {/* ── Guests Tab ── */}
         {tab === "guests" && (
@@ -869,7 +870,7 @@ export default function Dashboard() {
         )}
 
         {/* ── Departments Tab ── */}
-        {tab === "departments" && (
+        {tab === "department" && (
           <div className="max-w-lg mx-auto px-4 pt-3 pb-24">
             <DepartmentsTab />
           </div>
