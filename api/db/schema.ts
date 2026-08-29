@@ -125,7 +125,7 @@ export const menuItems = sqliteTable("menu_items", {
   price: real("price").notNull(),
   category: text("category"),
   imageUrl: text("imageUrl"),
-  departmentId: int("departmentId").references(() => departments.id).notNull(),
+  departmentId: int("departmentId").references(() => departments.id),
   isAvailable: int("isAvailable", { mode: "boolean" }).default(true).notNull(),
   createdAt: text("createdAt")
     .default(sql`(datetime('now'))`)

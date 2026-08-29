@@ -83,6 +83,13 @@ function initSchema(sqlite: Database.Database) {
       expiredAt TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS departments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS menu_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -90,16 +97,9 @@ function initSchema(sqlite: Database.Database) {
       price REAL NOT NULL,
       category TEXT,
       imageUrl TEXT,
-      departmentId INTEGER REFERENCES departments(id) NOT NULL,
+      departmentId INTEGER REFERENCES departments(id),
       isAvailable INTEGER NOT NULL DEFAULT 1,
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS departments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-      updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS seating_areas (
@@ -283,53 +283,78 @@ function initSchema(sqlite: Database.Database) {
     "receivedAt TEXT"
   );
 
+  // Seed default departments if none exist
+  const deptCount = sqlite
+    .prepare("SELECT COUNT(*) as c FROM departments")
+    .get() as { c: number };
+  if (deptCount.c === 0) {
+    sqlite.exec(
+      `INSERT INTO departments (id, name) VALUES (1, 'Tea'), (2, 'Drinks'), (3, 'Parathas'), (4, 'Appetizer');`
+    );
+  }
+
+  // Backfill any menu items with NULL departmentId to default department (1: Tea or by category)
+  try {
+    sqlite.exec(`
+      UPDATE menu_items SET departmentId = 1 WHERE departmentId IS NULL AND (category = 'Drinks' OR name LIKE '%Chai%');
+      UPDATE menu_items SET departmentId = 2 WHERE departmentId IS NULL AND (category = 'Drinks');
+      UPDATE menu_items SET departmentId = 3 WHERE departmentId IS NULL AND (category = 'Food');
+      UPDATE menu_items SET departmentId = 4 WHERE departmentId IS NULL AND (category = 'Snacks');
+      UPDATE menu_items SET departmentId = 1 WHERE departmentId IS NULL;
+    `);
+  } catch (_) {}
+
   // Seed default menu items if empty
   const count = sqlite
     .prepare("SELECT COUNT(*) as c FROM menu_items")
     .get() as { c: number };
   if (count.c === 0) {
     sqlite.exec(`
-      INSERT INTO menu_items (name, description, price, category, imageUrl, isAvailable) VALUES
-        ('Chai',        'Special doodh pati',      30,  'Drinks', '/images/chai.png', 1),
-        ('Karwa Chai',  'Bina doodh ki chai',       20,  'Drinks', '/images/chai.png', 1),
-        ('Lassi',       'Thandi meethi lassi',      60,  'Drinks', 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400&q=80', 1),
-        ('Paratha',     'Crispy butter paratha',    40,  'Food',   'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&q=80', 1),
-        ('Anda Paratha','Egg stuffed paratha',      60,  'Food',   'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&q=80', 1),
-        ('Halwa Puri',  'Weekend special',         100,  'Food',   'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400&q=80', 1),
-        ('Samosa',      '2 piece crispy samosa',    30,  'Snacks', 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400&q=80', 1),
-        ('Pakora',      'Pyaz aur aloo pakora',     40,  'Snacks', 'https://images.unsplash.com/photo-1630383249896-424e482df921?w=400&q=80', 1);
+      INSERT INTO menu_items (name, description, price, category, imageUrl, departmentId, isAvailable) VALUES
+        ('Chai',        'Special doodh pati',      30,  'Drinks', '/images/chai.png', 1, 1),
+        ('Karwa Chai',  'Bina doodh ki chai',       20,  'Drinks', '/images/chai.png', 1, 1),
+        ('Lassi',       'Thandi meethi lassi',      60,  'Drinks', 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400&q=80', 2, 1),
+        ('Paratha',     'Crispy butter paratha',    40,  'Food',   'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&q=80', 3, 1),
+        ('Anda Paratha','Egg stuffed paratha',      60,  'Food',   'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&q=80', 3, 1),
+        ('Halwa Puri',  'Weekend special',         100,  'Food',   'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400&q=80', 3, 1),
+        ('Samosa',      '2 piece crispy samosa',    30,  'Snacks', 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400&q=80', 4, 1),
+        ('Pakora',      'Pyaz aur aloo pakora',     40,  'Snacks', 'https://images.unsplash.com/photo-1630383249896-424e482df921?w=400&q=80', 4, 1);
     `);
-
-      // Seed default departments if none exist
-  const deptCount = sqlite.prepare("SELECT COUNT(*) as c FROM departments").get() as { c: number };
-  if (deptCount.c === 0) {
-    sqlite.exec(`INSERT INTO departments (name) VALUES ('Tea'), ('Drinks'), ('Parathas'), ('Appetizer');`);
   }
 
   // Existing seating areas insertion
-  sqlite.exec(`INSERT INTO seating_areas (name, type) VALUES
-    ('Table 1', 'indoor'),
-    ('Table 2', 'indoor'),
-    ('Table 3', 'outdoor'),
-    ('Counter', 'counter');`);
-
-    sqlite.exec(`
-      INSERT INTO inventory (itemName, quantity, unit, minThreshold) VALUES
-        ('Doodh (Milk)',    10, 'Liter',  2),
-        ('Cheeni (Sugar)',   5, 'Kg',     1),
-        ('Chai Patti',       2, 'Kg',     0.5),
-        ('Atta (Flour)',    10, 'Kg',     2),
-        ('Desi Ghee',        2, 'Kg',     0.5),
-        ('Anda (Eggs)',     30, 'Piece',  6);
-
-      INSERT INTO stock (name, totalQuantity, inUse, broken, available) VALUES
-        ('Cups',    50, 10, 2, 38),
-        ('Plates',  30,  5, 1, 24),
-        ('Glasses', 20,  4, 0, 16),
-        ('Spoons',  40,  8, 3, 29);
-    `);
+  const seatingCount = sqlite
+    .prepare("SELECT COUNT(*) as c FROM seating_areas")
+    .get() as { c: number };
+  if (seatingCount.c === 0) {
+    sqlite.exec(`INSERT INTO seating_areas (name, type) VALUES
+      ('Table 1', 'indoor'),
+      ('Table 2', 'indoor'),
+      ('Table 3', 'outdoor'),
+      ('Counter', 'counter');`);
   }
-}
+
+    const inventoryCount = sqlite
+      .prepare("SELECT COUNT(*) as c FROM inventory")
+      .get() as { c: number };
+    if (inventoryCount.c === 0) {
+      sqlite.exec(`
+        INSERT INTO inventory (itemName, quantity, unit, minThreshold) VALUES
+          ('Doodh (Milk)',    10, 'Liter',  2),
+          ('Cheeni (Sugar)',   5, 'Kg',     1),
+          ('Chai Patti',       2, 'Kg',     0.5),
+          ('Atta (Flour)',    10, 'Kg',     2),
+          ('Desi Ghee',        2, 'Kg',     0.5),
+          ('Anda (Eggs)',     30, 'Piece',  6);
+
+        INSERT INTO stock (name, totalQuantity, inUse, broken, available) VALUES
+          ('Cups',    50, 10, 2, 38),
+          ('Plates',  30,  5, 1, 24),
+          ('Glasses', 20,  4, 0, 16),
+          ('Spoons',  40,  8, 3, 29);
+      `);
+    }
+  }
 
 // Auth stubs (no real users in SQLite mode)
 export async function upsertUser(_user: InsertUser): Promise<void> {
