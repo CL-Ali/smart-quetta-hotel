@@ -20,28 +20,73 @@ export function getPortalAdapter(req: Request): PortalAdapter | null {
 }
 
 /**
- * Registers the GET /api/portal/entry route on the Express app.
+ * Derives the base URL of the application from the incoming request.
+ */
+export function getAppBaseUrl(req: Request): string {
+  const protocol = req.headers["x-forwarded-proto"] ?? req.protocol ?? "http";
+  const host = req.headers["x-forwarded-host"] ?? req.headers["host"] ?? "localhost";
+  return `${protocol}://${host}`;
+}
+
+/**
+ * Handler for RFC 8910 / RFC 8908 Captive Portal JSON API (DHCP Option 114 / IPv6 RA Option 37).
  *
- * This is the only portal-aware route. All vendor-specific behavior lives in
- * the adapters above — the core app never sees it.
+ * Modern Android (11+), iOS/macOS, and Windows clients query this API to discover the captive state
+ * and user portal URL without resorting to blind HTTP redirects.
  *
- * Flow:
- *   Captive portal (MikroTik / UniFi / OpenWRT)
- *     → redirects guest browser to GET /api/portal/entry?{vendor-params}
- *     → this route detects the vendor, builds clean /portal?source=X URL
- *     → guest lands on the React app's /portal route
- *     → Portal.tsx reads source param and navigates to / (Home)
- *
- * If no vendor matches (e.g. direct LAN access), redirects straight to /.
+ * Content-Type MUST be: application/captive+json
+ */
+export function handleCaptivePortalJson(req: Request, res: Response): void {
+  const appBaseUrl = getAppBaseUrl(req);
+  const adapter = getPortalAdapter(req);
+  const search = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+
+  const userPortalUrl = adapter
+    ? adapter.buildRedirectUrl(appBaseUrl, req)
+    : `${appBaseUrl}/portal${search}`;
+
+  const payload = {
+    captive: true,
+    "user-portal-url": userPortalUrl,
+    "venue-info-url": `${appBaseUrl}/`,
+    "can-extend-session": false,
+  };
+
+  res.setHeader("Content-Type", "application/captive+json; charset=utf-8");
+  res.setHeader("Cache-Control", "private, no-cache, no-store, must-revalidate, max-age=0");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization");
+
+  res.status(200).json(payload);
+}
+
+/**
+ * Registers all portal routes:
+ * 1. Traditional redirect entry: GET /api/portal/entry
+ * 2. RFC 8910 / RFC 8908 JSON API endpoints:
+ *    - GET /api/captive (User-configured DHCP Option 114 endpoint)
+ *    - GET /.well-known/capport (RFC 8908 Standard Well-Known endpoint)
+ *    - GET /api/captive-portal (Standard Alias)
  */
 export function registerPortalRoutes(app: Express): void {
-  app.get("/api/portal/entry", (req: Request, res: Response) => {
-    // Derive the app base URL from the incoming request so this works on any
-    // LAN IP without hardcoding the address.
-    const protocol = req.headers["x-forwarded-proto"] ?? req.protocol ?? "http";
-    const host = req.headers["x-forwarded-host"] ?? req.headers["host"] ?? "localhost";
-    const appBaseUrl = `${protocol}://${host}`;
+  // RFC 8910 / RFC 8908 JSON API endpoints
+  const captiveRoutes = ["/api/captive", "/.well-known/capport", "/api/captive-portal"];
 
+  captiveRoutes.forEach((route) => {
+    app.get(route, handleCaptivePortalJson);
+    app.post(route, handleCaptivePortalJson);
+    app.options(route, (req: Request, res: Response) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization");
+      res.sendStatus(204);
+    });
+  });
+
+  // Traditional HTTP redirection entry route
+  app.get("/api/portal/entry", (req: Request, res: Response) => {
+    const appBaseUrl = getAppBaseUrl(req);
     const adapter = getPortalAdapter(req);
 
     if (adapter) {
@@ -53,3 +98,4 @@ export function registerPortalRoutes(app: Express): void {
     }
   });
 }
+
