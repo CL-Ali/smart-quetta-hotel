@@ -1,0 +1,936 @@
+import { useState, useEffect } from "react";
+import React from "react";
+import { trpc } from "../lib/trpc";
+import { Input } from "../components/ui/input";
+import { toast } from "sonner";
+import { ProductsTab } from "./Dashboard/ProductsTab";
+import { DepartmentsTab } from "./Dashboard/DepartmentsTab";
+import {
+  Loader2, Banknote, Smartphone, Search,
+  Package, Droplet, AlertTriangle, ChefHat, Plus,
+  Hotel, ClipboardList, Boxes, Utensils, Clock,
+  UserCheck, Ban, CheckCircle2, Wallet, X, Users, Phone,
+  Folder,
+} from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import {
+  Drawer, DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "../components/ui/drawer";
+import { useIsMobile } from "../hooks/useMobile";
+import { useLang } from "../contexts/LangContext";
+import { LangSwitcher } from "../components/LangSwitcher";
+import { NewOrderSheet } from "../components/NewOrderSheet";
+import { useSocket } from "../hooks/useSocket";
+import { fmtTime, fmtDate } from "../lib/time";
+import { DashboardPinGate } from "../components/DashboardPinGate";
+import { getDashboardPin, clearDashboardPin } from "../lib/dashboardAuth";
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+const STATUS_BG: Record<string, string> = {
+  pending: "border-amber-200  bg-amber-50",
+  preparing: "border-blue-200   bg-blue-50",
+  ready: "border-green-200  bg-green-50",
+  served: "border-gray-200   bg-gray-50",
+  paid: "border-emerald-200 bg-emerald-50",
+  cancelled: "border-red-200    bg-red-50",
+};
+function getStatusIcon(status: string, className = "w-4 h-4") {
+  switch (status) {
+    case "pending": return <Clock className={`${className} text-amber-500`} />;
+    case "preparing": return <ChefHat className={`${className} text-blue-500 animate-pulse`} />;
+    case "ready": return <CheckCircle2 className={`${className} text-green-500`} />;
+    case "served": return <UserCheck className={`${className} text-gray-500`} />;
+    case "paid": return <Banknote className={`${className} text-emerald-500`} />;
+    case "cancelled": return <Ban className={`${className} text-red-500`} />;
+    default: return null;
+  }
+}
+const PAY_PILL: Record<string, string> = {
+  unpaid: "bg-red-100 text-red-700", partial: "bg-amber-100 text-amber-700", paid: "bg-emerald-100 text-emerald-700",
+};
+
+// ─── Payment Sheet ────────────────────────────────────────────────────────────
+
+type PayMethod = "cash" | "bank";
+
+const BANK_PRESETS = ["JazzCash", "EasyPaisa", "HBL", "MCB", "UBL", "Meezan", "Sadapay"];
+
+function PaymentSheet({ order, open, onClose, onDone }: {
+  order: any; open: boolean; onClose: () => void; onDone: () => void;
+}) {
+  const { t } = useLang();
+  const isMobile = useIsMobile();
+  const recordPayment = trpc.hotel.recordPayment.useMutation();
+
+  const total = order?.servedAmount ?? order?.totalAmount ?? 0;  // bill = served items only
+  const paid = order?.paidAmount ?? 0;
+  const remaining = Math.max(0, total - paid);
+
+  const [method, setMethod] = useState<PayMethod>("cash");
+  const [amount, setAmount] = useState("");
+  const [bankName, setBankName] = useState("");
+
+  const numAmount = parseFloat(amount) || 0;
+  const isExact = numAmount === remaining;
+  const isOver = numAmount > remaining;
+  const bankNameMissing = method === "bank" && bankName.trim() === "";
+  const canSubmit = numAmount > 0 && !isOver && !bankNameMissing && !recordPayment.isPending;
+
+  const handleFillFull = () => setAmount(remaining.toFixed(0));
+
+  const handleConfirm = async () => {
+    if (!canSubmit) return;
+    try {
+      await recordPayment.mutateAsync({
+        orderId: order.id,
+        amount: numAmount,
+        method,
+        bankName: method === "bank" ? bankName.trim() : undefined,
+      });
+      toast.success(isExact ? "Order fully paid ✓" : `Rs. ${numAmount.toFixed(0)} saved`);
+      onDone();
+      onClose();
+    } catch {
+      toast.error("Failed to save payment");
+    }
+  };
+
+  const handleOpenChange = (v: boolean) => {
+    if (!v) { setAmount(""); setMethod("cash"); setBankName(""); onClose(); }
+  };
+
+  // Past payments on this order
+  const pastPayments: any[] = order?.paymentHistory ?? [];
+
+  const content = (
+    <div className="space-y-4 px-4 pb-8 pt-2">
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Wallet className="w-5 h-5 text-orange-600" />
+          <h2 className="text-lg font-bold">{t.payment} — #{order?.id}</h2>
+        </div>
+        <button onClick={() => handleOpenChange(false)} className="p-1 text-gray-400 hover:text-gray-600">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Bill summary */}
+      <div className="bg-gray-50 rounded-2xl p-4 space-y-1.5 border border-gray-100">
+        <p className="font-bold text-sm text-gray-900">{order?.customerName}</p>
+        {order?.items?.map((item: any) => (
+          <div key={item.id} className="flex justify-between text-xs text-gray-500">
+            <span>{item.name} ×{item.quantity}</span>
+            <span>Rs. {(item.unitPrice * item.quantity).toFixed(0)}</span>
+          </div>
+        ))}
+        <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-gray-900 text-sm">
+          <span>{t.grandTotal}</span>
+          <span>Rs. {total.toFixed(0)}</span>
+        </div>
+        <div className="flex justify-between font-black text-orange-600 text-base">
+          <span>{t.remaining}</span>
+          <span>Rs. {remaining.toFixed(0)}</span>
+        </div>
+      </div>
+
+      {/* Payment history — show if any past payments exist */}
+      {pastPayments.length > 0 && (
+        <div className="rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="bg-gray-100 px-3 py-2">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Payment History</p>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {pastPayments.map((p: any, i: number) => (
+              <div key={i} className="flex items-center justify-between px-3 py-2.5 bg-white">
+                <div className="flex items-center gap-2">
+                  {p.method === "cash"
+                    ? <Banknote className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    : <Smartphone className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  }
+                  <div>
+                    <span className="text-xs font-semibold text-gray-700 capitalize">
+                      {p.method === "cash" ? t.cash : (p.transactionId || t.bank)}
+                    </span>
+                    <p className="text-[10px] text-gray-400">
+                      {fmtTime(p.createdAt)}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-sm font-bold text-gray-800">Rs. {(p.amount ?? 0).toFixed(0)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between px-3 py-2 bg-emerald-50">
+              <span className="text-xs font-bold text-emerald-700">{t.alreadyPaid}</span>
+              <span className="text-sm font-black text-emerald-700">Rs. {paid.toFixed(0)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Method selector */}
+      <div className="grid grid-cols-2 gap-3">
+        {([
+          { key: "cash" as PayMethod, label: t.cash, icon: Banknote, active: "border-emerald-500 bg-emerald-50 text-emerald-800" },
+          { key: "bank" as PayMethod, label: t.bank, icon: Smartphone, active: "border-blue-500 bg-blue-50 text-blue-800" },
+        ] as const).map(({ key, label, icon: Icon, active }) => (
+          <button
+            key={key}
+            onClick={() => { setMethod(key); setAmount(""); setBankName(""); }}
+            className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer
+              ${method === key ? active : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"}`}
+          >
+            <Icon className="w-4 h-4" /> {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Bank name selector — only when bank is selected */}
+      {method === "bank" && (
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block">
+            Bank / Service Name *
+          </label>
+          {/* Quick preset chips */}
+          <div className="flex flex-wrap gap-2">
+            {BANK_PRESETS.map(b => (
+              <button
+                key={b}
+                onClick={() => setBankName(b)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer
+                  ${bankName === b
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                  }`}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
+          {/* Custom input */}
+          <Input
+            placeholder="Ya apna bank ka naam likhein..."
+            value={bankName}
+            onChange={e => setBankName(e.target.value)}
+            className={`h-11 text-sm ${bankNameMissing && numAmount > 0 ? "border-red-300 bg-red-50" : ""}`}
+          />
+          {bankNameMissing && numAmount > 0 && (
+            <p className="text-xs text-red-500 font-medium">Bank / service name zaroor likhein</p>
+          )}
+        </div>
+      )}
+
+      {/* Amount input */}
+      <div className="space-y-2">
+        <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block">
+          {t.howMuch}
+        </label>
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg select-none">Rs.</span>
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={remaining}
+            placeholder={remaining.toFixed(0)}
+            value={amount}
+            onChange={e => setAmount(e.target.value)}
+            className={`h-16 text-2xl font-black text-center pl-14 pr-4 transition-colors
+              ${isOver ? "border-red-400 bg-red-50" : ""}
+              ${isExact && numAmount > 0 ? "border-emerald-400 bg-emerald-50" : ""}`}
+            autoFocus={method === "cash"}
+          />
+        </div>
+        {isOver && (
+          <p className="text-xs text-red-500 font-medium flex items-center gap-1">
+            <X className="w-3 h-3" /> Exceeds remaining (Rs. {remaining.toFixed(0)})
+          </p>
+        )}
+        {isExact && numAmount > 0 && (
+          <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Exact — fully paid ho jayega
+          </p>
+        )}
+        {numAmount > 0 && !isExact && !isOver && (
+          <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+            <Clock className="w-3 h-3" /> Partial — Rs. {(remaining - numAmount).toFixed(0)} baqi rahega
+          </p>
+        )}
+        <button
+          onClick={handleFillFull}
+          className="w-full py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-semibold text-sm cursor-pointer border border-orange-200 transition-colors"
+        >
+          {t.fillFull} — Rs. {remaining.toFixed(0)}
+        </button>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex gap-3 pt-1">
+        <button
+          onClick={() => handleOpenChange(false)}
+          className="flex-1 h-12 border border-gray-200 hover:bg-gray-50 rounded-xl text-sm font-medium text-gray-600 cursor-pointer"
+        >
+          {t.back}
+        </button>
+        <button
+          onClick={handleConfirm}
+          disabled={!canSubmit}
+          className={`flex-1 h-12 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2
+            ${canSubmit
+              ? "bg-orange-600 hover:bg-orange-700 text-white cursor-pointer shadow-sm"
+              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+            }`}
+        >
+          {recordPayment.isPending
+            ? <Loader2 className="animate-spin w-5 h-5" />
+            : <><Banknote className="w-4 h-4" />{isExact ? "Collect & Close" : t.save}</>
+          }
+        </button>
+      </div>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={handleOpenChange}>
+        <DrawerContent className="max-h-[92vh] flex flex-col p-0">
+          <div className="mx-auto w-12 h-1.5 bg-gray-200 rounded-full my-3 shrink-0" />
+          <div className="overflow-y-auto flex-1">{content}</div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+      <AlertDialogContent className="max-w-sm p-0 overflow-hidden">
+        <div className="max-h-[85vh] overflow-y-auto">{content}</div>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+type FilterKey = "all" | "unpaid" | "pending" | "ready" | "paid";
+
+export default function Dashboard() {
+  const { t } = useLang();
+  const isMobile = useIsMobile();
+  const [tab, setTab] = useState<"orders" | "stock" | "guests" | "products" | "department">("orders");
+  // const [tab, setTab] = useState<"orders" | "inventory" | "stock" | "guests" | "products" | "departments">("orders");
+  const [filter, setFilter] = useState<FilterKey>("all");
+  const [search, setSearch] = useState("");
+  const [payOrder, setPayOrder] = useState<any>(null);
+  const [cancelConfirm, setCancelConfirm] = useState<number | null>(null);
+  const [showNewOrder, setShowNewOrder] = useState(false);
+  const [invEdits, setInvEdits] = useState<Record<number, string>>({});
+  const [stockEdits, setStockEdits] = useState<Record<number, { total: number; inUse: number; broken: number }>>({});
+
+  // ── PIN gate ─────────────────────────────────────────────────────────────
+  const [pinUnlocked, setPinUnlocked] = useState(() => !!getDashboardPin());
+  const pinErrorRef = React.useRef<((msg: string) => void) | null>(null);
+
+  const { data: orders, isLoading, refetch } =
+    trpc.hotel.getOrders.useQuery(undefined, {
+      refetchInterval: 15000,
+      enabled: pinUnlocked,
+      retry: (failureCount: number, err: any) => {
+        if (err?.data?.code === "UNAUTHORIZED") {
+          clearDashboardPin();
+          setPinUnlocked(false);
+          pinErrorRef.current?.("Incorrect PIN — try again");
+          return false;
+        }
+        return failureCount < 2;
+      },
+    });
+  const { data: invData, refetch: refetchInv } = trpc.hotel.getInventory.useQuery(undefined, { enabled: pinUnlocked });
+  const { data: stockData, refetch: refetchStock } = trpc.hotel.getStock.useQuery(undefined, { enabled: pinUnlocked });
+  const { data: cash, refetch: refetchCash } = trpc.hotel.getCashReport.useQuery(undefined, { refetchInterval: 15000, enabled: pinUnlocked });
+  const { data: guestsData, isLoading: guestsLoading } = trpc.guest.getGuests.useQuery(undefined, { refetchInterval: 30000, enabled: pinUnlocked });
+  const [guestSearch, setGuestSearch] = useState("");
+  const socket = useSocket();
+  useEffect(() => {
+    const onOrderChange = () => refetch();
+    const onPayment = () => { refetch(); refetchCash(); };
+    socket.on("order.created", onOrderChange);
+    socket.on("order.updated", onOrderChange);
+    socket.on("kitchen.ready", onOrderChange);
+    socket.on("payment.received", onPayment);
+    return () => {
+      socket.off("order.created", onOrderChange);
+      socket.off("order.updated", onOrderChange);
+      socket.off("kitchen.ready", onOrderChange);
+      socket.off("payment.received", onPayment);
+    };
+  }, [socket, refetch, refetchCash]);
+
+  const updateStatus = trpc.hotel.updateOrderStatus.useMutation();
+  const updateInv = trpc.hotel.updateInventory.useMutation();
+  const updateStock = trpc.hotel.updateStock.useMutation();
+
+  const FILTERS: { key: FilterKey; label: string }[] = [
+    { key: "all", label: t.all },
+    { key: "unpaid", label: t.unpaidFilter },
+    { key: "pending", label: t.queueFilter },
+    { key: "ready", label: t.readyFilter },
+    { key: "paid", label: t.paidFilter },
+  ];
+
+  const filtered = (orders ?? []).filter(o => {
+    const m = !search || o.customerName?.toLowerCase().includes(search.toLowerCase()) || String(o.id).includes(search);
+    if (!m) return false;
+    if (filter === "unpaid") return o.paymentStatus !== "paid" && o.status !== "cancelled";
+    if (filter === "pending") return o.status === "pending" || o.status === "preparing";
+    if (filter === "ready") return o.status === "ready" || o.status === "served";
+    if (filter === "paid") return o.paymentStatus === "paid";
+    return true;
+  });
+  const unpaidCount = (orders ?? []).filter(o => o.paymentStatus !== "paid" && o.status !== "cancelled").length;
+  const pendingCount = (orders ?? []).filter(o => o.status === "pending" || o.status === "preparing").length;
+  const readyCount = (orders ?? []).filter(o => o.status === "ready").length;
+
+  const handleCancel = async (id: number) => {
+    await updateStatus.mutateAsync({ orderId: id, status: "cancelled" });
+    refetch(); toast.success("Cancelled");
+  };
+  const confirmCancel = (id: number) => setCancelConfirm(id);
+
+  const handleSaveInv = async (id: number) => {
+    await updateInv.mutateAsync({ inventoryId: id, quantity: parseFloat(invEdits[id] ?? "0") });
+    toast.success("Saved"); refetchInv();
+    setInvEdits(p => { const n = { ...p }; delete n[id]; return n; });
+  };
+
+  const handleSaveStock = async (id: number) => {
+    const e = stockEdits[id]; if (!e) return;
+    await updateStock.mutateAsync({ stockId: id, totalQuantity: e.total, inUse: e.inUse, broken: e.broken });
+    toast.success("Saved"); refetchStock();
+    setStockEdits(p => { const n = { ...p }; delete n[id]; return n; });
+  };
+
+  const renderCancelConfirmation = (isMob: boolean) => (
+    <div className="p-4 flex flex-col gap-4 text-center">
+      <div className={`flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2 ${isMob ? "pt-0" : "pt-2"}`}>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-150">{t.confirmCancel}</h3>
+      </div>
+      <p className="text-sm text-gray-500 my-2">
+        {t.confirmCancelDesc}
+      </p>
+      <div className="flex gap-3 pt-2">
+        <button
+          type="button"
+          onClick={() => setCancelConfirm(null)}
+          className="flex-1 h-11 border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-xl text-sm font-semibold cursor-pointer text-gray-600 dark:text-gray-400"
+        >
+          {t.cancel}
+        </button>
+        <button
+          type="button"
+          onClick={() => { handleCancel(cancelConfirm!); setCancelConfirm(null); }}
+          className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm cursor-pointer flex items-center justify-center"
+        >
+          {t.confirm}
+        </button>
+      </div>
+    </div>
+  );
+
+  if (isLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8" /></div>;
+
+  // Show PIN screen if not yet unlocked
+  if (!pinUnlocked) {
+    return <DashboardPinGate onUnlocked={(onErr) => { pinErrorRef.current = onErr; setPinUnlocked(true); }} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+
+      {/* Top Navbar */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+        <div className="max-w-lg mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-orange-50 text-orange-600 rounded-lg">
+              <Hotel className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-gray-900 leading-tight">{t.hotelName}</h1>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold leading-none">{t.adminPanel}</p>
+            </div>
+          </div>
+          <LangSwitcher />
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="max-w-lg mx-auto px-4 pt-4 pb-24">
+
+        {/* Revenue Card & KPIs */}
+        <div className="mb-4 space-y-2">
+          {/* Revenue card — split cash / bank / total */}
+          <div className="bg-gradient-to-r from-orange-600 to-amber-500 rounded-2xl p-4 text-white shadow-md relative overflow-hidden">
+            <div className="absolute right-0 bottom-0 translate-x-2 translate-y-2 opacity-10 pointer-events-none">
+              <Banknote className="w-24 h-24" />
+            </div>
+            <p className="text-[10px] text-orange-100 uppercase tracking-wider font-bold">{t.todayRevenue}</p>
+            <h2 className="text-2xl font-black mt-0.5">Rs. {parseInt(cash?.totalCash ?? "0")}</h2>
+
+            <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/20 text-xs text-orange-50 font-medium">
+              <div>
+                <span className="opacity-75">{t.cashSplit}:</span>{" "}
+                <span className="font-bold text-white">Rs. {parseInt(cash?.cashTotal ?? "0")}</span>
+              </div>
+              <div className="w-px h-3 bg-white/20"></div>
+              <div>
+                <span className="opacity-75">{t.bankSplit}:</span>{" "}
+                <span className="font-bold text-white">Rs. {parseInt(cash?.bankTotal ?? "0")}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* KPI row */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-2.5 text-center shadow-xs">
+              <p className="text-lg font-black text-amber-700">{pendingCount}</p>
+              <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider">{t.inKitchen}</p>
+            </div>
+            <div className="bg-green-50 border border-green-100 rounded-xl p-2.5 text-center shadow-xs">
+              <p className="text-lg font-black text-green-700">{readyCount}</p>
+              <p className="text-[10px] font-semibold text-green-600 uppercase tracking-wider">{t.ready2}</p>
+            </div>
+            <div className="bg-red-50 border border-red-100 rounded-xl p-2.5 text-center shadow-xs">
+              <p className="text-lg font-black text-red-700">{unpaidCount}</p>
+              <p className="text-[10px] font-semibold text-red-600 uppercase tracking-wider">{t.unpaidOrders}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Buttons */}
+        <div className="flex gap-1 bg-gray-200/80 rounded-xl p-1 mb-4 overflow-x-auto no-scrollbar">
+          {[
+            { key: "orders", label: t.orders, icon: ClipboardList },
+            { key: "guests", label: "Guests", icon: Users },
+            { key: "products", label: "Products", icon: Package },
+            { key: "department", label: "Department", icon: Folder },
+            // { key: "inventory",   label: t.inventory,   icon: Boxes },
+            { key: "stock", label: t.stock, icon: Utensils },
+          ].map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key as any)}
+              className={`flex-1 shrink-0 py-2 px-3 text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${tab === key ? "bg-white shadow text-black" : "text-gray-500 hover:text-gray-900"
+                }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ── Orders Tab ── */}
+        {tab === "orders" && (
+          <div className="space-y-3 pb-8">
+            <div className="flex gap-2 mb-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input placeholder={t.searchOrders} value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11 bg-white" />
+              </div>
+              <button onClick={() => setShowNewOrder(true)}
+                className="hidden sm:flex h-11 px-4 bg-black text-white rounded-xl items-center gap-1.5 text-sm font-semibold shrink-0 cursor-pointer">
+                <Plus className="w-4 h-4" />{t.newOrder}
+              </button>
+            </div>
+
+            {/* Filter chips */}
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-3 no-scrollbar">
+              {FILTERS.map(f => (
+                <button key={f.key} onClick={() => setFilter(f.key)}
+                  className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition ${filter === f.key ? "bg-black text-white border-black" : "bg-white text-gray-600 border-gray-200"}`}>
+                  {f.label}
+                  {f.key === "unpaid" && unpaidCount > 0 && <span className="ml-1.5 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">{unpaidCount}</span>}
+                  {f.key === "pending" && pendingCount > 0 && <span className="ml-1.5 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5">{pendingCount}</span>}
+                  {f.key === "ready" && readyCount > 0 && <span className="ml-1.5 bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5">{readyCount}</span>}
+                </button>
+              ))}
+            </div>
+
+            {filtered.length === 0 && (
+              <div className="text-center py-20 text-gray-400">
+                <ChefHat className="w-14 h-14 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No orders</p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {filtered.map(order => (
+                <div key={order.id} className={`rounded-2xl border-2 p-4 ${STATUS_BG[order.status] ?? "border-gray-200 bg-white"}`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-lg flex items-center gap-1.5">
+                          #{order.id}
+                          {getStatusIcon(order.status, "w-5 h-5")}
+                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${PAY_PILL[order.paymentStatus]}`}>
+                          {(t.payStatus as any)[order.paymentStatus]}
+                          {order.paymentStatus === "partial" && ` (Rs.${(order.paidAmount ?? 0).toFixed(0)}/${(order.totalAmount ?? 0).toFixed(0)})`}
+                        </span>
+                      </div>
+                      <p className="font-semibold text-base mt-0.5">{order.customerName}</p>
+                      <p className="text-xs text-gray-400">{fmtTime(order.createdAt)}</p>
+                    </div>
+                    <p className="text-xl font-bold text-orange-600">Rs. {(order.totalAmount ?? 0).toFixed(0)}</p>
+                  </div>
+
+                  <div className="bg-white/60 rounded-xl px-3 py-2 mb-3 space-y-0.5">
+                    {order.items?.map((item: any) => {
+                      const ks = item.kitchenStatus ?? "pending";
+                      const isServed = ks === "served";
+                      const isReady = ks === "ready";
+                      const billAmt = item.unitPrice * (item.servedQty ?? item.quantity);
+                      return (
+                        <div key={item.id} className={`flex justify-between text-sm ${isServed ? "text-emerald-700" : isReady ? "text-green-700" : ""}`}>
+                          <span className="flex items-center gap-1.5">
+                            {isServed && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
+                            {isReady && <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />}
+                            {!isServed && !isReady && <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />}
+                            {item.name}
+                            <span className="text-gray-400">
+                              ×{item.quantity}
+                              {item.servedQty > 0 && item.servedQty < item.quantity &&
+                                <span className="text-amber-500"> ({item.servedQty}✓)</span>
+                              }
+                            </span>
+                          </span>
+                          <span className={isServed ? "font-semibold" : "text-gray-400"}>
+                            Rs. {billAmt.toFixed(0)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {/* Served subtotal if partial */}
+                    {(order.servedAmount ?? 0) < (order.totalAmount ?? 0) && (order.servedAmount ?? 0) > 0 && (
+                      <div className="border-t border-dashed border-gray-200 pt-1 mt-1 flex justify-between text-xs font-semibold text-emerald-700">
+                        <span>Served so far</span>
+                        <span>Rs. {(order.servedAmount ?? 0).toFixed(0)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Payment history breakdown — show for partial/paid orders */}
+                  {(order.paymentHistory?.length > 0) && (
+                    <div className="mb-3 rounded-xl overflow-hidden border border-gray-100">
+                      {order.paymentHistory.map((p: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between px-3 py-2 bg-white border-b border-gray-50 last:border-0">
+                          <div className="flex items-center gap-2">
+                            {p.method === "cash"
+                              ? <Banknote className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                              : <Smartphone className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                            }
+                            <span className="text-xs font-semibold text-gray-600">
+                              {p.method === "cash" ? t.cash : (p.transactionId || t.bank)}
+                            </span>
+                            <span className="text-[10px] text-gray-400">
+                              {fmtTime(p.createdAt)}
+                            </span>
+                          </div>
+                          <span className="text-xs font-bold text-gray-700">Rs. {(p.amount ?? 0).toFixed(0)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    {order.status !== "cancelled" && order.paymentStatus !== "paid" && (
+                      <button onClick={() => setPayOrder(order)}
+                        className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-1.5 cursor-pointer">
+                        <Banknote className="w-4 h-4" />
+                        <span>{t.takePayment}</span>
+                      </button>
+                    )}
+                    {order.paymentStatus === "paid" && (
+                      <div className="flex-1 bg-emerald-50 border border-emerald-100 text-emerald-700 font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>{t.payStatus.paid}</span>
+                      </div>
+                    )}
+                    {order.status === "cancelled" && (
+                      <div className="flex-1 bg-gray-100 border border-gray-200 text-gray-500 py-3 rounded-xl text-sm flex items-center justify-center gap-1.5">
+                        <Ban className="w-4 h-4 text-gray-400" />
+                        <span>Cancelled</span>
+                      </div>
+                    )}
+                    {order.status !== "cancelled" && order.paymentStatus !== "paid" && (
+                      <button onClick={() => confirmCancel(order.id)}
+                        className="px-4 py-3 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center cursor-pointer">
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Inventory Tab ──
+        {tab === "inventory" && (
+          <div className="max-w-lg mx-auto px-4 pt-3 pb-24 space-y-3">
+            {(!invData || invData.length === 0) && (
+              <div className="text-center py-20 text-gray-400"><Droplet className="w-12 h-12 mx-auto mb-2 opacity-30" /><p>No inventory</p></div>
+            )}
+            {invData?.map(item => {
+              const isLow = (item.quantity ?? 0) < (item.minThreshold ?? 5);
+              const displayVal = invEdits[item.id] !== undefined ? invEdits[item.id] : String(item.quantity ?? 0);
+              return (
+                <div key={item.id} className={`bg-white rounded-2xl p-4 border-2 ${isLow ? "border-red-200" : "border-gray-100"}`}>
+                  <div className="flex justify-between items-center mb-3">
+                    <div>
+                      <p className="font-semibold">{item.itemName}</p>
+                      <p className="text-sm text-gray-500">{item.unit}</p>
+                    </div>
+                    {isLow && (
+                      <span className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-full">
+                        <AlertTriangle className="w-3.5 h-3.5" /> Low!
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-3">
+                    <Input type="number" inputMode="decimal" value={displayVal}
+                      onChange={e => setInvEdits(p => ({ ...p, [item.id]: e.target.value }))}
+                      className="flex-1 h-12 text-lg font-bold text-center" />
+                    <button onClick={() => handleSaveInv(item.id)} disabled={updateInv.isPending}
+                      className="h-12 px-6 bg-black text-white font-bold rounded-xl text-sm">
+                      {t.save}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )} */}
+
+        {/* ── Guests Tab ── */}
+        {tab === "guests" && (
+          <div className="space-y-3 pb-8">
+            {/* Search bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Search by name or phone…"
+                value={guestSearch}
+                onChange={e => setGuestSearch(e.target.value)}
+                className="pl-9 h-11 bg-white"
+              />
+            </div>
+
+            {guestsLoading && (
+              <div className="flex justify-center py-16">
+                <Loader2 className="animate-spin h-7 w-7 text-orange-500" />
+              </div>
+            )}
+
+            {!guestsLoading && (!guestsData || guestsData.length === 0) && (
+              <div className="text-center py-20 text-gray-400">
+                <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No guests yet</p>
+                <p className="text-xs mt-1 text-gray-400">Guests appear here after they place their first order</p>
+              </div>
+            )}
+
+            {!guestsLoading && guestsData && (() => {
+              const q = guestSearch.toLowerCase().trim();
+              const filtered = q
+                ? guestsData.filter(g =>
+                  g.name.toLowerCase().includes(q) ||
+                  (g.phone ?? "").includes(q)
+                )
+                : guestsData;
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="text-center py-16 text-gray-400">
+                    <Search className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No guests match "{guestSearch}"</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2">
+                  {/* Summary row */}
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-2.5 text-center">
+                      <p className="text-lg font-black text-blue-700">{filtered.length}</p>
+                      <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">Guests</p>
+                    </div>
+                    <div className="bg-purple-50 border border-purple-100 rounded-xl p-2.5 text-center">
+                      <p className="text-lg font-black text-purple-700">
+                        {filtered.filter(g => g.visitCount > 1).length}
+                      </p>
+                      <p className="text-[10px] font-semibold text-purple-600 uppercase tracking-wider">Repeat</p>
+                    </div>
+                    <div className="bg-orange-50 border border-orange-100 rounded-xl p-2.5 text-center">
+                      <p className="text-lg font-black text-orange-700">
+                        {filtered.filter(g => g.phone).length}
+                      </p>
+                      <p className="text-[10px] font-semibold text-orange-600 uppercase tracking-wider">With Phone</p>
+                    </div>
+                  </div>
+
+                  {/* Guest cards */}
+                  {filtered.map(guest => (
+                    <div
+                      key={guest.id}
+                      className="bg-white border border-gray-100 rounded-2xl px-4 py-3 flex items-center gap-3"
+                    >
+                      {/* Avatar circle */}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-bold
+                        ${guest.visitCount > 2
+                          ? "bg-orange-100 text-orange-700"
+                          : "bg-gray-100 text-gray-600"
+                        }`}>
+                        {guest.name.charAt(0).toUpperCase()}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-semibold text-sm text-gray-900 truncate">{guest.name}</p>
+                          {guest.visitCount > 1 && (
+                            <span className="text-[10px] bg-orange-100 text-orange-700 font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                              Repeat
+                            </span>
+                          )}
+                        </div>
+                        {guest.phone ? (
+                          <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                            <Phone className="w-3 h-3 shrink-0" />
+                            {guest.phone}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-300 mt-0.5">No phone</p>
+                        )}
+                        {guest.lastVisit && (
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            Last visit: {fmtDate(guest.lastVisit)}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Stats */}
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold text-orange-600">
+                          Rs. {guest.totalSpend.toFixed(0)}
+                        </p>
+                        <p className="text-[10px] text-gray-400">
+                          {guest.visitCount} visit{guest.visitCount !== 1 ? "s" : ""}
+                          {" · "}
+                          {guest.orderCount} order{guest.orderCount !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ── Stock Tab ── */}
+        {tab === "stock" && (
+          <div className="max-w-lg mx-auto px-4 pt-3 pb-24 space-y-3">
+            {(!stockData || stockData.length === 0) && (
+              <div className="text-center py-20 text-gray-400"><Package className="w-12 h-12 mx-auto mb-2 opacity-30" /><p>No stock</p></div>
+            )}
+            {stockData?.map(item => {
+              const e = stockEdits[item.id];
+              const total = e?.total ?? item.totalQuantity;
+              const inUse = e?.inUse ?? item.inUse;
+              const broken = e?.broken ?? item.broken;
+              const avail = total - inUse - broken;
+              return (
+                <div key={item.id} className="bg-white rounded-2xl p-4 border-2 border-gray-100">
+                  <div className="flex justify-between items-center mb-3">
+                    <p className="font-semibold">🍽️ {item.name}</p>
+                    <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full">{avail} available</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {([["total", "Total", total], ["inUse", "In Use", inUse], ["broken", "Broken", broken]] as const).map(([key, label, val]) => (
+                      <div key={key} className="text-center">
+                        <label className="text-xs text-gray-500 block mb-1">{label}</label>
+                        <Input type="number" inputMode="numeric" value={val}
+                          onChange={e => setStockEdits(p => ({
+                            ...p,
+                            [item.id]: { total: p[item.id]?.total ?? item.totalQuantity, inUse: p[item.id]?.inUse ?? item.inUse, broken: p[item.id]?.broken ?? item.broken, [key]: parseInt(e.target.value) || 0 },
+                          }))}
+                          className="h-12 text-base font-bold text-center" />
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => handleSaveStock(item.id)} disabled={updateStock.isPending}
+                    className="w-full h-12 bg-black text-white font-bold rounded-xl">
+                    {t.save}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Products Tab ── */}
+        {tab === "products" && (
+          <div className="max-w-lg mx-auto px-4 pt-3 pb-24">
+            <ProductsTab />
+          </div>
+        )}
+
+        {/* ── Departments Tab ── */}
+        {tab === "department" && (
+          <div className="max-w-lg mx-auto px-4 pt-3 pb-24">
+            <DepartmentsTab />
+          </div>
+        )}
+
+        {payOrder && <PaymentSheet order={payOrder} open={!!payOrder} onClose={() => setPayOrder(null)} onDone={() => { refetch(); setPayOrder(null); }} />}
+        {cancelConfirm !== null && (
+          isMobile ? (
+            <Drawer open={true} onOpenChange={v => !v && setCancelConfirm(null)}>
+              <DrawerContent className="bg-white dark:bg-gray-950 p-0">
+                <div className="mx-auto w-12 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full my-3 shrink-0" />
+                {renderCancelConfirmation(true)}
+              </DrawerContent>
+            </Drawer>
+          ) : (
+            <AlertDialog open={true} onOpenChange={v => !v && setCancelConfirm(null)}>
+              <AlertDialogContent className="max-w-sm mx-4 bg-white dark:bg-gray-950 p-0 overflow-hidden">
+                {renderCancelConfirmation(false)}
+              </AlertDialogContent>
+            </AlertDialog>
+          )
+        )}
+        <NewOrderSheet open={showNewOrder} onClose={() => setShowNewOrder(false)} onDone={refetch} />
+
+        {/* Floating Action Button for mobile screens */}
+        <button
+          onClick={() => setShowNewOrder(true)}
+          className="sm:hidden fixed bottom-6 right-6 z-40 bg-black hover:bg-black/90 active:scale-95 text-white rounded-full p-4 shadow-xl transition-all flex items-center justify-center cursor-pointer border border-neutral-800"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      </div>
+    </div>
+  );
+}
