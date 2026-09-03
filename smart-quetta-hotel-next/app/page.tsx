@@ -1,4 +1,6 @@
-import Home from "./src/pages/Home";
+"use client";
+
+import Home from "@/pages/Home";
 
 export default function Page() {
   return <Home />;
