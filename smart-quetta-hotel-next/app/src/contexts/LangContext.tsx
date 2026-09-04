@@ -579,7 +579,12 @@ export type Translations = {
   : { [SubK in keyof typeof T["en"][K]]: string };
 };
 
-const LangContext = createContext<{ lang: Lang; t: Translations; setLang: (l: Lang) => void; langSelected: boolean }>({
+const LangContext = createContext<{
+  lang: Lang;
+  t: Translations;
+  setLang: (l: Lang) => void;
+  langSelected: boolean;
+}>({
   lang: "en",
   t: T.en,
   setLang: () => { },
@@ -587,30 +592,45 @@ const LangContext = createContext<{ lang: Lang; t: Translations; setLang: (l: La
 });
 
 export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => {
-    return (localStorage.getItem("qh_lang") as Lang) ?? "en";
-  });
+  const [lang, setLangState] = useState<Lang>("en");
 
   // True if the user has explicitly picked a language at least once.
-  // Used by Home to decide whether to show the language-selection step.
-  const [langSelected, setLangSelectedState] = useState<boolean>(
-    () => !!localStorage.getItem("qh_lang")
-  );
+  const [langSelected, setLangSelectedState] = useState<boolean>(false);
+
+  // Read localStorage only in the browser
+  useEffect(() => {
+    const savedLang = localStorage.getItem("qh_lang") as Lang | null;
+
+    if (savedLang) {
+      setLangState(savedLang);
+      setLangSelectedState(true);
+    }
+  }, []);
 
   const setLang = (l: Lang) => {
     setLangState(l);
     setLangSelectedState(true);
+
     localStorage.setItem("qh_lang", l);
   };
 
+  // Set RTL/LTR
   useEffect(() => {
     const isRtl = lang !== "en";
+
     document.documentElement.dir = isRtl ? "rtl" : "ltr";
     document.documentElement.lang = lang;
   }, [lang]);
 
   return (
-    <LangContext.Provider value={{ lang, t: T[lang], setLang, langSelected }}>
+    <LangContext.Provider
+      value={{
+        lang,
+        t: T[lang],
+        setLang,
+        langSelected,
+      }}
+    >
       {children}
     </LangContext.Provider>
   );
@@ -620,13 +640,18 @@ export function useLang() {
   return useContext(LangContext);
 }
 
-export const LANG_OPTIONS: { value: Lang; label: string; flag: string }[] = [
-  { value: "en", label: "English", flag: "🇬🇧" },
-  { value: "ur", label: "اردو", flag: "🇵🇰" },
-  { value: "ps", label: "پښتو", flag: "🏔️" },
-  { value: "bal", label: "بلوچی", flag: "🌴" },
-  { value: "brh", label: "براہوئی", flag: "🏺" },
-  { value: "fa", label: "فارسی", flag: "🕌" },
-  { value: "pa", label: "پنجابی", flag: "🌾" },
-  { value: "sd", label: "سنڌي", flag: "🌊" },
-];
+export const LANG_OPTIONS: {
+  value: Lang;
+  label: string;
+  flag: string;
+}[] = [
+    { value: "en", label: "English", flag: "🇬🇧" },
+    { value: "ur", label: "اردو", flag: "🇵🇰" },
+    { value: "ps", label: "پښتو", flag: "🏔️" },
+    { value: "bal", label: "بلوچی", flag: "🌴" },
+    { value: "brh", label: "براہوئی", flag: "🏺" },
+    { value: "fa", label: "فارسی", flag: "🕌" },
+    { value: "pa", label: "پنجابی", flag: "🌾" },
+    { value: "sd", label: "سنڌي", flag: "🌊" },
+  ];
+

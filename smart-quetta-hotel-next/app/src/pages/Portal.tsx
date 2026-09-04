@@ -1,3 +1,4 @@
+"use client";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";

@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { useState } from "react";
 import superjson from "superjson";
-import { getLoginUrl } from "@/const";
+import { getLoginUrl } from "./const";
 import { getDashboardPin } from "@/lib/dashboardAuth";
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
