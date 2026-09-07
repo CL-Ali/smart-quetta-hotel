@@ -340,13 +340,42 @@ export default function Dashboard() {
   const [stockEdits, setStockEdits] = useState<Record<number, { total: number; inUse: number; broken: number }>>({});
 
   // ── PIN gate ─────────────────────────────────────────────────────────────
-  const [pinUnlocked, setPinUnlocked] = useState(() => !!getDashboardPin());
-  const pinErrorRef = React.useRef<((msg: string) => void) | null>(null);
+  // Next.js Server
+  //  ↓
+  // pinUnlocked = false
+  // pinReady = false
+  //  ↓
+  // Same HTML sent to browser
+  //  ↓
+  // Hydration succeeds
+  //  ↓
+  // useEffect runs
+  //  ↓
+  // Read localStorage
+  //  ↓
+  // PIN exists?
+  //  ↙       ↘
+  //  YES       NO
+  // ↓         ↓
+  // Dashboard  PIN Gate
+  // 
+  // 
+  const [pinUnlocked, setPinUnlocked] = useState(false);
+  const [pinReady, setPinReady] = useState(false);
 
-  const { data: orders, isLoading, refetch } =
+  useEffect(() => {
+    const unlocked = !!getDashboardPin();
+    setPinUnlocked(unlocked);
+    setPinReady(true);
+  }, []);
+  const pinErrorRef = React.useRef<((msg: string) => void) | null>(null);
+  // pinReady       → Have we checked localStorage? , ordersLoading  → Are dashboard orders loading?
+  // adding orderloading to isloading 
+  const { data: orders, isLoading: ordersLoading, refetch } =
     trpc.hotel.getOrders.useQuery(undefined, {
       refetchInterval: 15000,
       enabled: pinUnlocked,
+
       retry: (failureCount: number, err: any) => {
         if (err?.data?.code === "UNAUTHORIZED") {
           clearDashboardPin();
@@ -448,8 +477,14 @@ export default function Dashboard() {
       </div>
     </div>
   );
-
-  if (isLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8" /></div>;
+  // changged isloading to pinReady to show loading screen while checking pin 
+  if (!pinReady) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin h-8 w-8" />
+      </div>
+    );
+  }
 
   // Show PIN screen if not yet unlocked
   if (!pinUnlocked) {

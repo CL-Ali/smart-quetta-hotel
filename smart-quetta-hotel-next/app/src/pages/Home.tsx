@@ -28,25 +28,50 @@ const LS_LEGACY_ID = "qh_customer_id";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+// read storein it 
 function readStoredInt(key: string): number | null {
-  const s = localStorage.getItem(key);
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const s = window.localStorage.getItem(key);
+
   if (!s) return null;
+
   const n = Number(s);
+
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-function readStoredSession(): { guestId: number; visitId: number; guestName: string } | null {
+// read session
+function readStoredSession(): {
+  guestId: number;
+  visitId: number;
+  guestName: string;
+} | null {
+  // localStorage only exists in the browser
+  if (typeof window === "undefined") {
+    return null;
+  }
+
   const guestId = readStoredInt(LS_GUEST_ID);
   const visitId = readStoredInt(LS_VISIT_ID);
-  const guestName = localStorage.getItem(LS_GUEST_NAME) ?? "";
-  if (guestId && visitId && guestName) return { guestId, visitId, guestName };
+  const guestName = window.localStorage.getItem(LS_GUEST_NAME) ?? "";
+
+  if (guestId && visitId && guestName) {
+    return { guestId, visitId, guestName };
+  }
+
   return null;
 }
+
 
 function clearStoredSession() {
   [LS_GUEST_NAME, LS_GUEST_ID, LS_VISIT_ID, LS_COOKIE_HASH, LS_TICKET_NO,
     LS_PREV_NAME, LS_LEGACY_NAME, LS_LEGACY_ID].forEach(k => localStorage.removeItem(k));
 }
+
+
 
 function saveStoredSession(
   guestId: number, visitId: number, name: string,
@@ -175,6 +200,17 @@ function LangSelectScreen({ onDone }: { onDone: () => void }) {
 // ── Home ───────────────────────────────────────────────────────────────────
 
 export default function Home() {
+  // useefffect added her so the server and browser render the same content and avoid hydration mismatch error
+  // it is contexted to line 222
+  useEffect(() => {
+    const storedTicketNo = window.localStorage.getItem(LS_TICKET_NO);
+
+    if (storedTicketNo) {
+      setTicketNo(storedTicketNo);
+    }
+  }, []);
+
+  // --------------------
   const { t, langSelected } = useLang();
   const isMobile = useIsMobile();
   const [confirmPlace, setConfirmPlace] = useState(false);
@@ -192,11 +228,29 @@ export default function Home() {
   const [guestName, setGuestName] = useState(storedSession?.guestName ?? "");
   const [guestId, setGuestId] = useState<number | null>(storedSession?.guestId ?? null);
   const [visitId, setVisitId] = useState<number | null>(storedSession?.visitId ?? null);
-  const [ticketNo, setTicketNo] = useState<string | null>(() => localStorage.getItem(LS_TICKET_NO));
+  // thsi const ticket no changed localStorage key to LS_TICKET_NO to store ticket number for resuming visit no local storage
+  const [ticketNo, setTicketNo] = useState<string | null>(null);
   const [guestPhone, setGuestPhone] = useState("");
-  const [previousName, setPreviousName] = useState(
-    () => localStorage.getItem(LS_PREV_NAME) ?? localStorage.getItem(LS_LEGACY_NAME) ?? ""
-  );
+  // remover the same local storage
+  const [previousName, setPreviousName] = useState("");
+  // use effect 
+  useEffect(() => {
+    const storedTicketNo = window.localStorage.getItem(LS_TICKET_NO);
+
+    if (storedTicketNo) {
+      setTicketNo(storedTicketNo);
+    }
+
+    const storedPreviousName =
+      window.localStorage.getItem(LS_PREV_NAME) ??
+      window.localStorage.getItem(LS_LEGACY_NAME) ??
+      "";
+
+    if (storedPreviousName) {
+      setPreviousName(storedPreviousName);
+    }
+  }, []);
+  // ---------------------------------------
   const [cart, setCart] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"menu" | "history">("menu");
   const [placing, setPlacing] = useState(false);

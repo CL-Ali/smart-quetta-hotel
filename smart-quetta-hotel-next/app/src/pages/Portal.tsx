@@ -1,6 +1,6 @@
 "use client";
 import { useEffect } from "react";
-import { useLocation } from "wouter";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 /**
@@ -15,14 +15,15 @@ import { Loader2 } from "lucide-react";
  * Intentionally no business logic — spec 009 rule: portal handles network
  * entry only, not ordering/billing.
  */
+// route handeling changed because wouter are not aplicable in nextjs 13
 export default function Portal() {
-  const [, navigate] = useLocation();
+  const router = useRouter();
 
   useEffect(() => {
     // Forward all query params intact so Home can read ?ticket= if present
     const search = window.location.search;
-    navigate(`/${search}`, { replace: true });
-  }, [navigate]);
+    router.replace(`/${search}`);
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center">

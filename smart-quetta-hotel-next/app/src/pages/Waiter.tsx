@@ -18,7 +18,13 @@ export default function Waiter() {
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
   const [serving, setServing] = useState<Set<number>>(new Set());
-  const [pinUnlocked, setPinUnlocked] = useState(() => !!getDashboardPin());
+  // this pin unlockd changes to remove hydration error on server side rendering because the pin is stored in local storage and is not available on server side
+  const [pinUnlocked, setPinUnlocked] = useState(false);
+
+  useEffect(() => {
+    setPinUnlocked(!!getDashboardPin());
+  },
+    []);
   const pinErrorRef = React.useRef<((msg: string) => void) | null>(null);
 
   const { data: orders, isLoading, refetch } = trpc.hotel.getOrders.useQuery(

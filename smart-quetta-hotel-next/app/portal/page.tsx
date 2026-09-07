@@ -1,6 +1,8 @@
 "use client";
-import Portal from "@/pages/Portal";
+import Portal from "../src/pages/Portal";
+
+
 
 export default function PortalPage() {
     return <Portal />;
-}
+}   
