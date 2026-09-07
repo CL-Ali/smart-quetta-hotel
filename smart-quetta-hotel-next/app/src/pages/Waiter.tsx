@@ -42,14 +42,24 @@ export default function Waiter() {
   // ── Realtime: refetch when kitchen marks items ready or order changes ───
   const socket = useSocket();
   useEffect(() => {
-    const handler = () => refetch();
-    socket.on("kitchen.ready", handler);
-    socket.on("order.updated", handler);
+    // Socket.IO client is created asynchronously.
+    // Do not register listeners until the socket exists.
+    if (!socket) {
+      return;
+    }
+
+    const handler = () => {
+      refetch();
+    };
+
     socket.on("order.created", handler);
+    socket.on("order.updated", handler);
+    socket.on("kitchen.ready", handler);
+
     return () => {
-      socket.off("kitchen.ready", handler);
-      socket.off("order.updated", handler);
       socket.off("order.created", handler);
+      socket.off("order.updated", handler);
+      socket.off("kitchen.ready", handler);
     };
   }, [socket, refetch]);
 

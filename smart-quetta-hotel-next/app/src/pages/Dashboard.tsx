@@ -392,13 +392,28 @@ export default function Dashboard() {
   const { data: guestsData, isLoading: guestsLoading } = trpc.guest.getGuests.useQuery(undefined, { refetchInterval: 30000, enabled: pinUnlocked });
   const [guestSearch, setGuestSearch] = useState("");
   const socket = useSocket();
+
   useEffect(() => {
-    const onOrderChange = () => refetch();
-    const onPayment = () => { refetch(); refetchCash(); };
+    // Socket is created asynchronously by useSocket().
+    // Do nothing until it is available.
+    if (!socket) {
+      return;
+    }
+
+    const onOrderChange = () => {
+      refetch();
+    };
+
+    const onPayment = () => {
+      refetch();
+      refetchCash();
+    };
+
     socket.on("order.created", onOrderChange);
     socket.on("order.updated", onOrderChange);
     socket.on("kitchen.ready", onOrderChange);
     socket.on("payment.received", onPayment);
+
     return () => {
       socket.off("order.created", onOrderChange);
       socket.off("order.updated", onOrderChange);
@@ -406,6 +421,8 @@ export default function Dashboard() {
       socket.off("payment.received", onPayment);
     };
   }, [socket, refetch, refetchCash]);
+
+
 
   const updateStatus = trpc.hotel.updateOrderStatus.useMutation();
   const updateInv = trpc.hotel.updateInventory.useMutation();

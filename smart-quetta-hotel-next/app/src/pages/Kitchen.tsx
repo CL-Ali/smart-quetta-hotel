@@ -11,6 +11,7 @@ import { useSocket } from "../hooks/useSocket";
 import { DashboardPinGate } from "../components/DashboardPinGate";
 import { getDashboardPin, clearDashboardPin } from "../lib/dashboardAuth";
 
+
 // Item-level status badge colors
 const ITEM_STATUS: Record<string, { bg: string; text: string; label: string }> = {
   pending: { bg: "bg-gray-100", text: "text-gray-600", label: "Pending" },
@@ -24,6 +25,7 @@ export default function Kitchen() {
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
   const [loadingItems, setLoadingItems] = useState<Set<number>>(new Set());
   const [pinUnlocked, setPinUnlocked] = useState(() => !!getDashboardPin());
+
   const pinErrorRef = React.useRef<((msg: string) => void) | null>(null);
 
   const { data: orders, isLoading, refetch } = trpc.hotel.getOrders.useQuery(
@@ -41,17 +43,29 @@ export default function Kitchen() {
 
   // ── Realtime: subscribe to order events, refetch on any change ──────────
   const socket = useSocket();
+  // these mounted created  to prevent hyddration used un loader
   useEffect(() => {
-    const handler = () => refetch();
+    // Socket.IO client is created asynchronously.
+    // Do not register listeners until the socket exists.
+    if (!socket) {
+      return;
+    }
+
+    const handler = () => {
+      refetch();
+    };
+
     socket.on("order.created", handler);
     socket.on("order.updated", handler);
     socket.on("kitchen.ready", handler);
+
     return () => {
       socket.off("order.created", handler);
       socket.off("order.updated", handler);
       socket.off("kitchen.ready", handler);
     };
   }, [socket, refetch]);
+
 
   if (!pinUnlocked) return <DashboardPinGate onUnlocked={(onErr) => { pinErrorRef.current = onErr; setPinUnlocked(true); }} />;
 
@@ -106,11 +120,15 @@ export default function Kitchen() {
       setLoadingItems(prev => { const n = new Set(prev); itemIds.forEach(id => n.delete(id)); return n; });
     }
   };
+  // mounted added to prevent hydration error
 
   if (isLoading) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8" /></div>;
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin h-8 w-8" />
+      </div>
+    );
   }
-
   // Show orders that have at least one item not yet served
   const active = (orders ?? []).filter(o =>
     (o.status === "pending" || o.status === "preparing" || o.status === "ready") &&

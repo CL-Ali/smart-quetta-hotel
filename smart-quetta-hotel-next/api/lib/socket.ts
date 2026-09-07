@@ -1,60 +1,89 @@
 import type { Server as HttpServer } from "http";
+
 import { Server } from "socket.io";
+
 import type { DomainEventName } from "./domain/types";
 
-// ── Socket event name mapping ────────────────────────────────────────────────
-// Maps domain event names (past-tense, PascalCase from 018-event-catalog.md)
-// to the socket wire names (dot-notation, lowercase from 006-realtime.md).
-// Define once here so every router imports from this file — no string literals
-// scattered across routers.
+// --------------------------------------------------
+// Socket event name mapping
+// --------------------------------------------------
 
-export const SOCKET_EVENT: Record<DomainEventName, string> = {
-  GuestCreated:      "guest.created",
-  VisitOpened:       "visit.opened",
-  VisitClosed:       "visit.closed",
-  OrderCreated:      "order.created",
-  OrderAccepted:     "order.updated",
-  OrderPreparing:    "order.updated",
-  OrderReady:        "kitchen.ready",
-  OrderServed:       "order.updated",
-  OrderCompleted:    "order.updated",
-  InvoiceGenerated:  "invoice.generated",
-  PaymentReceived:   "payment.received",
+export const SOCKET_EVENT: Record<
+  DomainEventName,
+  string
+> = {
+  GuestCreated: "guest.created",
+  VisitOpened: "visit.opened",
+  VisitClosed: "visit.closed",
+
+  OrderCreated: "order.created",
+  OrderAccepted: "order.updated",
+  OrderPreparing: "order.updated",
+  OrderReady: "kitchen.ready",
+  OrderServed: "order.updated",
+  OrderCompleted: "order.updated",
+
+  InvoiceGenerated: "invoice.generated",
+  PaymentReceived: "payment.received",
 } as const;
 
-// ── Singleton ────────────────────────────────────────────────────────────────
+// --------------------------------------------------
+// Singleton
+// --------------------------------------------------
 
 let io: Server | null = null;
 
 /**
- * Called once at server startup in api/index.ts.
- * Attaches Socket.io to the existing HTTP server — no new port required.
+ * Initialize Socket.IO on the existing HTTP server.
+ *
+ * Socket.IO uses the same server as:
+ *
+ * - Express
+ * - Next.js
+ *
+ * No additional port is required.
  */
-export function initIo(httpServer: HttpServer): Server {
+export function initIo(
+  httpServer: HttpServer
+): Server {
+
+  // this is io new 
+
   io = new Server(httpServer, {
-    cors: {
-      // Allow the Vite dev server origin and same-origin production requests.
-      origin: "*",
-      methods: ["GET", "POST"],
-    },
-    // Keep the path distinct from tRPC to avoid collisions.
     path: "/ws/",
+    transports: ["websocket"],
+    cors: {
+      origin: true,
+      methods: ["GET", "POST"],
+      credentials: true,
+    },
   });
 
-  io.on("connection", socket => {
-    // Intentionally minimal — server pushes only, clients do not send commands
-    // over the socket. All mutations go through tRPC.
-    socket.on("disconnect", () => {
-      // no-op; cleanup is automatic
+  io.on("connection", (socket) => {
+    console.log(
+      `[Socket.IO] Client connected: ${socket.id}`
+    );
+
+    socket.on("disconnect", (reason) => {
+      console.log(
+        `[Socket.IO] Client disconnected: ${socket.id} (${reason})`
+      );
     });
   });
+
+  console.log(
+    "[Socket.IO] Initialized on /ws/"
+  );
 
   return io;
 }
 
 /**
- * Returns the Socket.io server instance, or null if not yet initialised.
- * Routers call getIo()?.emit(...) so tests and CLI runs never crash.
+ * Get the Socket.IO instance.
+ *
+ * Routers can safely call:
+ *
+ * getIo()?.emit(...)
  */
 export function getIo(): Server | null {
   return io;

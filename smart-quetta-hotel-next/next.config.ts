@@ -1,6 +1,7 @@
 // next.config.ts
 import type { NextConfig } from "next";
 import withPWAInit from "@ducanh2912/next-pwa";
+import { networkInterfaces } from "os";
 
 
 // const withPWA = withPWAInit({
@@ -31,6 +32,28 @@ import withPWAInit from "@ducanh2912/next-pwa";
 
 // new file: smart-quetta-hotel-next/next.config.ts
 // next.config.ts
+// Automatically detect all active network interfaces on this machine
+const nets = networkInterfaces();
+const localIps: string[] = [
+  "localhost",
+  "127.0.0.1",
+  // Allow all standard private LAN / WiFi subnets for any laptop or device
+  "192.168.*",
+  "10.*",
+  "172.16.*",
+  "172.20.*",
+  "172.31.*",
+  "*.local",
+  "*.lan",
+];
+
+for (const iface of Object.values(nets)) {
+  for (const net of iface ?? []) {
+    if (net.family === "IPv4") {
+      localIps.push(net.address);
+    }
+  }
+}
 
 /**
  * =========================================================
@@ -122,31 +145,12 @@ const withPWA = withPWAInit({
  * =========================================================
  */
 const nextConfig: NextConfig = {
-
-  /**
-   * IMPORTANT:
-   *
-   * Your actual Next.js project is:
-   *
-   * I:\Github_CLALI\
-   *   smart-quetta-hotel\
-   *     smart-quetta-hotel-next\
-   *
-   * But there is another package-lock.json in:
-   *
-   * I:\Github_CLALI\
-   *   smart-quetta-hotel\
-   *
-   * Therefore Next/Turbopack tries to use the parent
-   * directory as the workspace root.
-   *
-   * Explicitly setting root prevents that.
-   */
-  turbopack: {
-    root: __dirname,
-  },
+  reactStrictMode: true,
+  // Native C++ modules must be treated as external packages on the server
+  serverExternalPackages: ["better-sqlite3"],
+  // Permit any local network / mobile / laptop connection automatically
+  allowedDevOrigins: Array.from(new Set(localIps)),
 };
-
 /**
  * =========================================================
  * EXPORT
@@ -158,3 +162,6 @@ const nextConfig: NextConfig = {
  */
 
 export default withPWA(nextConfig);
+
+
+
