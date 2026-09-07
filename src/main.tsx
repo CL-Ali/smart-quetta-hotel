@@ -12,7 +12,7 @@ import "./index.css";
 
 // Register service worker — auto-updates in background
 registerSW({
-  onRegisteredSW(swUrl, r) {
+  onRegisteredSW(swUrl: string, r?: ServiceWorkerRegistration) {
     // Check for updates every 60 seconds (useful for hotel staff who keep app open all day)
     if (r) {
       setInterval(async () => {

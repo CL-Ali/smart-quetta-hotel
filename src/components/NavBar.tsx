@@ -1,5 +1,8 @@
+"use client";
+
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Logo from "./Logo";
 
 const navItems = [
@@ -10,7 +13,7 @@ const navItems = [
 ];
 
 export default function NavBar() {
-  const [location] = useLocation();
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -46,7 +49,7 @@ export default function NavBar() {
           style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
         >
           {navItems.map(({ href, label, emoji, title }) => (
-            <NavLink key={href} href={href} label={`${emoji} ${label}`} title={title} active={location === href} />
+            <NavLink key={href} href={href} label={`${emoji} ${label}`} title={title} active={pathname === href} />
           ))}
         </div>
 
@@ -93,7 +96,7 @@ export default function NavBar() {
             href={href}
             label={`${emoji}  ${label}`}
             title={title}
-            active={location === href}
+            active={pathname === href}
             block
             onClick={() => setMenuOpen(false)}
           />

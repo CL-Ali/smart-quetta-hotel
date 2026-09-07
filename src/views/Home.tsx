@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useMemo, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Input } from "@/components/ui/input";
@@ -28,6 +30,7 @@ const LS_LEGACY_ID   = "qh_customer_id";
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function readStoredInt(key: string): number | null {
+  if (typeof window === "undefined") return null;
   const s = localStorage.getItem(key);
   if (!s) return null;
   const n = Number(s);
@@ -35,6 +38,7 @@ function readStoredInt(key: string): number | null {
 }
 
 function readStoredSession(): { guestId: number; visitId: number; guestName: string } | null {
+  if (typeof window === "undefined") return null;
   const guestId   = readStoredInt(LS_GUEST_ID);
   const visitId   = readStoredInt(LS_VISIT_ID);
   const guestName = localStorage.getItem(LS_GUEST_NAME) ?? "";
@@ -43,6 +47,7 @@ function readStoredSession(): { guestId: number; visitId: number; guestName: str
 }
 
 function clearStoredSession() {
+  if (typeof window === "undefined") return;
   [LS_GUEST_NAME, LS_GUEST_ID, LS_VISIT_ID, LS_COOKIE_HASH, LS_TICKET_NO,
    LS_PREV_NAME, LS_LEGACY_NAME, LS_LEGACY_ID].forEach(k => localStorage.removeItem(k));
 }
@@ -51,6 +56,7 @@ function saveStoredSession(
   guestId: number, visitId: number, name: string,
   cookieHash: string, ticketNo?: string | null,
 ) {
+  if (typeof window === "undefined") return;
   localStorage.setItem(LS_GUEST_NAME,  name);
   localStorage.setItem(LS_GUEST_ID,    String(guestId));
   localStorage.setItem(LS_VISIT_ID,    String(visitId));
@@ -191,10 +197,10 @@ export default function Home() {
   const [guestName,    setGuestName]   = useState(storedSession?.guestName ?? "");
   const [guestId,      setGuestId]     = useState<number | null>(storedSession?.guestId ?? null);
   const [visitId,      setVisitId]     = useState<number | null>(storedSession?.visitId ?? null);
-  const [ticketNo,     setTicketNo]    = useState<string | null>(() => localStorage.getItem(LS_TICKET_NO));
+  const [ticketNo,     setTicketNo]    = useState<string | null>(() => (typeof window !== "undefined" ? localStorage.getItem(LS_TICKET_NO) : null));
   const [guestPhone,   setGuestPhone]  = useState("");
   const [previousName, setPreviousName] = useState(
-    () => localStorage.getItem(LS_PREV_NAME) ?? localStorage.getItem(LS_LEGACY_NAME) ?? ""
+    () => (typeof window !== "undefined" ? (localStorage.getItem(LS_PREV_NAME) ?? localStorage.getItem(LS_LEGACY_NAME) ?? "") : "")
   );
   const [cart,      setCart]      = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"menu" | "history">("menu");

@@ -1,16 +1,16 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/NotFound";
+import NotFound from "@/views/NotFound";
 import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LangProvider } from "./contexts/LangContext";
 import NavBar from "./components/NavBar";
-import Home from "./pages/Home";
-import Dashboard from "./pages/Dashboard";
-import Kitchen from "./pages/Kitchen";
-import Waiter from "./pages/Waiter";
-import Portal from "./pages/Portal";
+import Home from "@/views/Home";
+import Dashboard from "@/views/Dashboard";
+import Kitchen from "@/views/Kitchen";
+import Waiter from "@/views/Waiter";
+import Portal from "@/views/Portal";
 import { useSocket } from "./hooks/useSocket";
 
 // NavBar is only shown on staff-facing routes (dashboard, kitchen, waiter)

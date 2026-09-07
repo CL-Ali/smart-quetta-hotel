@@ -30,6 +30,7 @@ function decode(stored: string): string {
 
 /** Returns the stored PIN (decoded), or empty string if not set. */
 export function getDashboardPin(): string {
+  if (typeof window === "undefined") return "";
   const stored = localStorage.getItem(STORAGE_KEY) ?? "";
   return stored ? decode(stored) : "";
 }
@@ -39,6 +40,7 @@ export function getDashboardPin(): string {
  * Returns immediately (sync) — no async needed without Web Crypto.
  */
 export async function hashAndSavePin(pin: string): Promise<string> {
+  if (typeof window === "undefined") return pin.trim();
   const encoded = encode(pin.trim());
   localStorage.setItem(STORAGE_KEY, encoded);
   return pin.trim(); // return raw PIN so header injection uses correct value
@@ -46,10 +48,13 @@ export async function hashAndSavePin(pin: string): Promise<string> {
 
 /** Clears the stored value (locks the dashboard on this device). */
 export function clearDashboardPin(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(STORAGE_KEY);
+  }
 }
 
 /** True if a PIN is currently stored (device has been unlocked). */
 export function isDashboardUnlocked(): boolean {
+  if (typeof window === "undefined") return false;
   return !!localStorage.getItem(STORAGE_KEY);
 }

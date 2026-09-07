@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 
@@ -6,10 +8,12 @@ import { io, Socket } from "socket.io-client";
 let socketSingleton: Socket | null = null;
 
 function getSocket(): Socket {
+  if (typeof window === "undefined") {
+    return {} as Socket;
+  }
   if (!socketSingleton) {
     socketSingleton = io({
       // Connect to the same origin the page was served from.
-      // In dev the Vite proxy forwards /ws/ to the Express server.
       path: "/ws/",
       // Reconnect automatically with exponential backoff.
       reconnection: true,

@@ -1,3 +1,5 @@
+"use client";
+
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 
 export type Lang = "en" | "ur" | "ps" | "bal" | "brh" | "fa" | "pa" | "sd";
@@ -587,14 +589,20 @@ const LangContext = createContext<{ lang: Lang; t: Translations; setLang: (l: La
 
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
-    return (localStorage.getItem("qh_lang") as Lang) ?? "en";
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("qh_lang") as Lang) ?? "en";
+    }
+    return "en";
   });
 
   // True if the user has explicitly picked a language at least once.
   // Used by Home to decide whether to show the language-selection step.
-  const [langSelected, setLangSelectedState] = useState<boolean>(
-    () => !!localStorage.getItem("qh_lang")
-  );
+  const [langSelected, setLangSelectedState] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return !!localStorage.getItem("qh_lang");
+    }
+    return false;
+  });
 
   const setLang = (l: Lang) => {
     setLangState(l);
