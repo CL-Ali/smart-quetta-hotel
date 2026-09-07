@@ -15,7 +15,11 @@ import { initIo } from "./api/lib/socket";
 import { upload, getPublicUrl } from "./api/middleware/upload";
 
 const dev = process.env.NODE_ENV !== "production";
-const nextApp = next({ dev });
+// acces can be any where
+const nextApp = next({
+    dev,
+    hostname: "0.0.0.0",
+});
 const handle = nextApp.getRequestHandler();
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -32,7 +36,7 @@ async function findAvailablePort(startPort = 3000): Promise<number> {
     }
     throw new Error(`No available port found starting from ${startPort}`);
 }
-
+// thsi  
 async function startServer() {
     // Next.js has to finish compiling/preparing before it can handle requests.
     await nextApp.prepare();

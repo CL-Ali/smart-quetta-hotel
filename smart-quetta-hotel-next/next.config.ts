@@ -122,7 +122,7 @@ const withPWA = withPWAInit({
  * =========================================================
  */
 const nextConfig: NextConfig = {
-  devIndicators: false,
+
   /**
    * IMPORTANT:
    *
