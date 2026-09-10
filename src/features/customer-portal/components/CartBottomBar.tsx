@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
-import { ShoppingCart, Loader2, X } from "lucide-react";
+import { ShoppingBag, Loader2, ArrowRight, Zap } from "lucide-react";
 import { CartItem } from "@/types/hotel";
 import { useLang } from "@/contexts/LangContext";
+import { playOrderSuccessSound } from "@/lib/sound";
 
 interface CartBottomBarProps {
   cart: CartItem[];
@@ -17,58 +18,55 @@ export function CartBottomBar({
   cart,
   cartTotal,
   placing,
-  onRemoveItem,
   onCheckout,
 }: CartBottomBarProps) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
 
   if (cart.length === 0) return null;
 
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 px-4 py-3 shadow-lg">
-      <div className="max-w-lg mx-auto space-y-2">
-        <div className="space-y-1 max-h-24 overflow-y-auto">
-          {cart.map((item) => (
-            <div
-              key={item.id}
-              className="flex justify-between items-center text-xs bg-gray-50 px-3 py-1.5 rounded-lg"
-            >
-              <span className="font-medium">
-                {item.name} <span className="text-gray-400">×{item.quantity}</span>
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-orange-600 font-semibold">
-                  Rs. {(item.price * item.quantity).toFixed(0)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onRemoveItem(item.id)}
-                  className="text-gray-300 hover:text-red-400 p-0.5 cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  const handleClick = () => {
+    playOrderSuccessSound();
+    onCheckout();
+  };
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-30 p-3 bg-gradient-to-t from-black/20 to-transparent pointer-events-none">
+      <div className="max-w-md mx-auto pointer-events-auto">
         <button
           type="button"
-          onClick={onCheckout}
+          onClick={handleClick}
           disabled={placing}
-          className="w-full h-14 bg-orange-600 hover:bg-orange-700 active:scale-[0.99] transition text-white rounded-2xl font-bold text-base flex items-center justify-center gap-3 disabled:opacity-60 cursor-pointer shadow-md"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white p-3.5 sm:p-4 rounded-2xl shadow-xl transition flex items-center justify-between gap-3 border-2 border-emerald-400/30 cursor-pointer"
         >
-          {placing ? (
-            <Loader2 className="animate-spin w-5 h-5" />
-          ) : (
-            <>
-              <ShoppingCart className="w-5 h-5" />
-              <span>{t.placeOrder}</span>
-              <span className="bg-white/20 rounded-lg px-2 py-0.5 text-sm">
-                Rs. {cartTotal.toFixed(0)}
-              </span>
-            </>
-          )}
+          {/* Left: Cart Badge & Total Amount */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-black text-sm">
+              <ShoppingBag className="w-5 h-5 fill-white/20" />
+            </div>
+            <div className="text-left">
+              <p className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">
+                {totalItems} {totalItems === 1 ? "Item" : "Items"}
+              </p>
+              <p className="text-base sm:text-lg font-black leading-tight text-white">
+                Rs. {cartTotal}
+              </p>
+            </div>
+          </div>
+
+          {/* Right: Lightning Fast Order Action */}
+          <div className="flex items-center gap-2 bg-white text-emerald-800 font-black px-4 py-2 rounded-xl text-xs sm:text-sm shadow-md">
+            {placing ? (
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
+            ) : (
+              <>
+                <Zap className="w-4 h-4 fill-emerald-600 text-emerald-600" />
+                <span>{lang === "ur" ? "آرڈر بھیجیں" : "Place Order"}</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </div>
         </button>
       </div>
     </div>

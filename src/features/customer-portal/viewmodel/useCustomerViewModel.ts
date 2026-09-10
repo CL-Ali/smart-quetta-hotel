@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useLang } from "@/contexts/LangContext";
 import { useSocket } from "@/hooks/useSocket";
 import { CartItem, MenuItem } from "@/types/hotel";
+import { playOrderSuccessSound, playTapSound } from "@/lib/sound";
 import { useCustomerService } from "../services/customerService";
 
 // Storage keys
@@ -96,6 +97,8 @@ export function useCustomerViewModel() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeTab, setActiveTab] = useState<"menu" | "history">("menu");
   const [placing, setPlacing] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [lastOrderTotal, setLastOrderTotal] = useState(0);
   const submittingRef = useRef(false);
 
   // ── Service Layer Hook ───────────────────────────────────────────────────
@@ -287,6 +290,7 @@ export function useCustomerViewModel() {
   const handlePlaceOrder = async () => {
     if (cart.length === 0 || !guestId || !visitId) return;
     setPlacing(true);
+    const placedTotal = cartTotal;
     try {
       const r = await service.placeOrder({
         customerName: guestName,
@@ -298,10 +302,13 @@ export function useCustomerViewModel() {
           unitPrice: i.price,
         })),
       });
+      playOrderSuccessSound();
+      setLastOrderTotal(placedTotal);
+      setShowSuccessModal(true);
+      setConfirmPlace(false);
       toast.success(`${t.orderPlaced} #${r.orderId} 🎉`);
       setCart([]);
       service.refetchOrders();
-      setActiveTab("history");
     } catch {
       toast.error("Failed to place order");
     }
@@ -320,6 +327,8 @@ export function useCustomerViewModel() {
     cartCount,
     activeTab,
     confirmPlace,
+    showSuccessModal,
+    lastOrderTotal,
     isVerifyingSession:
       step === "name" &&
       !!storedSession &&
@@ -341,6 +350,7 @@ export function useCustomerViewModel() {
     setGuestPhone,
     setActiveTab,
     setConfirmPlace,
+    setShowSuccessModal,
     handleNameSubmit,
     handleChangeName,
     handleAddToCart,

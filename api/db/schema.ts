@@ -175,6 +175,27 @@ export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
 
 /**
+ * Shopkeepers & Khata Accounts (دکاندار اور کھاتہ دار)
+ */
+export const shopkeepers = sqliteTable("shopkeepers", {
+  id: int("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  shopName: text("shopName").notNull(),
+  shopNumber: text("shopNumber"),
+  phone: text("phone"),
+  balance: real("balance").default(0).notNull(),
+  createdAt: text("createdAt")
+    .default(sql`(datetime('now'))`)
+    .notNull(),
+  updatedAt: text("updatedAt")
+    .default(sql`(datetime('now'))`)
+    .notNull(),
+});
+
+export type Shopkeeper = typeof shopkeepers.$inferSelect;
+export type InsertShopkeeper = typeof shopkeepers.$inferInsert;
+
+/**
  * Orders
  */
 export const orders = sqliteTable("orders", {

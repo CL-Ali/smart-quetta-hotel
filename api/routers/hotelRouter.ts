@@ -9,6 +9,7 @@ import {
   stock,
   customers,
   payments,
+  shopkeepers,
 } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
@@ -21,6 +22,34 @@ import {
 import { getIo, SOCKET_EVENT } from "../lib/socket";
 
 export const hotelRouter = router({
+  // ── Shopkeepers & Regular Accounts ─────────────────────────────────────────
+  getShopkeepers: publicProcedure.query(async () => {
+    const db = getDb();
+    return db.select().from(shopkeepers).orderBy(desc(shopkeepers.createdAt)).all();
+  }),
+
+  createShopkeeper: publicProcedure
+    .input(
+      z.object({
+        name: z.string().min(1),
+        shopName: z.string().min(1),
+        shopNumber: z.string().optional(),
+        phone: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const result = db
+        .insert(shopkeepers)
+        .values({
+          name: input.name,
+          shopName: input.shopName,
+          shopNumber: input.shopNumber ?? null,
+          phone: input.phone ?? null,
+        })
+        .run();
+      return { id: Number(result.lastInsertRowid), ...input, balance: 0 };
+    }),
   // ── Menu ────────────────────────────────────────────────────────────────────
   getMenu: publicProcedure.query(async () => {
     const db = getDb();
@@ -48,12 +77,29 @@ export const hotelRouter = router({
     )
     .mutation(async ({ input }) => {
       const db = getDb();
-      const existing = db
+      let existing = db
         .select()
         .from(customers)
         .where(eq(customers.name, input.name))
         .all();
-      if (existing.length > 0) return existing[0];
+
+      if (existing.length === 0 && input.phone) {
+        existing = db
+          .select()
+          .from(customers)
+          .where(eq(customers.phone, input.phone))
+          .all();
+      }
+
+      if (existing.length > 0) {
+        if (input.phone && existing[0].phone !== input.phone) {
+          db.update(customers)
+            .set({ phone: input.phone })
+            .where(eq(customers.id, existing[0].id))
+            .run();
+        }
+        return { ...existing[0], phone: input.phone || existing[0].phone };
+      }
 
       const result = db
         .insert(customers)
@@ -64,7 +110,7 @@ export const hotelRouter = router({
         })
         .run();
 
-      return { id: Number(result.lastInsertRowid), name: input.name };
+      return { id: Number(result.lastInsertRowid), name: input.name, phone: input.phone };
     }),
 
   // ── Customer order history ───────────────────────────────────────────────────

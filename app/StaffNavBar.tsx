@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import NavBar from "@/components/NavBar";
 
-const STAFF_ROUTES = ["/dashboard", "/kitchen", "/waiter"];
+const STAFF_ROUTES = ["/kitchen", "/waiter"];
 
 export function StaffNavBar() {
   const pathname = usePathname();

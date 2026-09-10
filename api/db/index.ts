@@ -200,6 +200,17 @@ function initSchema(sqlite: Database.Database) {
       quantityNeeded REAL NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS shopkeepers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      shopName TEXT NOT NULL,
+      shopNumber TEXT,
+      phone TEXT,
+      balance REAL NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS payments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       orderId INTEGER REFERENCES orders(id),
@@ -213,6 +224,22 @@ function initSchema(sqlite: Database.Database) {
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  // Seed default shopkeepers if empty
+  try {
+    const shopCount = sqlite
+      .prepare("SELECT COUNT(*) as c FROM shopkeepers")
+      .get() as { c: number };
+    if (shopCount.c === 0) {
+      sqlite.exec(`
+        INSERT INTO shopkeepers (name, shopName, shopNumber, phone, balance) VALUES
+          ('حاجی بشیر صاحب', 'خان کلاتھ ہاؤس', 'Shop #12', '0300-1234567', 0),
+          ('ڈاکٹر عرفان', 'مدینہ میڈیکل اسٹور', 'Shop #4', '0312-9876543', 0),
+          ('ملک آصف', 'ملک موبائل شاپ', 'Shop #8', '0333-5554433', 0),
+          ('استاد علی', 'علی آٹو ورکشاپ', 'Main Road', '0345-7778899', 0);
+      `);
+    }
+  } catch (_) {}
 
   // Migrate existing DBs — add new columns if they don't exist yet
   const tableColumns = (tableName: string) => {

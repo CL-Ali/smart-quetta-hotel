@@ -6,14 +6,14 @@ import { useSocket } from "@/hooks/useSocket";
 import { getDashboardPin } from "@/lib/dashboardAuth";
 import { useDashboardService } from "../services/dashboardService";
 
-export type DashboardTab = "orders" | "stock" | "guests" | "products" | "department";
+export type DashboardTab = "pos" | "orders" | "stock" | "guests" | "products" | "department";
 
 /**
  * ViewModel for Cashier & Admin Dashboard (MVVM)
  * Orchestrates DashboardService, realtime socket sync, and UI states.
  */
 export function useDashboardViewModel() {
-  const [tab, setTab] = useState<DashboardTab>("orders");
+  const [tab, setTab] = useState<DashboardTab>("pos");
   const [payOrder, setPayOrder] = useState<any>(null);
   const [cancelOrderId, setCancelOrderId] = useState<number | null>(null);
   const [showNewOrder, setShowNewOrder] = useState(false);
