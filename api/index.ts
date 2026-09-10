@@ -1,3 +1,8 @@
+/**
+ * NOTE FOR DEVELOPERS:
+ * This was the legacy Vite entrypoint. The active master server is:
+ * 👉 server.ts (Express 5 + Next.js App Router + Socket.io + tRPC)
+ */
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
