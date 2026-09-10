@@ -1,5 +1,6 @@
 {
   "include": [
+    "app/**/*",
     "src/**/*",
     "shared/**/*",
     "api/**/*",
