@@ -78,10 +78,9 @@ export const visits = sqliteTable("visits", {
   guestId: int("guestId")
     .references(() => guests.id)
     .notNull(),
-  tableNo: text("tableNo"),
-  // Server-issued recovery ticket — VIS-{id}-{48-bit hex}. Shown to guest at
-  // visit open; also encoded in QR code. High-entropy opaque token.
-  ticketNo: text("ticketNo"),
+  seatingNo: text("seatingNo"),
+  peopleCount: int("peopleCount").default(1).notNull(),
+  seatingType: text("seatingType").default("seat"),
   status: text("status").default("created").notNull(),
   startedAt: text("startedAt")
     .default(sql`(datetime('now'))`)
@@ -94,6 +93,28 @@ export const visits = sqliteTable("visits", {
 
 export type Visit = typeof visits.$inferSelect;
 export type InsertVisit = typeof visits.$inferInsert;
+
+/**
+ * Tickets (Per-Order Guest Tickets - Multiple per guest)
+ */
+export const tickets = sqliteTable("tickets", {
+  id: int("id").primaryKey({ autoIncrement: true }),
+  ticketNo: text("ticketNo").notNull().unique(),
+  guestId: int("guestId")
+    .references(() => guests.id)
+    .notNull(),
+  orderId: int("orderId").references(() => orders.id),
+  visitId: int("visitId").references(() => visits.id),
+  seatingNo: text("seatingNo"),
+  seatingType: text("seatingType").default("seat"),
+  status: text("status").default("active").notNull(),
+  createdAt: text("createdAt")
+    .default(sql`(datetime('now'))`)
+    .notNull(),
+});
+
+export type Ticket = typeof tickets.$inferSelect;
+export type InsertTicket = typeof tickets.$inferInsert;
 
 /**
  * Browser Sessions
@@ -203,6 +224,9 @@ export const orders = sqliteTable("orders", {
   customerId: int("customerId").references(() => customers.id),
   seatingAreaId: int("seatingAreaId").references(() => seatingAreas.id),
   customerName: text("customerName"),
+  seatingNo: text("seatingNo"),
+  peopleCount: int("peopleCount").default(1).notNull(),
+  seatingType: text("seatingType").default("seat"),
   visitId: int("visitId").references(() => visits.id),
   orderNo: text("orderNo"),
   subtotal: real("subtotal").default(0),

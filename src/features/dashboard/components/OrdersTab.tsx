@@ -186,7 +186,15 @@ export function OrdersTab({
                       ).toFixed(0)})`}
                   </span>
                 </div>
-                <p className="font-semibold text-base mt-0.5">{order.customerName}</p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <p className="font-bold text-base text-gray-900">{order.customerName}</p>
+                  {(order.seatingNo || (order as any).tableNo) && (
+                    <span className="text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span>{order.peopleCount === 1 ? "🪑" : "🍽️"}</span>
+                      <span>{order.seatingNo ? `${order.seatingType === "seat" ? "Seat" : "Table"} ${order.seatingNo}` : (order as any).tableNo}</span>
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-gray-400">{fmtTime(order.createdAt)}</p>
               </div>
               <p className="text-xl font-bold text-orange-600">

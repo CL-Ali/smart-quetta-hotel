@@ -66,7 +66,9 @@ function initSchema(sqlite: Database.Database) {
     CREATE TABLE IF NOT EXISTS visits (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       guestId INTEGER NOT NULL REFERENCES guests(id),
-      tableNo TEXT,
+      seatingNo TEXT,
+      peopleCount INTEGER NOT NULL DEFAULT 1,
+      seatingType TEXT DEFAULT 'seat',
       status TEXT NOT NULL DEFAULT 'created',
       startedAt TEXT NOT NULL DEFAULT (datetime('now')),
       closedAt TEXT,
@@ -220,7 +222,18 @@ function initSchema(sqlite: Database.Database) {
       status TEXT NOT NULL DEFAULT 'pending',
       transactionId TEXT,
       reference TEXT,
-      receivedAt TEXT NOT NULL DEFAULT (datetime('now')),
+      receivedAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS tickets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticketNo TEXT NOT NULL UNIQUE,
+      guestId INTEGER NOT NULL REFERENCES guests(id),
+      orderId INTEGER REFERENCES orders(id),
+      visitId INTEGER REFERENCES visits(id),
+      seatingNo TEXT,
+      seatingType TEXT DEFAULT 'seat',
+      status TEXT NOT NULL DEFAULT 'active',
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
@@ -269,9 +282,16 @@ function initSchema(sqlite: Database.Database) {
   addColumnIfMissing("orders", "subtotal", "subtotal REAL DEFAULT 0");
   addColumnIfMissing("orders", "discount", "discount REAL DEFAULT 0");
   addColumnIfMissing("orders", "total", "total REAL DEFAULT 0");
+  addColumnIfMissing("orders", "seatingNo", "seatingNo TEXT");
+  addColumnIfMissing("orders", "tableNo", "tableNo TEXT");
+  addColumnIfMissing("orders", "peopleCount", "peopleCount INTEGER NOT NULL DEFAULT 1");
+  addColumnIfMissing("orders", "seatingType", "seatingType TEXT DEFAULT 'seat'");
 
   // Phase 5: visit recovery ticket — additive, nullable, safe on existing DBs
+  addColumnIfMissing("visits", "seatingNo", "seatingNo TEXT");
   addColumnIfMissing("visits", "ticketNo", "ticketNo TEXT");
+  addColumnIfMissing("visits", "peopleCount", "peopleCount INTEGER NOT NULL DEFAULT 1");
+  addColumnIfMissing("visits", "seatingType", "seatingType TEXT DEFAULT 'seat'");
 
   addColumnIfMissing("order_items", "nameSnapshot", "nameSnapshot TEXT");
   addColumnIfMissing(

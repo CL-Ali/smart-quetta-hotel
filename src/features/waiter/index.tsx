@@ -96,6 +96,13 @@ export function WaiterView() {
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-green-800">#{order.id}</span>
+                            {(order.seatingNo || (order as any).tableNo) && (
+                              <span className="text-[11px] font-extrabold bg-green-200 text-green-950 border border-green-300 px-1.5 py-0.2 rounded-md">
+                                {order.seatingNo
+                                  ? (order.seatingType === "seat" ? `🪑 ${order.seatingNo}` : `🍽️ ${order.seatingNo}`)
+                                  : (order as any).tableNo}
+                              </span>
+                            )}
                             <span className="text-xs text-green-700">
                               {readyItems.length} item{readyItems.length !== 1 ? "s" : ""} ready
                             </span>

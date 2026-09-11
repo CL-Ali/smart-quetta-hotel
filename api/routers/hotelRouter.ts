@@ -10,6 +10,8 @@ import {
   customers,
   payments,
   shopkeepers,
+  tickets,
+  visits,
 } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
@@ -22,6 +24,37 @@ import {
 import { getIo, SOCKET_EVENT } from "../lib/socket";
 
 export const hotelRouter = router({
+  // ── Tickets Query (Multi-Ticket per Guest / Visit) ──────────────────────────
+  getTickets: publicProcedure
+    .input(
+      z
+        .object({
+          guestId: z.number().optional(),
+          visitId: z.number().optional(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      const db = getDb();
+      if (input?.guestId) {
+        return db
+          .select()
+          .from(tickets)
+          .where(eq(tickets.guestId, input.guestId))
+          .orderBy(desc(tickets.createdAt))
+          .all();
+      }
+      if (input?.visitId) {
+        return db
+          .select()
+          .from(tickets)
+          .where(eq(tickets.visitId, input.visitId))
+          .orderBy(desc(tickets.createdAt))
+          .all();
+      }
+      return db.select().from(tickets).orderBy(desc(tickets.createdAt)).all();
+    }),
+
   // ── Shopkeepers & Regular Accounts ─────────────────────────────────────────
   getShopkeepers: publicProcedure.query(async () => {
     const db = getDb();
@@ -133,6 +166,9 @@ export const hotelRouter = router({
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               name: item.name,
+              status: item.kitchenStatus || "pending",
+              kitchenStatus: item.kitchenStatus || "pending",
+              servedQty: item.servedQty || 0,
             })
           );
           return { ...order, items };
@@ -147,8 +183,11 @@ export const hotelRouter = router({
         seatingAreaId: z.number().optional(),
         customerName: z.string(),
         customerId: z.number().optional(),
-        // Phase 3: link order to a Visit when available; optional for backward compat
+        // Link order to a Visit when available
         visitId: z.number().optional(),
+        seatingNo: z.string().optional(),
+        peopleCount: z.number().optional(),
+        seatingType: z.string().optional(),
         items: z.array(
           z.object({
             menuItemId: z.number(),
@@ -162,82 +201,75 @@ export const hotelRouter = router({
       const db = getDb();
       const totalAmount = calculateSubtotal(input.items);
 
-      // If customer has an active open order, append items to it
-      const existingOrders = db
-        .select()
-        .from(orders)
-        .where(eq(orders.customerName, input.customerName))
-        .orderBy(desc(orders.createdAt))
-        .all()
-        .filter(
-          o =>
-            (o.paymentStatus === "unpaid" || o.paymentStatus === "partial") &&
-            o.status !== "cancelled"
-        );
+      let resolvedSeatingNo = input.seatingNo ?? null;
+      let resolvedPeopleCount = input.peopleCount ?? 1;
+      let resolvedSeatingType = input.seatingType ?? (resolvedPeopleCount > 1 ? "table" : "seat");
+      let resolvedGuestId = 1;
 
-      let orderId: number;
-
-      if (existingOrders.length > 0) {
-        orderId = existingOrders[0].id;
-        const currentTotal = existingOrders[0].totalAmount ?? 0;
-        const currentPaid = existingOrders[0].paidAmount ?? 0;
-        const newTotal = currentTotal + totalAmount;
-
-        const newPaymentStatus =
-          currentPaid <= 0
-            ? "unpaid"
-            : currentPaid >= newTotal
-              ? "paid"
-              : "partial";
-
-        const newOrderStatus =
-          newPaymentStatus === "paid"
-            ? existingOrders[0].status
-            : existingOrders[0].status === "paid" ||
-                existingOrders[0].status === "served"
-              ? "pending"
-              : existingOrders[0].status;
-
-        db.update(orders)
-          .set({
-            totalAmount: newTotal,
-            paymentStatus: newPaymentStatus,
-            status: newOrderStatus,
-            // Stamp visitId if provided and not already set on this order
-            ...(input.visitId != null && existingOrders[0].visitId == null
-              ? { visitId: input.visitId }
-              : {}),
-            updatedAt: new Date().toISOString(),
+      if (input.visitId) {
+        const v = db
+          .select({
+            guestId: visits.guestId,
+            seatingNo: visits.seatingNo,
+            peopleCount: visits.peopleCount,
+            seatingType: visits.seatingType,
           })
-          .where(eq(orders.id, existingOrders[0].id))
-          .run();
-      } else {
-        let validCustomerId: number | null = null;
-        if (input.customerId) {
-          const exists = db
-            .select({ id: customers.id })
-            .from(customers)
-            .where(eq(customers.id, input.customerId))
-            .all();
-          validCustomerId = exists.length > 0 ? input.customerId : null;
+          .from(visits)
+          .where(eq(visits.id, input.visitId))
+          .all()[0];
+        if (v) {
+          resolvedGuestId = v.guestId;
+          resolvedSeatingNo = resolvedSeatingNo || v.seatingNo;
+          resolvedPeopleCount = v.peopleCount || resolvedPeopleCount;
+          resolvedSeatingType = v.seatingType || resolvedSeatingType;
         }
+      }
 
-        const result = db
-          .insert(orders)
+      let validCustomerId: number | null = null;
+      if (input.customerId) {
+        const exists = db
+          .select({ id: customers.id })
+          .from(customers)
+          .where(eq(customers.id, input.customerId))
+          .all();
+        validCustomerId = exists.length > 0 ? input.customerId : null;
+      }
+
+      const result = db
+        .insert(orders)
+        .values({
+          customerId: validCustomerId,
+          seatingAreaId: input.seatingAreaId ?? null,
+          customerName: input.customerName,
+          seatingNo: resolvedSeatingNo,
+          peopleCount: resolvedPeopleCount,
+          seatingType: resolvedSeatingType,
+          visitId: input.visitId ?? null,
+          totalAmount,
+          status: "pending",
+          paymentStatus: "unpaid",
+          paymentMethod: "pending",
+          paidAmount: 0,
+        })
+        .run();
+      const orderId = Number(result.lastInsertRowid);
+      const ticketNo = `TKT-${String(orderId).padStart(3, "0")}`;
+      db.update(orders).set({ orderNo: ticketNo }).where(eq(orders.id, orderId)).run();
+
+      // Insert into tickets table for guest multi-ticket tracking
+      try {
+        db.insert(tickets)
           .values({
-            customerId: validCustomerId,
-            seatingAreaId: input.seatingAreaId ?? null,
-            customerName: input.customerName,
+            ticketNo,
+            guestId: resolvedGuestId,
+            orderId,
             visitId: input.visitId ?? null,
-            totalAmount,
-            status: "pending",
-            paymentStatus: "unpaid",
-            paymentMethod: "pending",
-            paidAmount: 0,
+            seatingNo: resolvedSeatingNo,
+            seatingType: resolvedSeatingType,
+            status: "active",
           })
           .run();
-        orderId = Number(result.lastInsertRowid);
-      }
+      } catch (_) {}
 
       for (const item of input.items) {
         const menuItem = db
@@ -259,10 +291,15 @@ export const hotelRouter = router({
 
       getIo()?.emit(SOCKET_EVENT.OrderCreated, {
         orderId,
+        orderNo: ticketNo,
         customerName: input.customerName,
+        seatingNo: resolvedSeatingNo,
+        tableNo: resolvedSeatingNo,
+        peopleCount: resolvedPeopleCount,
+        seatingType: resolvedSeatingType,
         visitId: input.visitId ?? null,
       });
-      return { success: true, orderId };
+      return { success: true, orderId, orderNo: ticketNo, ticketNo };
     }),
 
   // ── All orders (kitchen / waiter / dashboard) ────────────────────────────────
@@ -276,6 +313,23 @@ export const hotelRouter = router({
 
     return allOrders.map(order => {
       const items = listOrderItemsWithMenuForOrder(db, order.id);
+
+      let seatingNo = order.seatingNo;
+      let peopleCount = order.peopleCount ?? 1;
+      let seatingType = order.seatingType ?? (peopleCount > 1 ? "table" : "seat");
+
+      if (!seatingNo && order.visitId) {
+        const v = db
+          .select({ seatingNo: visits.seatingNo, peopleCount: visits.peopleCount, seatingType: visits.seatingType })
+          .from(visits)
+          .where(eq(visits.id, order.visitId))
+          .all()[0];
+        if (v) {
+          seatingNo = v.seatingNo;
+          peopleCount = v.peopleCount || peopleCount;
+          seatingType = v.seatingType || seatingType;
+        }
+      }
 
       const servedAmount = calculateSubtotal(
         items.map(item => ({
@@ -297,7 +351,7 @@ export const hotelRouter = router({
         .all()
         .filter(p => (p as any).status !== "failed");
 
-      return { ...order, items, servedAmount, paymentHistory };
+      return { ...order, seatingNo, peopleCount, seatingType, items, servedAmount, paymentHistory };
     });
   }),
 

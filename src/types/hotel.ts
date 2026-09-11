@@ -65,6 +65,9 @@ export interface OrderWithDetails {
   customerName?: string | null;
   customerId?: number | null;
   seatingAreaId?: number | null;
+  seatingNo?: string | null;
+  peopleCount?: number | null;
+  seatingType?: string | null;
   visitId?: number | null;
   orderNo?: string | null;
   subtotal?: number | null;

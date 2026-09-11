@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Loader2, ChefHat, ShoppingBag } from "lucide-react";
+import { Loader2, ChefHat, Armchair, UtensilsCrossed, Edit2 } from "lucide-react";
 import { useLang } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 
@@ -11,16 +11,18 @@ import { useCustomerViewModel } from "./viewmodel/useCustomerViewModel";
 // Sub-components
 import { LangSelectScreen } from "./components/LangSelectScreen";
 import { NameEntryStep } from "./components/NameEntryStep";
+import { SeatingStep } from "./components/SeatingStep";
 import { MenuSection } from "./components/MenuSection";
 import { OrderHistoryCard } from "./components/OrderHistoryCard";
 import { CartBottomBar } from "./components/CartBottomBar";
 import { DesktopCartSidebar } from "./components/DesktopCartSidebar";
 import { ConfirmPlaceModal } from "./components/ConfirmPlaceModal";
 import { OrderSuccessModal } from "./components/OrderSuccessModal";
+import { OrdersOverviewBanner } from "./components/OrdersOverviewBanner";
 
 /**
  * Customer Portal View (MVVM)
- * Ultra-Fast Single-Screen 100vh Tablet & Desktop POS Experience
+ * Ultra-Fast Single-Screen 100vh Tablet & Desktop POS Experience with Seating Setup
  */
 export function CustomerPortalView() {
   const { t } = useLang();
@@ -28,45 +30,53 @@ export function CustomerPortalView() {
 
   // 1. Initial Language Selection Step
   if (vm.step === "lang") {
-    return <LangSelectScreen onDone={() => vm.setStep("name")} />;
+    return <LangSelectScreen onDone={() => vm.setStep(vm.guestName ? "seating" : "name")} />;
   }
 
-  // 2. Checking stored session
-  if (vm.isVerifyingSession) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="animate-spin h-10 w-10 text-orange-500" />
-          <p className="text-sm text-gray-500">Checking your session…</p>
-        </div>
-      </div>
-    );
-  }
-
-  // 3. Opening fresh visit
+  // 2. Opening fresh visit / loading
   if (vm.isOpeningVisit) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="animate-spin h-10 w-10 text-orange-500" />
-          <p className="text-sm text-gray-500">Starting your visit…</p>
+          <p className="text-sm text-gray-500 font-medium">Setting up your table & session…</p>
         </div>
       </div>
     );
   }
 
-  // 4. Name entry onboarding step
+  // 3. Name entry onboarding step (First-Time User)
   if (vm.step === "name") {
     return (
       <NameEntryStep
         guestName={vm.guestName}
         guestPhone={vm.guestPhone}
         previousName={vm.previousName}
+        peopleCount={vm.peopleCount}
+        seatOrTableNo={vm.seatOrTableNo}
         isBusy={vm.isNameBusy}
         isResuming={vm.isResuming}
         setGuestName={vm.setGuestName}
         setGuestPhone={vm.setGuestPhone}
+        setPeopleCount={vm.setPeopleCount}
+        setSeatOrTableNo={vm.setSeatOrTableNo}
         onSubmit={vm.handleNameSubmit}
+      />
+    );
+  }
+
+  // 4. Seating & Party Size Step (Returning User / Every Session)
+  if (vm.step === "seating") {
+    return (
+      <SeatingStep
+        guestName={vm.guestName}
+        peopleCount={vm.peopleCount}
+        seatOrTableNo={vm.seatOrTableNo}
+        isBusy={vm.isOpeningVisit}
+        setPeopleCount={vm.setPeopleCount}
+        setSeatOrTableNo={vm.setSeatOrTableNo}
+        onSubmit={vm.handleSeatingSubmit}
+        onChangeName={vm.handleChangeName}
       />
     );
   }
@@ -101,12 +111,28 @@ export function CustomerPortalView() {
                 </span>
               )}
             </div>
-            <p className="text-[10px] sm:text-[11px] text-gray-500 flex items-center gap-1 mt-0.5 truncate font-medium">
+            <div className="text-[10px] sm:text-[11px] text-gray-500 flex items-center gap-1.5 mt-0.5 truncate font-medium">
               <span>
                 {t.welcome},{" "}
                 <strong className="text-gray-900 font-bold">{vm.guestName || "Guest"}</strong>
               </span>
-            </p>
+
+              {/* Dynamic Seating Badge */}
+              <button
+                type="button"
+                onClick={() => vm.setStep("seating")}
+                className="inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 px-1.5 py-0.2 rounded-md font-extrabold text-[9px] sm:text-[10px] cursor-pointer transition active:scale-95"
+                title="Change Seating / Party Size"
+              >
+                {vm.peopleCount === 1 ? (
+                  <Armchair className="w-2.5 h-2.5 text-amber-700" />
+                ) : (
+                  <UtensilsCrossed className="w-2.5 h-2.5 text-amber-700" />
+                )}
+                <span>{vm.formattedSeatingLabel}</span>
+                <Edit2 className="w-2 h-2 opacity-50" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -167,6 +193,7 @@ export function CustomerPortalView() {
                 cart={vm.cart}
                 onAdd={vm.handleAddToCart}
                 onDec={vm.handleDecFromCart}
+                onRemoveItem={vm.handleRemoveFromCart}
               />
             </div>
 
@@ -176,6 +203,7 @@ export function CustomerPortalView() {
                 cart={vm.cart}
                 cartTotal={vm.cartTotal}
                 guestName={vm.guestName}
+                seatingLabel={vm.formattedSeatingLabel}
                 ticketNo={vm.ticketNo}
                 placing={vm.placing}
                 menu={vm.menu}
@@ -196,15 +224,25 @@ export function CustomerPortalView() {
                 <Loader2 className="animate-spin h-8 w-8 text-orange-500" />
               </div>
             ) : vm.myOrders && vm.myOrders.length > 0 ? (
-              vm.myOrders.map((order) => (
-                <OrderHistoryCard key={order.id} order={order} />
-              ))
+              <>
+                <OrdersOverviewBanner
+                  orders={vm.myOrders}
+                  guestName={vm.guestName}
+                  seatingLabel={vm.formattedSeatingLabel}
+                  ticketNo={vm.ticketNo}
+                />
+                <div className="space-y-3">
+                  {vm.myOrders.map((order, idx) => (
+                    <OrderHistoryCard key={order.id} order={order} defaultOpen={idx === 0 || order.status !== "served"} />
+                  ))}
+                </div>
+              </>
             ) : (
               <div className="text-center py-24 bg-white rounded-2xl border border-gray-200 text-gray-400">
                 <ChefHat className="w-12 h-12 mx-auto mb-3 opacity-30 text-orange-400" />
-                <p className="text-sm font-extrabold text-gray-700">No past orders found</p>
+                <p className="text-sm font-extrabold text-gray-700">{t.noPastOrders}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Place an order from the menu tab to track it here
+                  {t.placeOrderPrompt}
                 </p>
               </div>
             )}
@@ -232,6 +270,9 @@ export function CustomerPortalView() {
         cartTotal={vm.cartTotal}
         onClose={() => vm.setConfirmPlace(false)}
         onConfirm={vm.handlePlaceOrder}
+        onRemoveItem={vm.handleRemoveFromCart}
+        onAdd={vm.handleAddToCart}
+        onDec={vm.handleDecFromCart}
       />
 
       {/* Celebration & Ticket Success Modal */}

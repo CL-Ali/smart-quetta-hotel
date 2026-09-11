@@ -2,7 +2,7 @@ import { z } from "zod";
 import { desc, eq } from "drizzle-orm";
 import { publicProcedure, router } from "../lib/trpc";
 import { getDb } from "../db";
-import { orderItems, orders } from "../db/schema";
+import { orderItems, orders, tickets } from "../db/schema";
 import {
   createDomainEvent,
   normalizeOrderStatus,
@@ -58,7 +58,9 @@ export const orderRouter = router({
           visitId: input.visitId,
           customerId: null,
           customerName: guest.name,
-          orderNo: `ORD-${Date.now()}`,
+          seatingNo: visit.seatingNo,
+          peopleCount: visit.peopleCount,
+          seatingType: visit.seatingType,
           subtotal: orderTotal,
           total: orderTotal,
           totalAmount: orderTotal,
@@ -70,6 +72,27 @@ export const orderRouter = router({
         })
         .returning()
         .all()[0];
+
+      const ticketNo = `TKT-${String(inserted.id).padStart(3, "0")}`;
+      db.update(orders)
+        .set({ orderNo: ticketNo })
+        .where(eq(orders.id, inserted.id))
+        .run();
+
+      // Insert ticket into tickets table for guest multi-ticket tracking
+      try {
+        db.insert(tickets)
+          .values({
+            ticketNo,
+            guestId: guest.id,
+            orderId: inserted.id,
+            visitId: input.visitId,
+            seatingNo: visit.seatingNo,
+            seatingType: visit.seatingType,
+            status: "active",
+          })
+          .run();
+      } catch (_) {}
 
       const insertedItems = resolvedItems.map(({ item, menuItem }) => {
         return db
@@ -88,6 +111,8 @@ export const orderRouter = router({
           .all()[0];
       });
 
+      const orderWithTicket = { ...inserted, orderNo: ticketNo };
+
       const createResult: DomainCommandResult<any> = {
         command: { name: "CreateOrder", occurredAt: new Date().toISOString() },
         events: [
@@ -95,16 +120,20 @@ export const orderRouter = router({
             name: "OrderCreated",
             entityId: inserted.id,
             entityType: "order",
-            payload: { itemCount: insertedItems.length },
+            payload: { itemCount: insertedItems.length, ticketNo },
           }),
         ],
-        data: { order: inserted, items: insertedItems },
+        data: { order: orderWithTicket, items: insertedItems, ticketNo },
       };
 
       getIo()?.emit(SOCKET_EVENT.OrderCreated, {
         orderId: inserted.id,
+        orderNo: ticketNo,
         visitId: input.visitId,
         customerName: inserted.customerName,
+        seatingNo: visit.seatingNo,
+        seatingType: visit.seatingType,
+        peopleCount: visit.peopleCount,
       });
       return createResult;
     }),

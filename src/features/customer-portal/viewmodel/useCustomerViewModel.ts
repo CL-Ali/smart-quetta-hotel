@@ -15,6 +15,8 @@ const LS_VISIT_ID = "qh_visit_id";
 const LS_PREV_NAME = "qh_previous_name";
 const LS_COOKIE_HASH = "qh_cookie_hash";
 const LS_TICKET_NO = "qh_ticket_no";
+const LS_PEOPLE_COUNT = "qh_people_count";
+const LS_SEAT_OR_TABLE = "qh_seat_or_table";
 const LS_LEGACY_NAME = "qh_customer_name";
 const LS_LEGACY_ID = "qh_customer_id";
 
@@ -44,6 +46,8 @@ function clearStoredSession() {
     LS_COOKIE_HASH,
     LS_TICKET_NO,
     LS_PREV_NAME,
+    LS_PEOPLE_COUNT,
+    LS_SEAT_OR_TABLE,
     LS_LEGACY_NAME,
     LS_LEGACY_ID,
   ].forEach((k) => localStorage.removeItem(k));
@@ -54,7 +58,9 @@ function saveStoredSession(
   visitId: number,
   name: string,
   cookieHash: string,
-  ticketNo?: string | null
+  ticketNo?: string | null,
+  peopleCount?: number,
+  seatOrTableNo?: string
 ) {
   if (typeof window === "undefined") return;
   localStorage.setItem(LS_GUEST_NAME, name);
@@ -63,23 +69,30 @@ function saveStoredSession(
   localStorage.setItem(LS_COOKIE_HASH, cookieHash);
   localStorage.setItem(LS_PREV_NAME, name);
   if (ticketNo) localStorage.setItem(LS_TICKET_NO, ticketNo);
+  if (peopleCount) localStorage.setItem(LS_PEOPLE_COUNT, String(peopleCount));
+  if (seatOrTableNo) localStorage.setItem(LS_SEAT_OR_TABLE, seatOrTableNo);
 }
 
-export type CustomerPortalStep = "lang" | "name" | "menu";
+export type CustomerPortalStep = "lang" | "name" | "seating" | "menu";
 
 /**
  * ViewModel for Customer Portal Feature (MVVM)
- * Orchestrates CustomerService, local UI state, cart calculations, and socket events.
+ * Orchestrates CustomerService, local UI state, party size / seating, cart calculations, and socket events.
  */
 export function useCustomerViewModel() {
   const { t, langSelected } = useLang();
   const [confirmPlace, setConfirmPlace] = useState(false);
 
-  // Multi-step onboarding
-  const [step, setStep] = useState<CustomerPortalStep>(() => (!langSelected ? "lang" : "name"));
-
-  // Session state
+  // Session state from storage
   const storedSession = readStoredSession();
+
+  // Multi-step onboarding: lang -> (seating if returning | name if first time) -> menu
+  const [step, setStep] = useState<CustomerPortalStep>(() => {
+    if (!langSelected) return "lang";
+    if (storedSession?.guestName) return "seating";
+    return "name";
+  });
+
   const [guestName, setGuestName] = useState(storedSession?.guestName ?? "");
   const [guestId, setGuestId] = useState<number | null>(storedSession?.guestId ?? null);
   const [visitId, setVisitId] = useState<number | null>(storedSession?.visitId ?? null);
@@ -93,6 +106,18 @@ export function useCustomerViewModel() {
       : ""
   );
 
+  // Seating and Party Size State
+  const [peopleCount, setPeopleCount] = useState<number>(() => {
+    const saved = readStoredInt(LS_PEOPLE_COUNT);
+    return saved ?? 1;
+  });
+  const [seatOrTableNo, setSeatOrTableNo] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(LS_SEAT_OR_TABLE) ?? "";
+    }
+    return "";
+  });
+
   // Cart & UI Tab state
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeTab, setActiveTab] = useState<"menu" | "history">("menu");
@@ -100,6 +125,19 @@ export function useCustomerViewModel() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastOrderTotal, setLastOrderTotal] = useState(0);
   const submittingRef = useRef(false);
+
+  // Format seating label cleanly
+  const formattedSeatingLabel = useMemo(() => {
+    const isSingle = peopleCount === 1;
+    if (isSingle) {
+      return seatOrTableNo.trim()
+        ? `${seatOrTableNo.trim().toUpperCase().startsWith("S") ? "" : "Seat "}${seatOrTableNo.trim()} (1p)`
+        : "Seat (1p)";
+    }
+    return seatOrTableNo.trim()
+      ? `${seatOrTableNo.trim().toUpperCase().startsWith("T") ? "" : "Table "}${seatOrTableNo.trim()} (${peopleCount}p)`
+      : `Table (${peopleCount}p)`;
+  }, [peopleCount, seatOrTableNo]);
 
   // ── Service Layer Hook ───────────────────────────────────────────────────
   const service = useCustomerService({
@@ -109,50 +147,6 @@ export function useCustomerViewModel() {
     langSelected,
     step,
   });
-
-  // Session Verification Effect
-  useEffect(() => {
-    if (step !== "name" || !langSelected) return;
-    if (!storedSession) return;
-    if (service.visitStatus === undefined) return;
-
-    let cancelled = false;
-    const verifyAndRestore = async () => {
-      if (service.visitStatus && service.visitStatus.status === "open") {
-        setGuestId(storedSession.guestId);
-        setVisitId(storedSession.visitId);
-        setGuestName(storedSession.guestName);
-        if (!cancelled) setStep("menu");
-      } else {
-        try {
-          const r = await service.openVisit({ guestId: storedSession.guestId });
-          if (cancelled) return;
-          const newVisitId = r.data.id;
-          const cookie = r.data.cookieHash as string;
-          const ticket = r.data.ticketNo as string | null;
-          saveStoredSession(
-            storedSession.guestId,
-            newVisitId,
-            storedSession.guestName,
-            cookie,
-            ticket
-          );
-          setVisitId(newVisitId);
-          setTicketNo(ticket);
-          setGuestId(storedSession.guestId);
-          setGuestName(storedSession.guestName);
-          setStep("menu");
-        } catch {
-          // network error fallback
-        }
-      }
-    };
-
-    verifyAndRestore();
-    return () => {
-      cancelled = true;
-    };
-  }, [service.visitStatus, step, langSelected]);
 
   // URL Ticket / Cookie Resume Effect
   useEffect(() => {
@@ -170,13 +164,24 @@ export function useCustomerViewModel() {
         );
         if (cancelled) return;
         const { visit, guest, cookieHash: newHash } = r.data;
-        saveStoredSession(guest.id, visit.id, guest.name, newHash, visit.ticketNo);
+        saveStoredSession(
+          guest.id,
+          visit.id,
+          guest.name,
+          newHash,
+          visit.ticketNo,
+          visit.peopleCount ?? 1,
+          visit.seatingNo ?? ""
+        );
         setPreviousName(guest.name);
         setTicketNo(visit.ticketNo ?? null);
         setGuestId(guest.id);
         setVisitId(visit.id);
         setGuestName(guest.name);
-        setStep("menu");
+        if (visit.peopleCount) setPeopleCount(visit.peopleCount);
+        if (visit.seatingNo) setSeatOrTableNo(visit.seatingNo);
+        // If resuming active session via URL/QR ticket, go straight to seating or menu
+        setStep("seating");
         if (ticket) window.history.replaceState(null, "", window.location.pathname);
       } catch {
         if (!ticket && cookieHash) localStorage.removeItem(LS_COOKIE_HASH);
@@ -223,19 +228,78 @@ export function useCustomerViewModel() {
         phone: guestPhone.trim() || undefined,
       });
       const newGId = guestR.data.id;
-      const visitR = await service.openVisit({ guestId: newGId });
+
+      const seatingType = peopleCount > 1 ? "table" : "seat";
+      const visitR = await service.openVisit({
+        guestId: newGId,
+        seatingNo: seatOrTableNo.trim() || undefined,
+        peopleCount,
+        seatingType,
+      });
+
       const newVId = visitR.data.id;
       const cookie = visitR.data.cookieHash as string;
       const ticket = visitR.data.ticketNo as string | null;
-      saveStoredSession(newGId, newVId, guestName.trim(), cookie, ticket);
+
+      saveStoredSession(
+        newGId,
+        newVId,
+        guestName.trim(),
+        cookie,
+        ticket,
+        peopleCount,
+        seatOrTableNo.trim()
+      );
+
       setPreviousName(guestName.trim());
       setTicketNo(ticket);
       setGuestId(newGId);
       setVisitId(newVId);
-      toast.success(`${t.welcome}, ${guestName.trim()}!`);
+      toast.success(`${t.welcome}, ${guestName.trim()}! (${formattedSeatingLabel})`);
       setStep("menu");
     } catch {
       toast.error("Failed to start visit");
+    } finally {
+      submittingRef.current = false;
+    }
+  };
+
+  const handleSeatingSubmit = async () => {
+    if (!guestId) {
+      setStep("name");
+      return;
+    }
+    if (submittingRef.current || service.isOpeningVisit) return;
+    submittingRef.current = true;
+    try {
+      const seatingType = peopleCount > 1 ? "table" : "seat";
+      const visitR = await service.openVisit({
+        guestId,
+        seatingNo: seatOrTableNo.trim() || undefined,
+        peopleCount,
+        seatingType,
+      });
+
+      const newVId = visitR.data.id;
+      const cookie = visitR.data.cookieHash as string;
+      const ticket = visitR.data.ticketNo as string | null;
+
+      saveStoredSession(
+        guestId,
+        newVId,
+        guestName,
+        cookie,
+        ticket,
+        peopleCount,
+        seatOrTableNo.trim()
+      );
+
+      setVisitId(newVId);
+      setTicketNo(ticket);
+      toast.success(`${formattedSeatingLabel} ✓`);
+      setStep("menu");
+    } catch {
+      toast.error("Failed to confirm seating");
     } finally {
       submittingRef.current = false;
     }
@@ -249,6 +313,8 @@ export function useCustomerViewModel() {
     setGuestPhone("");
     setTicketNo(null);
     setPreviousName("");
+    setPeopleCount(1);
+    setSeatOrTableNo("");
     setCart([]);
     clearStoredSession();
   };
@@ -296,17 +362,22 @@ export function useCustomerViewModel() {
         customerName: guestName,
         customerId: guestId,
         visitId,
+        seatingNo: seatOrTableNo.trim() || undefined,
+        peopleCount,
+        seatingType: peopleCount > 1 ? "table" : "seat",
         items: cart.map((i) => ({
           menuItemId: i.id,
           quantity: i.quantity,
           unitPrice: i.price,
         })),
       });
+      const orderTicket = (r as any).ticketNo || (r as any).orderNo || `TKT-${r.orderId}`;
+      setTicketNo(orderTicket);
       playOrderSuccessSound();
       setLastOrderTotal(placedTotal);
       setShowSuccessModal(true);
       setConfirmPlace(false);
-      toast.success(`${t.orderPlaced} #${r.orderId} 🎉`);
+      toast.success(`${t.orderPlaced} (${orderTicket}) 🎉`);
       setCart([]);
       service.refetchOrders();
     } catch {
@@ -322,6 +393,9 @@ export function useCustomerViewModel() {
     guestPhone,
     previousName,
     ticketNo,
+    peopleCount,
+    seatOrTableNo,
+    formattedSeatingLabel,
     cart,
     cartTotal,
     cartCount,
@@ -329,11 +403,7 @@ export function useCustomerViewModel() {
     confirmPlace,
     showSuccessModal,
     lastOrderTotal,
-    isVerifyingSession:
-      step === "name" &&
-      !!storedSession &&
-      service.visitStatus === undefined &&
-      !service.isOpeningVisit,
+    isVerifyingSession: false,
     isOpeningVisit: service.isOpeningVisit,
     isNameBusy: service.isCreatingGuest || submittingRef.current,
     isResuming: service.isResumingVisit,
@@ -348,10 +418,13 @@ export function useCustomerViewModel() {
     setStep,
     setGuestName,
     setGuestPhone,
+    setPeopleCount,
+    setSeatOrTableNo,
     setActiveTab,
     setConfirmPlace,
     setShowSuccessModal,
     handleNameSubmit,
+    handleSeatingSubmit,
     handleChangeName,
     handleAddToCart,
     handleDecFromCart,

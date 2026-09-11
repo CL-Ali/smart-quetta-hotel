@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Loader2, Utensils, Search, LayoutGrid, List, Flame, Sparkles } from "lucide-react";
+import { Loader2, Utensils, Search, LayoutGrid, List, Flame, Sparkles, Trash2, Minus, Plus } from "lucide-react";
 import { MenuItem, CartItem } from "@/types/hotel";
 import { useLang } from "@/contexts/LangContext";
 import { playTapSound } from "@/lib/sound";
@@ -12,6 +12,7 @@ interface MenuSectionProps {
   cart: CartItem[];
   onAdd: (item: MenuItem) => void;
   onDec: (id: number) => void;
+  onRemoveItem?: (id: number) => void;
 }
 
 // Cultural & Urdu Category Mapper
@@ -72,6 +73,7 @@ export function MenuSection({
   cart,
   onAdd,
   onDec,
+  onRemoveItem,
 }: MenuSectionProps) {
   const { lang } = useLang();
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -245,32 +247,82 @@ export function MenuSection({
                     </div>
                   </div>
 
-                  {/* Right: 1-Tap Bulk Multipliers (+1, +2, +5) */}
+                  {/* Right: Quantity Stepper with Delete icon when in cart, or 1-Tap Quick Add */}
                   <div
-                    className="flex items-center gap-1 shrink-0"
+                    className="flex items-center gap-1.5 shrink-0"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <button
-                      type="button"
-                      onClick={(e) => handleBulkAdd(item, 1, e)}
-                      className="px-2.5 py-2 rounded-xl bg-gray-100 hover:bg-black hover:text-white active:scale-90 font-black text-xs text-gray-800 transition cursor-pointer"
-                    >
-                      +1
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleBulkAdd(item, 2, e)}
-                      className="px-2.5 py-2 rounded-xl bg-gray-100 hover:bg-black hover:text-white active:scale-90 font-black text-xs text-gray-800 transition cursor-pointer"
-                    >
-                      +2
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleBulkAdd(item, 5, e)}
-                      className="px-2.5 py-2 rounded-xl bg-orange-100 hover:bg-orange-600 hover:text-white active:scale-90 font-black text-xs text-orange-800 transition cursor-pointer"
-                    >
-                      +5
-                    </button>
+                    {isSelected ? (
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex items-center border border-orange-300 rounded-xl bg-orange-50/80 p-0.5 shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playTapSound();
+                              onDec(item.id);
+                            }}
+                            className="w-7 h-7 rounded-lg bg-white shadow-2xs flex items-center justify-center text-gray-800 hover:bg-gray-100 active:scale-90 transition cursor-pointer font-black text-sm"
+                            title="Decrease quantity"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="w-7 text-center text-xs font-black text-orange-950">
+                            {qty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playTapSound();
+                              onAdd(item);
+                            }}
+                            className="w-7 h-7 rounded-lg bg-orange-600 text-white shadow-2xs flex items-center justify-center hover:bg-orange-700 active:scale-90 transition cursor-pointer font-black text-sm"
+                            title="Increase quantity"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Delete / Remove Icon */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playTapSound();
+                            onRemoveItem ? onRemoveItem(item.id) : onDec(item.id);
+                          }}
+                          className="w-8 h-8 rounded-xl bg-red-50 hover:bg-red-600 hover:text-white text-red-600 border border-red-200 transition flex items-center justify-center cursor-pointer active:scale-90 shadow-2xs"
+                          title="Remove item from cart"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => handleBulkAdd(item, 1, e)}
+                          className="px-2.5 py-2 rounded-xl bg-gray-100 hover:bg-black hover:text-white active:scale-90 font-black text-xs text-gray-800 transition cursor-pointer"
+                        >
+                          +1
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleBulkAdd(item, 2, e)}
+                          className="px-2.5 py-2 rounded-xl bg-gray-100 hover:bg-black hover:text-white active:scale-90 font-black text-xs text-gray-800 transition cursor-pointer"
+                        >
+                          +2
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleBulkAdd(item, 5, e)}
+                          className="px-2.5 py-2 rounded-xl bg-orange-100 hover:bg-orange-600 hover:text-white active:scale-90 font-black text-xs text-orange-800 transition cursor-pointer"
+                        >
+                          +5
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -346,32 +398,82 @@ export function MenuSection({
                     </div>
                   </div>
 
-                  {/* Bulk Multipliers (+1, +2, +5) */}
+                  {/* Stepper with Delete Icon or Bulk Multipliers */}
                   <div
                     className="mt-2 pt-1.5 border-t border-gray-100 flex items-center justify-between gap-1"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <button
-                      type="button"
-                      onClick={(e) => handleBulkAdd(item, 1, e)}
-                      className="flex-1 py-1 rounded bg-gray-100 hover:bg-black hover:text-white active:scale-90 font-extrabold text-[11px] text-gray-800 transition cursor-pointer text-center"
-                    >
-                      +1
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleBulkAdd(item, 2, e)}
-                      className="flex-1 py-1 rounded bg-gray-100 hover:bg-black hover:text-white active:scale-90 font-extrabold text-[11px] text-gray-800 transition cursor-pointer text-center"
-                    >
-                      +2
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleBulkAdd(item, 5, e)}
-                      className="flex-1 py-1 rounded bg-orange-100 hover:bg-orange-600 hover:text-white active:scale-90 font-extrabold text-[11px] text-orange-800 transition cursor-pointer text-center"
-                    >
-                      +5
-                    </button>
+                    {isSelected ? (
+                      <div className="flex items-center gap-1 w-full">
+                        <div className="flex items-center border border-orange-300 rounded-lg bg-orange-50/80 p-0.5 flex-1 justify-between shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playTapSound();
+                              onDec(item.id);
+                            }}
+                            className="w-5 h-5 rounded bg-white shadow-2xs flex items-center justify-center text-gray-800 hover:bg-gray-100 active:scale-90 transition cursor-pointer font-black text-xs"
+                            title="Decrease"
+                          >
+                            <Minus className="w-2.5 h-2.5" />
+                          </button>
+                          <span className="text-xs font-black text-orange-950">
+                            {qty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playTapSound();
+                              onAdd(item);
+                            }}
+                            className="w-5 h-5 rounded bg-orange-600 text-white shadow-2xs flex items-center justify-center hover:bg-orange-700 active:scale-90 transition cursor-pointer font-black text-xs"
+                            title="Increase"
+                          >
+                            <Plus className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+
+                        {/* Delete / Trash Icon */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playTapSound();
+                            onRemoveItem ? onRemoveItem(item.id) : onDec(item.id);
+                          }}
+                          className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-600 hover:text-white text-red-600 border border-red-200 transition flex items-center justify-center cursor-pointer active:scale-90 shrink-0 shadow-2xs"
+                          title="Delete from cart"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => handleBulkAdd(item, 1, e)}
+                          className="flex-1 py-1 rounded bg-gray-100 hover:bg-black hover:text-white active:scale-90 font-extrabold text-[11px] text-gray-800 transition cursor-pointer text-center"
+                        >
+                          +1
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleBulkAdd(item, 2, e)}
+                          className="flex-1 py-1 rounded bg-gray-100 hover:bg-black hover:text-white active:scale-90 font-extrabold text-[11px] text-gray-800 transition cursor-pointer text-center"
+                        >
+                          +2
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleBulkAdd(item, 5, e)}
+                          className="flex-1 py-1 rounded bg-orange-100 hover:bg-orange-600 hover:text-white active:scale-90 font-extrabold text-[11px] text-orange-800 transition cursor-pointer text-center"
+                        >
+                          +5
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

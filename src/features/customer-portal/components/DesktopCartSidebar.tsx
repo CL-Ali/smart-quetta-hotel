@@ -21,7 +21,7 @@ interface DesktopCartSidebarProps {
   cartTotal: number;
   guestName: string;
   ticketNo?: string | null;
-  tableNo?: string;
+  seatingLabel?: string;
   placing: boolean;
   menu?: MenuItem[];
   onAdd: (item: any) => void;
@@ -180,7 +180,7 @@ export function DesktopCartSidebar({
   cartTotal,
   guestName,
   ticketNo,
-  tableNo,
+  seatingLabel,
   placing,
   menu = [],
   onAdd,
@@ -222,7 +222,7 @@ export function DesktopCartSidebar({
       <div className="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/70 shrink-0">
         <h2 className="text-xs sm:text-sm font-extrabold text-gray-900 flex items-center gap-1.5">
           <ShoppingBag className="w-4 h-4 text-orange-600" />
-          <span>{lang === "ur" ? "آپ کا آرڈر" : "Current Order"}</span>
+          <span>{t.currentOrder || "Current Order"}</span>
           <span className="bg-orange-100 text-orange-800 text-[11px] px-2 py-0.2 rounded-full font-extrabold">
             {totalItems}
           </span>
@@ -246,12 +246,10 @@ export function DesktopCartSidebar({
           <div className="h-full flex flex-col items-center justify-center text-gray-400 py-6 text-center select-none">
             <ShoppingBag className="w-10 h-10 stroke-1 text-gray-300 mb-1.5" />
             <p className="text-xs sm:text-sm font-extrabold text-gray-700">
-              {lang === "ur" ? "کوئی چیز منتخب نہیں کی" : "Your cart is empty"}
+              {t.cartEmpty || "Your cart is empty"}
             </p>
             <p className="text-[11px] text-gray-400 mt-0.5 max-w-[190px]">
-              {lang === "ur"
-                ? "بائیں مینو سے کھانے پر کلک کریں"
-                : "Tap items on the left to add"}
+              {t.tapItemsToAdd || "Tap items on the left to add"}
             </p>
           </div>
         ) : (
@@ -271,7 +269,7 @@ export function DesktopCartSidebar({
 
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-[11px] text-gray-400 font-medium">
-                      Rs. {item.price} each
+                      Rs. {item.price} {t.each || "each"}
                     </span>
 
                     {/* Micro Stepper & Delete */}
@@ -323,9 +321,9 @@ export function DesktopCartSidebar({
             {dynamicPreferences.length > 0 && (
               <div className="pt-2.5 pb-1">
                 <p className="text-[11px] font-extrabold text-gray-700 mb-1.5 flex items-center justify-between">
-                  <span>{lang === "ur" ? "آپ کے آرڈر کی خصوصی فرمائش:" : "Order Preferences:"}</span>
+                  <span>{t.orderPreferences || "Order Preferences:"}</span>
                   <span className="text-[10px] text-gray-400 font-medium">
-                    {lang === "ur" ? "کچن ہدایات" : "Kitchen Note"}
+                    {t.kitchenNote || "Kitchen Note"}
                   </span>
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -343,7 +341,7 @@ export function DesktopCartSidebar({
                         }`}
                       >
                         {active && <Check className="w-2.5 h-2.5" />}
-                        <span>{lang === "ur" ? pref.labelUr : pref.labelEn}</span>
+                        <span>{lang === "ur" || lang === "ps" || lang === "bal" || lang === "brh" || lang === "fa" || lang === "pa" || lang === "sd" ? pref.labelUr : pref.labelEn}</span>
                       </button>
                     );
                   })}
@@ -356,7 +354,7 @@ export function DesktopCartSidebar({
               <div className="pt-2.5 pb-1">
                 <p className="text-[11px] font-extrabold text-orange-700 mb-1.5 flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-orange-500" />
-                  <span>{lang === "ur" ? "ساتھ یہ بھی شامل کریں؟" : "Frequently Added Together:"}</span>
+                  <span>{t.frequentlyAdded || "Frequently Added Together:"}</span>
                 </p>
                 <div className="space-y-1.5">
                   {smartUpsells.map((upsell) => (
@@ -400,7 +398,7 @@ export function DesktopCartSidebar({
                         }}
                         className="bg-white border border-orange-300 text-orange-700 hover:bg-orange-600 hover:text-white active:scale-90 text-[10px] font-black px-2.5 py-1 rounded-lg transition shadow-2xs cursor-pointer shrink-0"
                       >
-                        + Add
+                        + {t.addToCart || "Add"}
                       </button>
                     </div>
                   ))}
@@ -416,15 +414,15 @@ export function DesktopCartSidebar({
         {/* Bill Breakdown */}
         <div className="space-y-1 text-xs font-bold text-gray-600">
           <div className="flex justify-between">
-            <span>{lang === "ur" ? "اشیاء کی قیمت (Subtotal)" : "Subtotal"}</span>
+            <span>{t.subtotalLabel || "Subtotal"}</span>
             <span>Rs. {cartTotal}</span>
           </div>
           <div className="flex justify-between text-[11px] text-emerald-700">
-            <span>{lang === "ur" ? "ٹیکس و سروس (Tax & Service)" : "Tax & Service"}</span>
-            <span>{lang === "ur" ? "مفت (Free)" : "Free"}</span>
+            <span>{t.taxAndService || "Tax & Service"}</span>
+            <span>{t.free || "Free"}</span>
           </div>
           <div className="flex justify-between items-center text-sm sm:text-base font-black text-gray-900 pt-1 border-t border-gray-200">
-            <span>{lang === "ur" ? "کل رقم (Total Bill)" : "Total Bill"}</span>
+            <span>{t.totalBillLabel || "Total Bill"}</span>
             <span className="text-orange-600 text-base sm:text-lg">Rs. {cartTotal}</span>
           </div>
         </div>
@@ -438,14 +436,10 @@ export function DesktopCartSidebar({
           <Zap className="w-4 h-4 fill-current" />
           <span>
             {placing
-              ? lang === "ur"
-                ? "بھیجا جا رہا ہے..."
-                : "Sending Order..."
-              : lang === "ur"
-              ? `آرڈر بھیجیں • Rs. ${cartTotal}`
-              : `Place Order • Rs. ${cartTotal}`}
+              ? t.sendingOrder || "Sending Order..."
+              : `${t.placeOrder || "Place Order"} • Rs. ${cartTotal}`}
           </span>
-          {!placing && <ArrowRight className="w-4 h-4" />}
+          {!placing && <ArrowRight className="w-4 h-4 rtl:rotate-180" />}
         </button>
       </div>
     </div>
