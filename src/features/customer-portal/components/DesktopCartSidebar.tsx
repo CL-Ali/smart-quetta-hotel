@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { CartItem, MenuItem } from "@/types/hotel";
 import { useLang } from "@/contexts/LangContext";
-import { playTapSound, playOrderSuccessSound } from "@/lib/sound";
+import { playTapSound, unlockAudio } from "@/lib/sound";
 
 interface DesktopCartSidebarProps {
   cart: CartItem[];
@@ -206,7 +206,8 @@ export function DesktopCartSidebar({
   };
 
   const handleCheckoutClick = () => {
-    playOrderSuccessSound();
+    unlockAudio();
+    playTapSound();
     onCheckout();
   };
 
@@ -430,7 +431,7 @@ export function DesktopCartSidebar({
           type="button"
           onClick={handleCheckoutClick}
           disabled={placing || cart.length === 0}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-40 cursor-pointer"
+          className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-[0.98] text-stone-950 font-black py-3.5 px-4 rounded-2xl shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-40 cursor-pointer"
         >
           <Zap className="w-4 h-4 fill-current" />
           <span>
@@ -438,7 +439,7 @@ export function DesktopCartSidebar({
               ? t.sendingOrder || "Sending Order..."
               : `${t.placeOrder || "Place Order"} • Rs. ${cartTotal.toLocaleString()}`}
           </span>
-          {!placing && <ArrowRight className="w-4 h-4 rtl:rotate-180" />}
+          {!placing && <ArrowRight className="w-4 h-4 rtl:rotate-180 stroke-[2.5]" />}
         </button>
       </div>
     </div>

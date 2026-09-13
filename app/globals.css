@@ -1,13 +1,39 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-/* Local Inter font definitions */
+
+/* ── 100% Offline Local Fonts ── */
 @font-face {
-  font-family: 'Inter';
-  src: url('/fonts/inter/Inter-Light.woff2') format('woff2');
-  font-weight: 300;
+  font-family: 'Plus Jakarta Sans';
+  src: url('/fonts/Plus_Jakarta_Sans/PlusJakartaSans-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
   font-style: normal;
   font-display: swap;
 }
+
+@font-face {
+  font-family: 'Outfit';
+  src: url('/fonts/Outfit/Outfit-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Sans Arabic';
+  src: url('/fonts/Noto_Sans_Arabic/NotoSansArabic-VariableFont_wdth,wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Nastaliq Urdu';
+  src: url('/fonts/Noto_Nastaliq_Urdu/NotoNastaliqUrdu-VariableFont_wght.ttf') format('truetype');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @font-face {
   font-family: 'Inter';
   src: url('/fonts/inter/Inter-Regular.woff2') format('woff2');
@@ -15,13 +41,7 @@
   font-style: normal;
   font-display: swap;
 }
-@font-face {
-  font-family: 'Inter';
-  src: url('/fonts/inter/Inter-Medium.woff2') format('woff2');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
+
 @font-face {
   font-family: 'Inter';
   src: url('/fonts/inter/Inter-SemiBold.woff2') format('woff2');
@@ -29,6 +49,7 @@
   font-style: normal;
   font-display: swap;
 }
+
 @font-face {
   font-family: 'Inter';
   src: url('/fonts/inter/Inter-Bold.woff2') format('woff2');
@@ -36,6 +57,7 @@
   font-style: normal;
   font-display: swap;
 }
+
 
 /* Hide scrollbar but keep scroll functionality */
 .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -155,8 +177,83 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground font-sans;
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Plus Jakarta Sans', 'Outfit', 'Noto Sans Arabic', system-ui, -apple-system, sans-serif;
+  }
+
+  /* ── Language-specific Font Rules ── */
+  html[lang="ur"],
+  html[lang="ur"] body,
+  html[lang="ur"] button,
+  html[lang="ur"] input,
+  html[lang="ur"] textarea,
+  html[lang="ur"] select,
+  html[lang="ur"] h1,
+  html[lang="ur"] h2,
+  html[lang="ur"] h3,
+  html[lang="ur"] h4,
+  html[lang="ur"] p,
+  html[lang="ur"] label,
+  html[lang="ur"] span {
+    font-family: 'Noto Nastaliq Urdu', 'Noto Sans Arabic', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Prevent Nastaliq line overlap & glyph clipping in Urdu */
+  html[lang="ur"] h1,
+  html[lang="ur"] h2,
+  html[lang="ur"] h3,
+  html[lang="ur"] h4 {
+    line-height: 1.8 !important;
+    padding-top: 0.15rem;
+    padding-bottom: 0.25rem;
+  }
+
+  html[lang="ur"] p {
+    line-height: 1.9 !important;
+  }
+
+  html[lang="ur"] label {
+    line-height: 1.8 !important;
+  }
+
+  html[lang="ur"] button {
+    line-height: normal;
+  }
+
+  html[lang="ur"] input,
+  html[lang="ur"] textarea {
+    line-height: 1.8;
+  }
+
+  html[lang="ps"],
+  html[lang="bal"],
+  html[lang="brh"],
+  html[lang="fa"],
+  html[lang="pa"],
+  html[lang="sd"],
+  html[lang="ps"] body,
+  html[lang="bal"] body,
+  html[lang="brh"] body,
+  html[lang="fa"] body,
+  html[lang="pa"] body,
+  html[lang="sd"] body {
+    font-family: 'Noto Sans Arabic', 'Noto Nastaliq Urdu', system-ui, -apple-system, sans-serif;
+  }
+
+  html[lang="en"],
+  html[lang="en"] body {
+    font-family: 'Plus Jakarta Sans', 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  .font-mono,
+  html[lang="ur"] .font-mono,
+  html[lang="ps"] .font-mono,
+  html[lang="bal"] .font-mono,
+  html[lang="brh"] .font-mono,
+  html[lang="fa"] .font-mono,
+  html[lang="pa"] .font-mono,
+  html[lang="sd"] .font-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
   }
 
   /* ── Headings: always crisp, never dull ── */

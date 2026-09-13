@@ -22,10 +22,10 @@ export function LangSelectScreen({ onDone }: LangSelectScreenProps) {
           <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-700 dark:text-amber-400 bg-amber-100/80 dark:bg-amber-950/60 px-3 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60 mb-2">
             Smart POS & Guest Portal
           </span>
-          <h1 className="text-3xl font-black text-stone-900 dark:text-white tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-stone-900 dark:text-white tracking-tight leading-relaxed mb-1">
             {t.hotelName || "Quetta Hotel"}
           </h1>
-          <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400 mt-1 font-medium">
+          <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400 font-medium leading-relaxed">
             Choose Language • اپنی زبان منتخب کریں
           </p>
         </div>
@@ -38,14 +38,14 @@ export function LangSelectScreen({ onDone }: LangSelectScreenProps) {
               <button
                 key={opt.value}
                 onClick={() => setLang(opt.value)}
-                className={`flex items-center gap-2.5 p-3 rounded-2xl border transition-all cursor-pointer select-none active:scale-95 text-left shadow-2xs ${
+                className={`flex items-center gap-2.5 p-3 min-h-[52px] rounded-2xl border transition-all cursor-pointer select-none active:scale-95 text-left shadow-2xs ${
                   isSelected
                     ? "border-amber-500 bg-amber-500/10 dark:bg-amber-500/20 text-stone-950 dark:text-amber-200 ring-2 ring-amber-500/30 font-black shadow-sm"
                     : "border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:border-amber-300"
                 }`}
               >
                 <span className="text-xl shrink-0">{opt.flag}</span>
-                <span className="flex-1 text-xs sm:text-sm font-bold truncate">{opt.label}</span>
+                <span className="flex-1 text-xs sm:text-sm font-bold truncate leading-normal">{opt.label}</span>
                 {isSelected && (
                   <div className="w-5 h-5 rounded-full bg-amber-500 text-stone-950 flex items-center justify-center shrink-0 shadow-2xs">
                     <Check className="w-3.5 h-3.5 stroke-[3]" />

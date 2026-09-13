@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { CartItem } from "@/types/hotel";
 import { useLang } from "@/contexts/LangContext";
 import { Trash2, Minus, Plus, Receipt, ShoppingBag } from "lucide-react";
-import { playTapSound } from "@/lib/sound";
+import { playTapSound, unlockAudio } from "@/lib/sound";
 
 interface ConfirmPlaceModalProps {
   open: boolean;
@@ -144,10 +144,12 @@ export function ConfirmPlaceModal({
           type="button"
           disabled={cart.length === 0}
           onClick={() => {
+            unlockAudio();
+            playTapSound();
             onClose();
             onConfirm();
           }}
-          className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-black rounded-2xl text-xs sm:text-sm cursor-pointer flex items-center justify-center shadow-lg shadow-emerald-600/20 transition disabled:opacity-50"
+          className="flex-1 h-12 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-[0.98] text-stone-950 font-black rounded-2xl text-xs sm:text-sm cursor-pointer flex items-center justify-center shadow-lg shadow-amber-500/20 transition disabled:opacity-50"
         >
           {t.confirmOrder || "Confirm Order ✓"}
         </button>

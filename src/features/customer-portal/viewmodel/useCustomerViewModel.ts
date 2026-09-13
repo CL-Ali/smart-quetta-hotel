@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useLang } from "@/contexts/LangContext";
 import { useSocket } from "@/hooks/useSocket";
 import { CartItem, MenuItem } from "@/types/hotel";
-import { playOrderSuccessSound, playTapSound } from "@/lib/sound";
+import { playOrderSuccessSound, playTapSound, unlockAudio } from "@/lib/sound";
 import { useCustomerService } from "../services/customerService";
 
 // Storage keys
@@ -120,7 +120,7 @@ export function useCustomerViewModel() {
 
   // Cart & UI Tab state
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [activeTab, setActiveTab] = useState<"menu" | "history">("menu");
+  const [activeTab, setActiveTab] = useState<"menu" | "active" | "history">("menu");
   const [placing, setPlacing] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastOrderTotal, setLastOrderTotal] = useState(0);
@@ -208,6 +208,26 @@ export function useCustomerViewModel() {
 
   // Derived Calculations
   const hasOrders = (service.myOrders?.length ?? 0) > 0;
+
+  // Non-served active items count
+  const activeItemsCount = useMemo(() => {
+    if (!service.myOrders) return 0;
+    let count = 0;
+    service.myOrders.forEach((o) => {
+      if (o.status !== "served" && o.status !== "cancelled") {
+        o.items?.forEach((item: any) => {
+          const st = item.kitchenStatus || item.status || o.status || "pending";
+          if (st !== "served" && st !== "cancelled") {
+            count += item.quantity || 1;
+          }
+        });
+      }
+    });
+    return count;
+  }, [service.myOrders]);
+
+  const hasActiveOrders = activeItemsCount > 0;
+
   const cartTotal = useMemo(
     () => cart.reduce((s, i) => s + i.price * i.quantity, 0),
     [cart]
@@ -363,6 +383,7 @@ export function useCustomerViewModel() {
 
   const handlePlaceOrder = async () => {
     if (cart.length === 0 || !guestId || !visitId) return;
+    unlockAudio();
     setPlacing(true);
     const placedTotal = cartTotal;
     try {
@@ -417,6 +438,8 @@ export function useCustomerViewModel() {
     isResuming: service.isResumingVisit,
     placing: placing || service.isPlacingOrder,
     hasOrders,
+    activeItemsCount,
+    hasActiveOrders,
     menu: service.menu,
     menuLoading: service.menuLoading,
     myOrders: service.myOrders,

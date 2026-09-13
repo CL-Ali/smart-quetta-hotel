@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { ShoppingBag, Loader2, ArrowRight, Zap } from "lucide-react";
+import { ShoppingBag, Loader2, ArrowRight } from "lucide-react";
 import { CartItem } from "@/types/hotel";
 import { useLang } from "@/contexts/LangContext";
-import { playOrderSuccessSound } from "@/lib/sound";
+import { playTapSound, unlockAudio } from "@/lib/sound";
 
 interface CartBottomBarProps {
   cart: CartItem[];
@@ -27,43 +27,43 @@ export function CartBottomBar({
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleClick = () => {
-    playOrderSuccessSound();
+    unlockAudio();
+    playTapSound();
     onCheckout();
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 p-3 pb-safe bg-gradient-to-t from-black/40 via-black/20 to-transparent pointer-events-none animate-in slide-in-from-bottom-5">
+    <div className="fixed bottom-0 left-0 right-0 z-30 p-3 pb-safe pointer-events-none animate-in slide-in-from-bottom-4">
       <div className="max-w-md mx-auto pointer-events-auto">
         <button
           type="button"
           onClick={handleClick}
           disabled={placing}
-          className="w-full bg-stone-900/95 dark:bg-zinc-900/95 backdrop-blur-xl hover:bg-black active:scale-[0.98] text-white p-3 sm:p-3.5 rounded-3xl shadow-2xl transition-all flex items-center justify-between gap-3 border border-white/15 cursor-pointer ring-1 ring-black/5"
+          className="w-full bg-stone-950/95 dark:bg-zinc-900/95 backdrop-blur-xl hover:bg-black active:scale-[0.98] text-white p-2.5 sm:p-3 rounded-2xl shadow-2xl transition-all flex items-center justify-between gap-3 border border-stone-800/90 cursor-pointer group"
         >
           {/* Left: Cart Icon Badge & Total Amount */}
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center font-black text-sm text-amber-400 shrink-0">
-              <ShoppingBag className="w-5 h-5 fill-amber-400/20" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center font-bold text-amber-400 shrink-0 shadow-2xs">
+              <ShoppingBag className="w-4 h-4" />
             </div>
             <div className="text-left">
-              <p className="text-[11px] font-extrabold text-stone-300 uppercase tracking-wider">
-                {totalItems} {t.orderSummary || "Items"}
+              <p className="text-[11px] font-bold text-stone-400 leading-tight">
+                {totalItems} {totalItems === 1 ? "Item" : "Items"}
               </p>
-              <p className="text-base sm:text-lg font-black leading-tight text-white font-mono">
+              <p className="text-sm sm:text-base font-black text-white font-mono leading-tight mt-0.5">
                 Rs. {cartTotal.toLocaleString()}
               </p>
             </div>
           </div>
 
-          {/* Right: High-Impact Material CTA Action */}
-          <div className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-black px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm shadow-lg shadow-emerald-500/25 transition-transform active:scale-95">
+          {/* Right: Primary CTA Action (Warm Amber Gold) */}
+          <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95 shrink-0">
             {placing ? (
               <Loader2 className="w-4 h-4 animate-spin text-stone-950" />
             ) : (
               <>
-                <Zap className="w-4 h-4 fill-stone-950 text-stone-950" />
-                <span>{t.confirmOrder || t.placeOrder}</span>
-                <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                <span>{t.placeOrder || "Place Order"}</span>
+                <ArrowRight className="w-4 h-4 rtl:rotate-180 group-hover:translate-x-0.5 transition-transform stroke-[2.5]" />
               </>
             )}
           </div>
@@ -72,3 +72,4 @@ export function CartBottomBar({
     </div>
   );
 }
+

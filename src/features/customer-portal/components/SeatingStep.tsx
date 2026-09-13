@@ -84,11 +84,11 @@ export function SeatingStep({
             </div>
 
             {/* Main Greeting (Full Card Width - Never Truncated) */}
-            <div>
-              <h1 className="text-lg sm:text-xl font-black tracking-tight text-stone-900 dark:text-white leading-tight">
+            <div className="space-y-1">
+              <h1 className="text-lg sm:text-xl font-black tracking-tight text-stone-900 dark:text-white leading-normal pb-0.5">
                 {t.welcomeBack}, <span className="text-amber-600 dark:text-amber-400">{guestName || "Guest"}</span>
               </h1>
-              <p className="text-xs text-stone-500 dark:text-stone-400 font-medium mt-0.5">
+              <p className="text-xs text-stone-500 dark:text-stone-400 font-medium leading-relaxed">
                 {isSingle ? (t.singlePerson || "Single Seating") : (t.partySize || "Table Seating")} • {t.selectSeatingTitle || "Confirm your seating"}
               </p>
             </div>
