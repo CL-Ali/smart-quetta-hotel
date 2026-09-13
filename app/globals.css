@@ -177,21 +177,9 @@
   input:not([type='checkbox']):not([type='radio']),
   textarea,
   select {
-    background: var(--input);
     color: var(--foreground);
-    border: 1.5px solid var(--border);
-    border-radius: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.95rem;
-    transition: border-color 0.2s, box-shadow 0.2s;
     outline: none;
     width: 100%;
-  }
-  input:not([type='checkbox']):not([type='radio']):focus,
-  textarea:focus,
-  select:focus {
-    border-color: var(--ring);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 20%, transparent);
   }
   input::placeholder,
   textarea::placeholder {

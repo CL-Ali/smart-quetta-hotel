@@ -54,7 +54,7 @@ function getDynamicSpecialRequests(cart: CartItem[]): SpecialRequestOption[] {
     options.push(
       { id: "chai_karak", labelUr: "☕ کڑک / تیز پتی", labelEn: "Strong Tea", category: "chai" },
       { id: "chai_less_sugar", labelUr: "☕ کم چینی", labelEn: "Less Sugar", category: "chai" },
-      { id: "chai_no_sugar", labelUr: "☕ بغیر چینی (شوگر فری)", labelEn: "No Sugar", category: "chai" },
+      { id: "chai_no_sugar", labelUr: "☕ بغیر چینی", labelEn: "No Sugar", category: "chai" },
       { id: "chai_sweet", labelUr: "☕ زیادہ میٹھی", labelEn: "Extra Sweet", category: "chai" }
     );
   }
@@ -64,7 +64,7 @@ function getDynamicSpecialRequests(cart: CartItem[]): SpecialRequestOption[] {
   if (hasParatha) {
     options.push(
       { id: "paratha_crispy", labelUr: "🫓 کرکرا / کڑک پراٹھا", labelEn: "Crispy Paratha", category: "paratha" },
-      { id: "paratha_less_oil", labelUr: "🫓 کم تیل / گھی", labelEn: "Less Oil", category: "paratha" },
+      { id: "paratha_less_oil", labelUr: "🫓 کم گھی / تیل", labelEn: "Less Oil", category: "paratha" },
       { id: "paratha_soft", labelUr: "🫓 نرم پراٹھا", labelEn: "Soft Paratha", category: "paratha" }
     );
   }
@@ -83,9 +83,9 @@ function getDynamicSpecialRequests(cart: CartItem[]): SpecialRequestOption[] {
   const hasCurry = /karahi|chicken|gosht|mutton|handi|qeema|کڑاہی|قیمہ|سالن|مرغی/i.test(cartText);
   if (hasCurry) {
     options.push(
-      { id: "curry_spicy", labelUr: "🌶️ تیز مرچ و مصالحہ", labelEn: "Extra Spicy", category: "curry" },
-      { id: "curry_mild", labelUr: "🌶️ کم مصالحہ (ہلکی مرچ)", labelEn: "Mild Spicy", category: "curry" },
-      { id: "curry_lemon", labelUr: "🍋 لیموں و ادرک ساتھ", labelEn: "Extra Lemon & Ginger", category: "curry" }
+      { id: "curry_spicy", labelUr: "🌶️ تیز مصالحہ", labelEn: "Extra Spicy", category: "curry" },
+      { id: "curry_mild", labelUr: "🌶️ ہلکی مرچ", labelEn: "Mild Spicy", category: "curry" },
+      { id: "curry_lemon", labelUr: "🍋 لیموں ساتھ", labelEn: "Extra Lemon", category: "curry" }
     );
   }
 
@@ -103,7 +103,7 @@ function getDynamicSpecialRequests(cart: CartItem[]): SpecialRequestOption[] {
   // 6. Packing & General
   options.push(
     { id: "takeaway_pack", labelUr: "📦 پارسل / پیکنگ", labelEn: "Takeaway Packing", category: "general" },
-    { id: "extra_cutlery", labelUr: "🍽️ برتن و چمچ", labelEn: "Extra Cutlery", category: "general" }
+    { id: "extra_cutlery", labelUr: "🍽️ اضافی برتن", labelEn: "Extra Cutlery", category: "general" }
   );
 
   return options;
@@ -143,7 +143,7 @@ function getSmartMenuUpsells(menu: MenuItem[] = [], cart: CartItem[] = []): Menu
     if (found) matched.push(found);
   };
 
-  // Rule 1: If user has Paratha/Egg but NO Chai -> Strongly recommend Chai from available menu
+  // Rule 1: If user has Paratha/Egg but NO Chai -> Strongly recommend Chai
   if ((hasParatha || hasEgg) && !hasChai) {
     findCandidate(/chai|tea|chaye|چائے|karak|doodh patti/i);
   }
@@ -217,75 +217,79 @@ export function DesktopCartSidebar({
     : null;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col h-full overflow-hidden">
-      {/* ── Header ────────────────────────────────────────────── */}
-      <div className="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/70 shrink-0">
-        <h2 className="text-xs sm:text-sm font-extrabold text-gray-900 flex items-center gap-1.5">
-          <ShoppingBag className="w-4 h-4 text-orange-600" />
+    <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-stone-200/90 dark:border-zinc-800 shadow-xs flex flex-col h-full overflow-hidden">
+      {/* ── Material 3 Top Sidebar Header ────────────────────────────── */}
+      <div className="px-4 py-3 border-b border-stone-100 dark:border-zinc-800 flex items-center justify-between bg-stone-50/80 dark:bg-zinc-900/80 shrink-0">
+        <h2 className="text-xs sm:text-sm font-extrabold text-stone-900 dark:text-white flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
+            <ShoppingBag className="w-3.5 h-3.5" />
+          </div>
           <span>{t.currentOrder || "Current Order"}</span>
-          <span className="bg-orange-100 text-orange-800 text-[11px] px-2 py-0.2 rounded-full font-extrabold">
+          <span className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 text-[11px] px-2 py-0.2 rounded-full font-black font-mono">
             {totalItems}
           </span>
         </h2>
 
-        {/* Guest & Token info */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-700 font-bold bg-white px-2 py-0.5 rounded-lg border border-gray-200">
-          <User className="w-3.5 h-3.5 text-orange-600" />
-          <span className="truncate max-w-[90px]">{guestName || "Guest"}</span>
+        {/* Guest & Seating Badge */}
+        <div className="flex items-center gap-1.5 text-xs text-stone-700 dark:text-zinc-300 font-bold bg-white dark:bg-zinc-800 px-2.5 py-1 rounded-xl border border-stone-200 dark:border-zinc-700 shadow-2xs">
+          <User className="w-3 h-3 text-amber-600" />
+          <span className="truncate max-w-[85px]">{guestName || "Guest"}</span>
           {displayToken && (
-            <span className="text-[10px] bg-orange-50 text-orange-700 px-1 rounded font-mono font-black">
+            <span className="text-[10px] bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 px-1.5 py-0.2 rounded font-mono font-black border border-amber-200/50">
               {displayToken}
             </span>
           )}
         </div>
       </div>
 
-      {/* ── Scrollable Body Area ──────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-3.5 py-2 divide-y divide-gray-100 no-scrollbar min-h-0 space-y-2">
+      {/* ── Scrollable Cart Items Area ──────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-4 py-2.5 divide-y divide-stone-100 dark:divide-zinc-800 no-scrollbar min-h-0 space-y-2.5">
         {cart.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-gray-400 py-6 text-center select-none">
-            <ShoppingBag className="w-10 h-10 stroke-1 text-gray-300 mb-1.5" />
-            <p className="text-xs sm:text-sm font-extrabold text-gray-700">
+          <div className="h-full flex flex-col items-center justify-center text-stone-400 py-8 text-center select-none">
+            <div className="w-14 h-14 rounded-3xl bg-stone-100 dark:bg-zinc-800 flex items-center justify-center mb-2 text-stone-400">
+              <ShoppingBag className="w-7 h-7 stroke-[1.5]" />
+            </div>
+            <p className="text-xs sm:text-sm font-extrabold text-stone-700 dark:text-zinc-300">
               {t.cartEmpty || "Your cart is empty"}
             </p>
-            <p className="text-[11px] text-gray-400 mt-0.5 max-w-[190px]">
+            <p className="text-[11px] text-stone-400 dark:text-zinc-400 mt-0.5 max-w-[190px]">
               {t.tapItemsToAdd || "Tap items on the left to add"}
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-stone-100 dark:divide-zinc-800">
             {/* Items List */}
             {cart.map((item) => (
-              <div key={item.id} className="py-2 flex items-center justify-between gap-2 group">
+              <div key={item.id} className="py-2.5 flex items-center justify-between gap-2 group">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline justify-between">
-                    <p className="text-xs sm:text-sm font-extrabold text-gray-900 truncate">
+                    <p className="text-xs sm:text-sm font-extrabold text-stone-900 dark:text-white truncate">
                       {item.name}
                     </p>
-                    <span className="text-xs sm:text-sm font-extrabold text-gray-900 ml-2">
-                      Rs. {item.price * item.quantity}
+                    <span className="text-xs sm:text-sm font-black text-stone-900 dark:text-white ml-2 font-mono">
+                      Rs. {(item.price * item.quantity).toLocaleString()}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-[11px] text-gray-400 font-medium">
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className="text-[11px] text-stone-400 dark:text-zinc-400 font-medium font-mono">
                       Rs. {item.price} {t.each || "each"}
                     </span>
 
-                    {/* Micro Stepper & Delete */}
+                    {/* Micro Stepper & 1-Tap Delete */}
                     <div className="flex items-center gap-1.5">
-                      <div className="flex items-center border border-gray-200 rounded-lg bg-gray-50 p-0.5">
+                      <div className="flex items-center border border-stone-200 dark:border-zinc-700 rounded-xl bg-stone-50 dark:bg-zinc-800 p-0.5 shadow-2xs">
                         <button
                           type="button"
                           onClick={() => {
                             playTapSound();
                             onDec(item.id);
                           }}
-                          className="w-5 h-5 rounded bg-white shadow-2xs flex items-center justify-center text-gray-700 hover:bg-gray-100 active:scale-90 transition cursor-pointer"
+                          className="w-5 h-5 rounded-lg bg-white dark:bg-zinc-700 shadow-2xs flex items-center justify-center text-stone-700 dark:text-zinc-200 hover:bg-stone-100 active:scale-90 transition cursor-pointer"
                         >
                           <Minus className="w-2.5 h-2.5" />
                         </button>
-                        <span className="w-6 text-center text-xs font-extrabold text-gray-900">
+                        <span className="w-6 text-center text-xs font-black text-stone-900 dark:text-white font-mono">
                           {item.quantity}
                         </span>
                         <button
@@ -294,7 +298,7 @@ export function DesktopCartSidebar({
                             playTapSound();
                             onAdd(item);
                           }}
-                          className="w-5 h-5 rounded bg-orange-600 text-white shadow-2xs flex items-center justify-center hover:bg-orange-700 active:scale-90 transition cursor-pointer"
+                          className="w-5 h-5 rounded-lg bg-amber-600 text-white shadow-2xs flex items-center justify-center hover:bg-amber-700 active:scale-90 transition cursor-pointer"
                         >
                           <Plus className="w-2.5 h-2.5" />
                         </button>
@@ -306,7 +310,7 @@ export function DesktopCartSidebar({
                           playTapSound();
                           onRemoveItem(item.id);
                         }}
-                        className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition cursor-pointer"
+                        className="text-stone-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
                         title="Remove item"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -317,12 +321,12 @@ export function DesktopCartSidebar({
               </div>
             ))}
 
-            {/* ── Dynamic Product-Aware Kitchen Notes / Preference Chips ── */}
+            {/* ── Dynamic Kitchen Notes / Preference Chips ── */}
             {dynamicPreferences.length > 0 && (
-              <div className="pt-2.5 pb-1">
-                <p className="text-[11px] font-extrabold text-gray-700 mb-1.5 flex items-center justify-between">
+              <div className="pt-3 pb-1">
+                <p className="text-[11px] font-extrabold text-stone-700 dark:text-zinc-300 mb-1.5 flex items-center justify-between">
                   <span>{t.orderPreferences || "Order Preferences:"}</span>
-                  <span className="text-[10px] text-gray-400 font-medium">
+                  <span className="text-[10px] text-stone-400 font-medium">
                     {t.kitchenNote || "Kitchen Note"}
                   </span>
                 </p>
@@ -334,14 +338,14 @@ export function DesktopCartSidebar({
                         key={pref.id}
                         type="button"
                         onClick={() => toggleNote(pref.id)}
-                        className={`text-[10px] font-extrabold px-2 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
+                        className={`text-[10px] font-extrabold px-2.5 py-1 rounded-xl border transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
                           active
-                            ? "bg-orange-600 border-orange-600 text-white shadow-2xs"
-                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                            ? "bg-amber-500 border-amber-500 text-stone-950 shadow-2xs font-black"
+                            : "bg-stone-50 dark:bg-zinc-800 border-stone-200 dark:border-zinc-700 text-stone-700 dark:text-zinc-300 hover:bg-stone-100"
                         }`}
                       >
-                        {active && <Check className="w-2.5 h-2.5" />}
-                        <span>{lang === "ur" || lang === "ps" || lang === "bal" || lang === "brh" || lang === "fa" || lang === "pa" || lang === "sd" ? pref.labelUr : pref.labelEn}</span>
+                        {active && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                        <span>{lang === "en" ? pref.labelEn : pref.labelUr}</span>
                       </button>
                     );
                   })}
@@ -349,18 +353,18 @@ export function DesktopCartSidebar({
               </div>
             )}
 
-            {/* ── Real Database Menu Upsell Recommendations ── */}
+            {/* ── Intelligent Recommendations ── */}
             {smartUpsells.length > 0 && (
-              <div className="pt-2.5 pb-1">
-                <p className="text-[11px] font-extrabold text-orange-700 mb-1.5 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-orange-500" />
+              <div className="pt-3 pb-1">
+                <p className="text-[11px] font-extrabold text-amber-700 dark:text-amber-400 mb-1.5 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-500" />
                   <span>{t.frequentlyAdded || "Frequently Added Together:"}</span>
                 </p>
                 <div className="space-y-1.5">
                   {smartUpsells.map((upsell) => (
                     <div
                       key={upsell.id}
-                      className="flex items-center justify-between bg-orange-50/50 border border-orange-100 rounded-xl px-2.5 py-1.5"
+                      className="flex items-center justify-between bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 rounded-2xl px-2.5 py-1.5"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         {upsell.imageUrl ? (
@@ -370,24 +374,17 @@ export function DesktopCartSidebar({
                             className="w-7 h-7 rounded-lg object-cover shrink-0"
                           />
                         ) : (
-                          <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center text-orange-700 text-xs font-bold shrink-0">
-                            {upsell.category?.toLowerCase().includes("chai") ||
-                            upsell.name.toLowerCase().includes("chai")
-                              ? "☕"
-                              : upsell.category?.toLowerCase().includes("paratha") ||
-                                upsell.name.toLowerCase().includes("paratha")
-                              ? "🫓"
-                              : upsell.category?.toLowerCase().includes("drink") ||
-                                upsell.name.toLowerCase().includes("lassi")
-                              ? "🥤"
-                              : "🍽️"}
+                          <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950 flex items-center justify-center text-amber-700 dark:text-amber-300 text-xs font-bold shrink-0">
+                            🍽️
                           </div>
                         )}
                         <div className="min-w-0">
-                          <p className="text-[11px] font-extrabold text-gray-900 truncate">
+                          <p className="text-[11px] font-extrabold text-stone-900 dark:text-white truncate">
                             {upsell.name}
                           </p>
-                          <p className="text-[10px] font-bold text-orange-700">Rs. {upsell.price}</p>
+                          <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 font-mono">
+                            Rs. {upsell.price}
+                          </p>
                         </div>
                       </div>
                       <button
@@ -396,7 +393,7 @@ export function DesktopCartSidebar({
                           playTapSound();
                           onAdd(upsell);
                         }}
-                        className="bg-white border border-orange-300 text-orange-700 hover:bg-orange-600 hover:text-white active:scale-90 text-[10px] font-black px-2.5 py-1 rounded-lg transition shadow-2xs cursor-pointer shrink-0"
+                        className="bg-white dark:bg-zinc-800 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-500 hover:text-stone-950 active:scale-90 text-[10px] font-black px-2.5 py-1 rounded-xl transition shadow-2xs cursor-pointer shrink-0"
                       >
                         + {t.addToCart || "Add"}
                       </button>
@@ -410,20 +407,22 @@ export function DesktopCartSidebar({
       </div>
 
       {/* ── Fixed Bottom Summary & Order CTA ──────── */}
-      <div className="p-3 border-t border-gray-100 bg-gray-50/90 shrink-0 space-y-2">
+      <div className="p-3.5 border-t border-stone-100 dark:border-zinc-800 bg-stone-50/90 dark:bg-zinc-900/90 shrink-0 space-y-2.5">
         {/* Bill Breakdown */}
-        <div className="space-y-1 text-xs font-bold text-gray-600">
-          <div className="flex justify-between">
+        <div className="space-y-1 text-xs font-bold text-stone-600 dark:text-zinc-400">
+          <div className="flex justify-between font-mono">
             <span>{t.subtotalLabel || "Subtotal"}</span>
-            <span>Rs. {cartTotal}</span>
+            <span>Rs. {cartTotal.toLocaleString()}</span>
           </div>
-          <div className="flex justify-between text-[11px] text-emerald-700">
+          <div className="flex justify-between text-[11px] text-emerald-700 dark:text-emerald-400">
             <span>{t.taxAndService || "Tax & Service"}</span>
-            <span>{t.free || "Free"}</span>
+            <span className="font-extrabold">{t.free || "Free"}</span>
           </div>
-          <div className="flex justify-between items-center text-sm sm:text-base font-black text-gray-900 pt-1 border-t border-gray-200">
+          <div className="flex justify-between items-center text-sm sm:text-base font-black text-stone-900 dark:text-white pt-1.5 border-t border-stone-200 dark:border-zinc-800">
             <span>{t.totalBillLabel || "Total Bill"}</span>
-            <span className="text-orange-600 text-base sm:text-lg">Rs. {cartTotal}</span>
+            <span className="text-amber-600 dark:text-amber-400 text-base sm:text-lg font-mono">
+              Rs. {cartTotal.toLocaleString()}
+            </span>
           </div>
         </div>
 
@@ -431,13 +430,13 @@ export function DesktopCartSidebar({
           type="button"
           onClick={handleCheckoutClick}
           disabled={placing || cart.length === 0}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-extrabold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-40 cursor-pointer"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-40 cursor-pointer"
         >
           <Zap className="w-4 h-4 fill-current" />
           <span>
             {placing
               ? t.sendingOrder || "Sending Order..."
-              : `${t.placeOrder || "Place Order"} • Rs. ${cartTotal}`}
+              : `${t.placeOrder || "Place Order"} • Rs. ${cartTotal.toLocaleString()}`}
           </span>
           {!placing && <ArrowRight className="w-4 h-4 rtl:rotate-180" />}
         </button>
@@ -445,4 +444,3 @@ export function DesktopCartSidebar({
     </div>
   );
 }
-

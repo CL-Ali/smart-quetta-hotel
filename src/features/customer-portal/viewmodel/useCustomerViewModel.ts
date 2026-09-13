@@ -217,7 +217,11 @@ export function useCustomerViewModel() {
   // Handlers
   const handleNameSubmit = async () => {
     if (!guestName.trim()) {
-      toast.error("Enter your name");
+      toast.error(t.nameRequiredError || "Enter your name");
+      return;
+    }
+    if (!seatOrTableNo.trim()) {
+      toast.error(t.seatRequiredError || "Please enter or select your seat / table number");
       return;
     }
     if (submittingRef.current || service.isCreatingGuest || service.isOpeningVisit) return;
@@ -232,7 +236,7 @@ export function useCustomerViewModel() {
       const seatingType = peopleCount > 1 ? "table" : "seat";
       const visitR = await service.openVisit({
         guestId: newGId,
-        seatingNo: seatOrTableNo.trim() || undefined,
+        seatingNo: seatOrTableNo.trim(),
         peopleCount,
         seatingType,
       });
@@ -269,13 +273,17 @@ export function useCustomerViewModel() {
       setStep("name");
       return;
     }
+    if (!seatOrTableNo.trim()) {
+      toast.error(t.seatRequiredError || "Please enter or select your seat / table number");
+      return;
+    }
     if (submittingRef.current || service.isOpeningVisit) return;
     submittingRef.current = true;
     try {
       const seatingType = peopleCount > 1 ? "table" : "seat";
       const visitR = await service.openVisit({
         guestId,
-        seatingNo: seatOrTableNo.trim() || undefined,
+        seatingNo: seatOrTableNo.trim(),
         peopleCount,
         seatingType,
       });

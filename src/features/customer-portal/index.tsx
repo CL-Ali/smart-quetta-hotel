@@ -93,59 +93,59 @@ export function CustomerPortalView() {
   // 5. Active Single-Screen Viewport (Zero Window Scroll on Desktop/Tablet)
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden bg-gray-50/80">
-      {/* ── Compact Streamlined Top Header (Responsive Single Row) ──────────────── */}
-      <header className="h-14 bg-white border-b border-gray-200 px-2.5 sm:px-4 lg:px-6 flex items-center justify-between shrink-0 shadow-2xs z-20 gap-2">
+      {/* ── Compact Streamlined Top Header (Material 3 Surface Elevation) ──────────────── */}
+      <header className="h-14 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-stone-200/90 dark:border-zinc-800 px-3 sm:px-4 lg:px-6 flex items-center justify-between shrink-0 shadow-xs z-20 gap-2">
         {/* Left: Brand & Guest Badge */}
-        <div className="flex items-center gap-2 min-w-0 shrink">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-orange-600 text-white flex items-center justify-center font-black text-sm sm:text-base shadow-2xs shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0 shrink">
+          <div className="w-9 h-9 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center font-black text-base shadow-md shadow-amber-500/20 shrink-0">
             Q
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h1 className="text-xs sm:text-sm font-black text-gray-900 leading-none whitespace-nowrap">
+              <h1 className="text-xs sm:text-sm font-black text-stone-900 dark:text-white leading-none whitespace-nowrap">
                 {t.hotelName}
               </h1>
               {displayToken && (
-                <span className="font-mono text-[9px] sm:text-[10px] bg-orange-100 text-orange-800 px-1.5 py-0.2 rounded-md font-black border border-orange-200 shrink-0">
+                <span className="font-mono text-[10px] bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 px-2 py-0.5 rounded-lg font-black border border-amber-200/80 dark:border-amber-800/80 shrink-0">
                   🎫 {displayToken}
                 </span>
               )}
             </div>
-            <div className="text-[10px] sm:text-[11px] text-gray-500 flex items-center gap-1.5 mt-0.5 truncate font-medium">
+            <div className="text-[10px] sm:text-[11px] text-stone-500 dark:text-zinc-400 flex items-center gap-1.5 mt-0.5 truncate font-medium">
               <span>
                 {t.welcome},{" "}
-                <strong className="text-gray-900 font-bold">{vm.guestName || "Guest"}</strong>
+                <strong className="text-stone-900 dark:text-white font-bold">{vm.guestName || "Guest"}</strong>
               </span>
 
               {/* Dynamic Seating Badge */}
               <button
                 type="button"
                 onClick={() => vm.setStep("seating")}
-                className="inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 px-1.5 py-0.2 rounded-md font-extrabold text-[9px] sm:text-[10px] cursor-pointer transition active:scale-95"
+                className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-900 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/80 px-2 py-0.5 rounded-lg font-black text-[10px] cursor-pointer transition active:scale-95 shadow-2xs"
                 title="Change Seating / Party Size"
               >
                 {vm.peopleCount === 1 ? (
-                  <Armchair className="w-2.5 h-2.5 text-amber-700" />
+                  <Armchair className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                 ) : (
-                  <UtensilsCrossed className="w-2.5 h-2.5 text-amber-700" />
+                  <UtensilsCrossed className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                 )}
                 <span>{vm.formattedSeatingLabel}</span>
-                <Edit2 className="w-2 h-2 opacity-50" />
+                <Edit2 className="w-2.5 h-2.5 opacity-60" />
               </button>
             </div>
           </div>
         </div>
 
-        {/* Right: Quick Menu / History Switcher & Lang */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <div className="flex items-center gap-0.5 bg-gray-100 p-0.5 sm:p-1 rounded-xl border border-gray-200/60">
+        {/* Right: Material 3 Segmented Tabs & Lang */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-0.5 bg-stone-100 dark:bg-zinc-800 p-1 rounded-2xl border border-stone-200/80 dark:border-zinc-700">
             <button
               type="button"
               onClick={() => vm.setActiveTab("menu")}
-              className={`px-2 sm:px-3 py-1 text-[11px] sm:text-xs font-black rounded-lg transition cursor-pointer ${
+              className={`px-3 py-1 text-[11px] sm:text-xs font-black rounded-xl transition cursor-pointer ${
                 vm.activeTab === "menu"
-                  ? "bg-white text-gray-900 shadow-2xs"
-                  : "text-gray-600 hover:text-gray-900"
+                  ? "bg-white dark:bg-zinc-900 text-stone-900 dark:text-white shadow-xs"
+                  : "text-stone-600 dark:text-zinc-400 hover:text-stone-900"
               }`}
             >
               {t.menu || "Menu"}
@@ -153,17 +153,17 @@ export function CustomerPortalView() {
             <button
               type="button"
               onClick={() => vm.hasOrders && vm.setActiveTab("history")}
-              className={`px-2 sm:px-3 py-1 text-[11px] sm:text-xs font-black rounded-lg transition flex items-center gap-1 cursor-pointer ${
+              className={`px-3 py-1 text-[11px] sm:text-xs font-black rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
                 !vm.hasOrders
-                  ? "text-gray-400 cursor-not-allowed opacity-50"
+                  ? "text-stone-400 dark:text-zinc-600 cursor-not-allowed opacity-50"
                   : vm.activeTab === "history"
-                  ? "bg-white text-gray-900 shadow-2xs"
-                  : "text-gray-600 hover:text-gray-900"
+                  ? "bg-white dark:bg-zinc-900 text-stone-900 dark:text-white shadow-xs"
+                  : "text-stone-600 dark:text-zinc-400 hover:text-stone-900"
               }`}
             >
               <span>{t.myOrders || "Orders"}</span>
               {vm.hasOrders && (
-                <span className="bg-orange-500 text-white text-[9px] sm:text-[10px] rounded-full px-1.5 py-0.2 font-black">
+                <span className="bg-amber-500 text-stone-950 text-[10px] rounded-full px-1.5 py-0.2 font-black">
                   {vm.myOrders!.length}
                 </span>
               )}
@@ -174,7 +174,7 @@ export function CustomerPortalView() {
           <button
             type="button"
             onClick={vm.handleChangeName}
-            className="hidden md:inline-flex text-xs border border-gray-200 rounded-xl px-2.5 py-1.5 text-gray-600 hover:bg-gray-50 font-bold transition cursor-pointer active:scale-95"
+            className="hidden md:inline-flex text-xs border border-stone-200 dark:border-zinc-700 rounded-xl px-2.5 py-1.5 text-stone-600 dark:text-zinc-300 hover:bg-stone-50 font-bold transition cursor-pointer active:scale-95"
           >
             {t.changeName}
           </button>
