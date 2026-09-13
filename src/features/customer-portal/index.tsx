@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { FaUtensils, FaFire, FaReceipt, FaPen, FaChair, FaSpinner } from "react-icons/fa6";
+import { FaUtensils, FaFire, FaReceipt, FaPen, FaChair, FaSpinner, FaArrowRight, FaTicket } from "react-icons/fa6";
 import { useLang } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 import { playTapSound } from "@/lib/sound";
@@ -104,25 +104,6 @@ export function CustomerPortalView() {
               <span className="text-sm font-bold text-stone-900 dark:text-white tracking-tight truncate">
                 {t.hotelName}
               </span>
-              {activeTokensList.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    playTapSound();
-                    vm.setActiveTab("active");
-                  }}
-                  className="inline-flex items-center gap-1 bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-amber-500/20 shrink-0 cursor-pointer transition"
-                  title="View active kitchen orders"
-                >
-                  <span>
-                    {activeTokensList.length === 1
-                      ? activeTokensList[0].startsWith("VIS-")
-                        ? `#${activeTokensList[0].split("-")[1]}`
-                        : activeTokensList[0]
-                      : `${activeTokensList[0]} (+${activeTokensList.length - 1})`}
-                  </span>
-                </button>
-              )}
             </div>
             
             {/* Context chip (Guest & Table) */}
@@ -232,7 +213,7 @@ export function CustomerPortalView() {
         {/* 1. Menu Tab */}
         {vm.activeTab === "menu" && (
           <div className="h-full flex flex-col overflow-hidden space-y-2">
-            {/* Subtle Tonal Kitchen Notice for all Active Non-Served Tickets */}
+            {/* Subtle Tonal Kitchen Notice for all Active Non-Served Orders */}
             {vm.hasActiveOrders && (
               <button
                 type="button"
@@ -240,25 +221,22 @@ export function CustomerPortalView() {
                   playTapSound();
                   vm.setActiveTab("active");
                 }}
-                className="w-full bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-800/60 rounded-xl px-3.5 py-2 flex items-center justify-between gap-2 transition cursor-pointer text-left shrink-0 shadow-2xs group"
+                className="w-full bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-300/80 dark:border-amber-800/80 rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-3 transition cursor-pointer text-left shrink-0 shadow-2xs group"
               >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <span className="relative flex h-2.5 w-2.5 shrink-0">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
                   </span>
-                  <p className="text-xs font-semibold text-amber-950 dark:text-amber-200 truncate">
-                    {activeTokensList.length === 1
-                      ? `${activeTokensList[0]}: `
-                      : activeTokensList.length > 1
-                      ? `${activeTokensList.length} Active Orders: `
-                      : ""}
-                    {vm.activeItemsCount} {t.nonServedItems || "items being cooked in kitchen"}
-                  </p>
+                  <div className="text-xs font-bold text-stone-900 dark:text-white truncate">
+                    <span className="text-stone-800 dark:text-zinc-200">
+                      {vm.activeItemsCount} {t.nonServedItems || "items being cooked in kitchen"}
+                    </span>
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-amber-700 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform shrink-0 flex items-center gap-1">
+                <span className="text-xs font-black text-amber-700 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform shrink-0 flex items-center gap-1.5 bg-amber-500/15 px-2.5 py-1 rounded-xl">
                   <span>{t.trackOrderBtn || "Track Progress"}</span>
-                  <span>→</span>
+                  <FaArrowRight className="w-2.5 h-2.5 rtl:rotate-180" />
                 </span>
               </button>
             )}
@@ -296,14 +274,16 @@ export function CustomerPortalView() {
           </div>
         )}
 
-        {/* 2. Active Orders (Non-Served Items with Sub-Tabs) */}
+        {/* 2. Active Orders (Live Kitchen Queue with Ahead Tracking) */}
         {vm.activeTab === "active" && (
           <div className="h-full max-w-2xl mx-auto overflow-hidden">
             <ActiveOrdersTab
               orders={vm.myOrders || []}
+              kitchenQueue={vm.kitchenQueue || []}
               guestName={vm.guestName}
               seatingLabel={vm.formattedSeatingLabel}
               ticketNo={vm.ticketNo}
+              activeTickets={vm.activeTickets || []}
               onOrderMore={() => vm.setActiveTab("menu")}
               onViewAllOrders={() => vm.setActiveTab("history")}
             />

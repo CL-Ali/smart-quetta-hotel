@@ -167,6 +167,14 @@ const T = {
     allServedCelebration: "All your ordered items have been served! Enjoy your fresh meal!",
     itemLiveStatus:    "Kitchen Status",
     unservedSummary:   "Active Non-Served Bill",
+    myOrderBadge:      "YOUR TICKET",
+    otherOrderBadge:   "Kitchen Queue",
+    ordersAhead:       "orders ahead in queue",
+    ticketAhead:       "ticket ahead in queue",
+    ticketsAhead:      "tickets ahead in queue",
+    yourTurnNext:      "You're next in line!",
+    fullKitchenQueue:  "Full Kitchen Queue",
+    onlyMyOrders:      "My Orders Only",
   },
   ur: {
     hotelName:      "کوئٹہ ہوٹل",
@@ -317,12 +325,20 @@ const T = {
     nameRequiredError: "جاری رکھنے کے لیے اپنا نام درج کریں",
     seatRequiredError: "براہ کرم سیٹ یا ٹیبل نمبر منتخب یا درج کریں",
     activeKitchen:     "جاری آرڈرز",
-    nonServedItems:    "غیر سرو شدہ اشیاء",
-    allActiveItems:    "تمام جاری اشیاء",
-    noActiveKitchenOrders: "اس وقت کوئی غیر سرو شدہ آرڈر زیرِ تیاری نہیں ہے۔",
-    allServedCelebration: "آپ کے تمام آرڈرز سرو ہو چکے ہیں! اپنے کھانے سے لطف اندوز ہوں۔",
-    itemLiveStatus:    "کچن میں حالت",
-    unservedSummary:   "غیر سرو شدہ بل",
+    nonServedItems:    "اشیاء کچن میں زیرِ تیاری ہیں",
+    allActiveItems:    "تمام فعال اشیاء",
+    noActiveKitchenOrders: "اس وقت کوئی آرڈر زیرِ تیاری نہیں ہے، سب پیش کر دیا گیا ہے۔",
+    allServedCelebration: "آپ کے تمام کھانے پیش کر دیے گئے ہیں! نوش فرمائیں۔",
+    itemLiveStatus:    "کچن حالت",
+    unservedSummary:   "جاری بل",
+    myOrderBadge:      "آپ کا آرڈر",
+    otherOrderBadge:   "کچن قطار میں",
+    ordersAhead:       "آرڈرز آپ سے پہلے قطار میں ہیں",
+    ticketAhead:       "ٹکٹ آپ سے پہلے قطار میں ہے",
+    ticketsAhead:      "ٹکٹس آپ سے پہلے قطار میں ہیں",
+    yourTurnNext:      "اگلی باری آپ کے آرڈر کی ہے!",
+    fullKitchenQueue:  "کچن کی مکمل قطار",
+    onlyMyOrders:      "صرف میرے آرڈرز",
   },
   ps: {
     hotelName:      "کوټه هوټل",
@@ -1260,13 +1276,9 @@ const T = {
     itemLiveStatus:    "رڌڻي ۾ حالت",
     unservedSummary:   "باقی بل",
   },
-} as const;
-
-export type Translations = {
-  [K in keyof typeof T["en"]]: typeof T["en"][K] extends string
-    ? string
-    : { [SubK in keyof typeof T["en"][K]]: string };
 };
+
+export type Translations = typeof T["en"];
 
 const LangContext = createContext<{ lang: Lang; t: Translations; setLang: (l: Lang) => void; langSelected: boolean }>({
   lang: "en",
@@ -1304,8 +1316,10 @@ export function LangProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = lang;
   }, [lang]);
 
+  const currentTranslations = { ...T.en, ...(T[lang] || {}) } as unknown as Translations;
+
   return (
-    <LangContext.Provider value={{ lang, t: T[lang], setLang, langSelected }}>
+    <LangContext.Provider value={{ lang, t: currentTranslations, setLang, langSelected }}>
       {children}
     </LangContext.Provider>
   );

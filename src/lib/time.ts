@@ -48,3 +48,34 @@ export function fmtDate(iso: string | null | undefined): string {
     timeZone: TZ,
   });
 }
+
+/**
+ * Check if a timestamp is from TODAY in PKT timezone
+ */
+export function isToday(iso: string | null | undefined): boolean {
+  if (!iso) return true;
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return true;
+    const datePKT = d.toLocaleDateString("en-PK", { timeZone: TZ });
+    const nowPKT = new Date().toLocaleDateString("en-PK", { timeZone: TZ });
+    return datePKT === nowPKT;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Check if a timestamp is from recent session / today (within 24 hours or today)
+ */
+export function isRecentOrToday(iso: string | null | undefined, maxHours: number = 24): boolean {
+  if (!iso) return true;
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return true;
+    const diffMs = Date.now() - d.getTime();
+    return diffMs <= maxHours * 60 * 60 * 1000 || isToday(iso);
+  } catch {
+    return true;
+  }
+}

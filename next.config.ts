@@ -14,6 +14,7 @@ const localIps: string[] = [
   "172.31.*",
   "*.local",
   "*.lan",
+  "[192.168.1.134]",
 ];
 
 for (const iface of Object.values(nets)) {

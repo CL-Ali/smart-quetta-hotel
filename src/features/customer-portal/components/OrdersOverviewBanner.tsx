@@ -103,8 +103,9 @@ export function OrdersOverviewBanner({
                 Unpaid: Rs. {unpaidAmount.toLocaleString()}
               </span>
             ) : (
-              <span className="text-emerald-400 dark:text-emerald-700 font-bold">
-                Bill Paid ✓
+              <span className="text-emerald-400 dark:text-emerald-700 font-bold flex items-center gap-1">
+                <FaCheck className="w-2.5 h-2.5" />
+                <span>Bill Paid</span>
               </span>
             )}
           </div>

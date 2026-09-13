@@ -6,6 +6,7 @@ import { useLang } from "@/contexts/LangContext";
 import { useSocket } from "@/hooks/useSocket";
 import { CartItem, MenuItem } from "@/types/hotel";
 import { playOrderSuccessSound, playTapSound, unlockAudio } from "@/lib/sound";
+import { isToday, isRecentOrToday } from "@/lib/time";
 import { useCustomerService } from "../services/customerService";
 
 // Storage keys
@@ -209,11 +210,13 @@ export function useCustomerViewModel() {
   // Derived Calculations
   const hasOrders = (service.myOrders?.length ?? 0) > 0;
 
-  // Non-served active items count
+  // Non-served active items count (Recent active session)
   const activeItemsCount = useMemo(() => {
     if (!service.myOrders) return 0;
     let count = 0;
     service.myOrders.forEach((o) => {
+      // Must be recent or active
+      if (!isRecentOrToday(o.createdAt)) return;
       if (o.status !== "served" && o.status !== "cancelled") {
         o.items?.forEach((item: any) => {
           const st = item.kitchenStatus || item.status || o.status || "pending";
@@ -422,6 +425,9 @@ export function useCustomerViewModel() {
     }
     const tickets = new Set<string>();
     service.myOrders.forEach((order: any) => {
+      // Must be recent / active
+      if (!isRecentOrToday(order.createdAt)) return;
+
       const isNotServed = order.status !== "served" && order.status !== "cancelled";
       const hasNonServedItems = order.items?.some(
         (i: any) => i.kitchenStatus !== "served" && i.kitchenStatus !== "cancelled"
@@ -435,7 +441,13 @@ export function useCustomerViewModel() {
     if (tickets.size === 0 && ticketNo) {
       return [ticketNo];
     }
-    return Array.from(tickets);
+    // Sort tickets chronologically / naturally
+    return Array.from(tickets).sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, "") || "0", 10);
+      const numB = parseInt(b.replace(/\D/g, "") || "0", 10);
+      if (numA && numB) return numA - numB;
+      return a.localeCompare(b);
+    });
   }, [service.myOrders, ticketNo]);
 
   return {
@@ -468,6 +480,8 @@ export function useCustomerViewModel() {
     menuLoading: service.menuLoading,
     myOrders: service.myOrders,
     ordersLoading: service.ordersLoading,
+    kitchenQueue: service.kitchenQueue,
+    kitchenQueueLoading: service.kitchenQueueLoading,
 
     // Actions
     setStep,

@@ -25,54 +25,11 @@ interface MenuSectionProps {
   onRemoveItem?: (id: number) => void;
 }
 
-// 100% accurate, curated matching food images (Authentic Desi/Pakistani menu items)
+import { getAccurateItemImageByName } from "../utils/itemImage";
+import { getItemDisplayName } from "../utils/itemTranslation";
+
 function getAccurateItemImage(item: MenuItem): string {
-  const name = (item.name || "").toLowerCase();
-  
-  // 1. Lassi (Authentic sweet white yogurt lassi in a glass)
-  if (name.includes("lassi")) {
-    return "https://images.unsplash.com/photo-1553787499-6f9133860278?w=500&auto=format&fit=crop&q=80";
-  }
-  
-  // 2. Karwa Chai / Kahwa / Sulaimani / Green tea
-  if (name.includes("karwa") || name.includes("kahwa") || name.includes("qehwa") || name.includes("black tea") || name.includes("bina doodh")) {
-    return "https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=500&auto=format&fit=crop&q=80";
-  }
-  
-  // 3. Special Doodh Patti Chai
-  if (name.includes("chai") || name.includes("doodh patti") || name.includes("tea")) {
-    return "/images/chai.png";
-  }
-  
-  // 4. Paratha (Crispy Golden Desi Ghee Lacha Paratha)
-  if (name === "paratha" || (name.includes("paratha") && !name.includes("anda") && !name.includes("egg"))) {
-    return "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=500&auto=format&fit=crop&q=80";
-  }
-  
-  // 5. Anda Paratha (Desi Omelette / Egg Paratha)
-  if (name.includes("anda") || name.includes("egg paratha") || name.includes("omelette")) {
-    return "https://images.unsplash.com/photo-1584776296944-ab6fb57b0bdd?w=500&auto=format&fit=crop&q=80";
-  }
-  
-  // 6. Halwa Puri (Golden Puffed Puris with Halwa Chana)
-  if (name.includes("halwa") || name.includes("puri")) {
-    return "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop&q=80";
-  }
-  
-  // 7. Samosa (Crispy Golden Triangular Potato & Spiced Samosas)
-  if (name.includes("samosa")) {
-    return "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=500&auto=format&fit=crop&q=80";
-  }
-  
-  // 8. Pakora (Crispy Golden Mixed Vegetable Pakoras / Bhajia)
-  if (name.includes("pakora") || name.includes("pakoda") || name.includes("bhajia")) {
-    return "https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=500&auto=format&fit=crop&q=80";
-  }
-  
-  // Fallback
-  return item.imageUrl && !item.imageUrl.includes("photo-1571091718767") && item.imageUrl !== ""
-    ? item.imageUrl
-    : "/images/chai.png";
+  return getAccurateItemImageByName(item.name, item.imageUrl);
 }
 
 // Category Label Formatter
@@ -269,6 +226,8 @@ export function MenuSection({
               const badge = getItemBadge(item.name, lang);
               const accurateImg = getAccurateItemImage(item);
 
+              const displayName = getItemDisplayName(item.name, lang);
+
               return (
                 <div
                   key={item.id}
@@ -283,7 +242,7 @@ export function MenuSection({
                   <div className="w-22 h-22 rounded-2xl bg-stone-100 dark:bg-zinc-800 overflow-hidden relative border border-stone-200/80 dark:border-zinc-700/80 shadow-2xs shrink-0">
                     <img
                       src={accurateImg}
-                      alt={item.name}
+                      alt={displayName}
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
@@ -305,7 +264,7 @@ export function MenuSection({
                     <div>
                       <div className="flex items-center justify-between gap-1">
                         <h4 className="font-extrabold text-stone-900 dark:text-white text-base leading-snug line-clamp-1">
-                          {item.name}
+                          {displayName}
                         </h4>
                         {item.category && (
                           <span className="text-[9px] font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
@@ -412,6 +371,7 @@ export function MenuSection({
             const isSelected = qty > 0;
             const badge = getItemBadge(item.name, lang);
             const accurateImg = getAccurateItemImage(item);
+            const displayName = getItemDisplayName(item.name, lang);
 
             return (
               <div
@@ -427,7 +387,7 @@ export function MenuSection({
                 <div className="h-28 sm:h-32 w-full bg-stone-100 dark:bg-zinc-800 relative overflow-hidden">
                   <img
                     src={accurateImg}
-                    alt={item.name}
+                    alt={displayName}
                     className="w-full h-full object-cover group-hover:scale-103 transition duration-300"
                     loading="lazy"
                   />
@@ -456,7 +416,7 @@ export function MenuSection({
                       </p>
                     )}
                     <h3 className="font-bold text-stone-900 dark:text-white text-xs sm:text-sm line-clamp-1 leading-tight mt-0.5">
-                      {item.name}
+                      {displayName}
                     </h3>
                     {item.description && (
                       <p className="text-[11px] text-stone-500 dark:text-zinc-400 line-clamp-1 mt-0.5">

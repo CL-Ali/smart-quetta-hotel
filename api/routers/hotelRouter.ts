@@ -13,7 +13,7 @@ import {
   tickets,
   visits,
 } from "../db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, asc, ne } from "drizzle-orm";
 import { z } from "zod";
 import {
   calculateSubtotal,
@@ -175,6 +175,60 @@ export const hotelRouter = router({
         })
       );
     }),
+
+  // ── Public Live Kitchen Queue (Today's Active Non-Served Orders in Ascending Order) ──
+  getLiveKitchenQueueToday: publicProcedure.query(async () => {
+    const db = getDb();
+    const activeOrders = db
+      .select()
+      .from(orders)
+      .where(ne(orders.status, "served"))
+      .orderBy(asc(orders.id))
+      .all();
+
+    const nowMs = Date.now();
+    const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+
+    const todayOrders = activeOrders.filter((order) => {
+      if (order.status === "cancelled" || order.status === "served") return false;
+      if (!order.createdAt) return true;
+      try {
+        const orderTime = new Date(order.createdAt).getTime();
+        if (isNaN(orderTime)) return true;
+        // Keep active orders within the last 24 hours
+        return (nowMs - orderTime) <= twentyFourHoursMs;
+      } catch {
+        return true;
+      }
+    });
+
+    return todayOrders
+      .map((order) => {
+        const items = listOrderItemsWithMenuForOrder(db, order.id)
+          .filter((item) => {
+            const st = item.kitchenStatus || "pending";
+            return st !== "served" && st !== "cancelled";
+          })
+          .map((item) => ({
+            id: item.id,
+            name: item.name,
+            quantity: item.quantity,
+            kitchenStatus: item.kitchenStatus || "pending",
+          }));
+        return {
+          id: order.id,
+          orderNo: order.orderNo,
+          ticketNo: order.orderNo || `TKT-${order.id}`,
+          customerName: order.customerName,
+          seatingNo: order.seatingNo,
+          seatingType: order.seatingType,
+          status: order.status,
+          createdAt: order.createdAt,
+          items,
+        };
+      })
+      .filter((o) => o.items.length > 0);
+  }),
 
   // ── Place order ─────────────────────────────────────────────────────────────
   placeOrder: publicProcedure

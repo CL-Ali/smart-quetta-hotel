@@ -14,6 +14,8 @@ import {
 import { CartItem, MenuItem } from "@/types/hotel";
 import { useLang } from "@/contexts/LangContext";
 import { playTapSound, unlockAudio } from "@/lib/sound";
+import { getAccurateItemImageByName } from "../utils/itemImage";
+import { getItemDisplayName } from "../utils/itemTranslation";
 
 interface DesktopCartSidebarProps {
   cart: CartItem[];
@@ -209,19 +211,25 @@ export function DesktopCartSidebar({
           <>
             {/* List of items */}
             <div className="space-y-2">
-              {cart.map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-stone-50 dark:bg-zinc-800/60 p-2.5 rounded-xl border border-stone-200/80 dark:border-zinc-800/80 flex items-center justify-between gap-2.5"
-                >
-                  <div className="min-w-0 flex-1">
-                    <h4 className="font-bold text-xs text-stone-900 dark:text-white truncate">
-                      {item.name}
-                    </h4>
-                    <p className="text-xs font-mono font-black text-amber-600 dark:text-amber-400 mt-0.5">
-                      Rs. {(item.price * item.quantity).toLocaleString()}
-                    </p>
-                  </div>
+              {cart.map((item) => {
+                const itemImg = getAccurateItemImageByName(item.name, item.imageUrl);
+                const displayName = getItemDisplayName(item.name, lang);
+                return (
+                  <div
+                    key={item.id}
+                    className="bg-stone-50 dark:bg-zinc-800/60 p-2.5 rounded-xl border border-stone-200/80 dark:border-zinc-800/80 flex items-center justify-between gap-2.5"
+                  >
+                    <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-stone-200 dark:bg-zinc-700 shrink-0 border border-stone-300/60 dark:border-zinc-600">
+                      <img src={itemImg} alt={displayName} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-bold text-xs text-stone-900 dark:text-white truncate">
+                        {displayName}
+                      </h4>
+                      <p className="text-xs font-mono font-black text-amber-600 dark:text-amber-400 mt-0.5">
+                        Rs. {(item.price * item.quantity).toLocaleString()}
+                      </p>
+                    </div>
 
                   {/* Stepper + Delete */}
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -275,8 +283,9 @@ export function DesktopCartSidebar({
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
+          </div>
 
             {/* Special Instructions / Quick Request Chips */}
             {specialOptions.length > 0 && (

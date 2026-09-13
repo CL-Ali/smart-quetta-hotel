@@ -8,6 +8,8 @@ import { CartItem } from "@/types/hotel";
 import { useLang } from "@/contexts/LangContext";
 import { FaBagShopping, FaPlus, FaMinus, FaTrashCan, FaArrowRight } from "react-icons/fa6";
 import { playTapSound, unlockAudio } from "@/lib/sound";
+import { getAccurateItemImageByName } from "../utils/itemImage";
+import { getItemDisplayName } from "../utils/itemTranslation";
 
 interface ConfirmPlaceModalProps {
   open: boolean;
@@ -31,7 +33,7 @@ export function ConfirmPlaceModal({
   onDec,
 }: ConfirmPlaceModalProps) {
   const isMobile = useIsMobile();
-  const { t } = useLang();
+  const { t, lang } = useLang();
 
   const totalItems = cart.reduce((s, i) => s + i.quantity, 0);
 
@@ -58,19 +60,25 @@ export function ConfirmPlaceModal({
 
       {/* Itemized Order List */}
       <div className="bg-stone-50 dark:bg-zinc-800/60 rounded-2xl p-3 text-left max-h-60 overflow-y-auto space-y-2 border border-stone-200/80 dark:border-zinc-800 divide-y divide-stone-200/60 dark:divide-zinc-700/60 no-scrollbar">
-        {cart.map((item) => (
-          <div
-            key={item.id}
-            className="pt-2 first:pt-0 flex items-center justify-between gap-2.5 text-xs"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-stone-900 dark:text-white truncate">
-                {item.name}
-              </p>
-              <p className="font-mono text-xs font-black text-amber-600 dark:text-amber-400 mt-0.5">
-                Rs. {(item.price * item.quantity).toLocaleString()}
-              </p>
-            </div>
+        {cart.map((item) => {
+          const itemImg = getAccurateItemImageByName(item.name, item.imageUrl);
+          const displayName = getItemDisplayName(item.name, lang);
+          return (
+            <div
+              key={item.id}
+              className="pt-2.5 first:pt-0 flex items-center justify-between gap-2.5 text-xs"
+            >
+              <div className="relative w-9 h-9 rounded-lg overflow-hidden bg-stone-200 dark:bg-zinc-700 shrink-0 border border-stone-300/60 dark:border-zinc-600">
+                <img src={itemImg} alt={displayName} className="w-full h-full object-cover" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-stone-900 dark:text-white truncate">
+                  {displayName}
+                </p>
+                <p className="font-mono text-xs font-black text-amber-600 dark:text-amber-400 mt-0.5">
+                  Rs. {(item.price * item.quantity).toLocaleString()}
+                </p>
+              </div>
 
             {/* Stepper + Delete Icon */}
             <div className="flex items-center gap-1.5 shrink-0">
@@ -120,7 +128,8 @@ export function ConfirmPlaceModal({
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Bill Calculation Summary */}
