@@ -415,6 +415,29 @@ export function useCustomerViewModel() {
     setPlacing(false);
   };
 
+  // Active (Non-Served) Tickets for this guest in current session
+  const activeTickets = useMemo(() => {
+    if (!service.myOrders || service.myOrders.length === 0) {
+      return ticketNo ? [ticketNo] : [];
+    }
+    const tickets = new Set<string>();
+    service.myOrders.forEach((order: any) => {
+      const isNotServed = order.status !== "served" && order.status !== "cancelled";
+      const hasNonServedItems = order.items?.some(
+        (i: any) => i.kitchenStatus !== "served" && i.kitchenStatus !== "cancelled"
+      );
+      if (isNotServed || hasNonServedItems) {
+        const tkt = order.ticketNo || order.orderNo || `TKT-${order.id}`;
+        tickets.add(tkt);
+      }
+    });
+
+    if (tickets.size === 0 && ticketNo) {
+      return [ticketNo];
+    }
+    return Array.from(tickets);
+  }, [service.myOrders, ticketNo]);
+
   return {
     // State
     step,
@@ -422,6 +445,7 @@ export function useCustomerViewModel() {
     guestPhone,
     previousName,
     ticketNo,
+    activeTickets,
     peopleCount,
     seatOrTableNo,
     formattedSeatingLabel,

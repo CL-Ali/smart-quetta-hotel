@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { Hotel, Check, Sparkles, ArrowRight } from "lucide-react";
+import { FaArrowRight, FaCheck, FaUtensils, FaGlobe } from "react-icons/fa6";
 import { useLang, LANG_OPTIONS } from "@/contexts/LangContext";
+import { playTapSound, unlockAudio } from "@/lib/sound";
 
 interface LangSelectScreenProps {
   onDone: () => void;
@@ -11,61 +12,85 @@ interface LangSelectScreenProps {
 export function LangSelectScreen({ onDone }: LangSelectScreenProps) {
   const { lang, setLang, t } = useLang();
 
+  const handleSelectLang = (val: typeof lang) => {
+    unlockAudio();
+    playTapSound();
+    setLang(val);
+  };
+
+  const handleContinue = () => {
+    unlockAudio();
+    playTapSound();
+    onDone();
+  };
+
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 flex flex-col items-center justify-center px-4 sm:px-6 py-8">
-      <div className="w-full max-w-sm">
-        {/* Material 3 Brand Header */}
-        <div className="text-center mb-6 flex flex-col items-center">
-          <div className="w-20 h-20 rounded-3xl bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3 shadow-inner">
-            <Hotel className="w-10 h-10 stroke-[2.2]" />
+      <div className="w-full max-w-sm flex flex-col items-center">
+        
+        {/* Minimal Brand Header */}
+        <div className="text-center mb-8 flex flex-col items-center">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center mb-4 shadow-sm">
+            <FaUtensils className="w-6 h-6" />
           </div>
-          <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-700 dark:text-amber-400 bg-amber-100/80 dark:bg-amber-950/60 px-3 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60 mb-2">
-            Smart POS & Guest Portal
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-stone-900 dark:text-white tracking-tight leading-relaxed mb-1">
+          <h1 className="text-2xl font-bold text-stone-900 dark:text-white tracking-tight">
             {t.hotelName || "Quetta Hotel"}
           </h1>
-          <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400 font-medium leading-relaxed">
-            Choose Language • اپنی زبان منتخب کریں
+          <p className="text-xs text-stone-500 dark:text-zinc-400 font-medium mt-1">
+            Choose Language / اپنی زبان منتخب کریں
           </p>
         </div>
 
-        {/* Material 3 Language Selection Grid */}
-        <div className="grid grid-cols-2 gap-2.5 mb-6">
+        {/* Minimal Language Grid (No Emojis) */}
+        <div className="w-full grid grid-cols-2 gap-2.5 mb-6">
           {LANG_OPTIONS.map((opt) => {
             const isSelected = lang === opt.value;
             return (
               <button
                 key={opt.value}
-                onClick={() => setLang(opt.value)}
-                className={`flex items-center gap-2.5 p-3 min-h-[52px] rounded-2xl border transition-all cursor-pointer select-none active:scale-95 text-left shadow-2xs ${
+                type="button"
+                onClick={() => handleSelectLang(opt.value)}
+                className={`flex items-center justify-between p-3.5 min-h-[50px] rounded-xl border transition-all cursor-pointer select-none text-left ${
                   isSelected
-                    ? "border-amber-500 bg-amber-500/10 dark:bg-amber-500/20 text-stone-950 dark:text-amber-200 ring-2 ring-amber-500/30 font-black shadow-sm"
-                    : "border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:border-amber-300"
+                    ? "border-amber-500 bg-amber-500/10 text-stone-900 dark:text-white font-bold"
+                    : "border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-600 dark:text-zinc-400 hover:border-stone-300 dark:hover:border-zinc-700"
                 }`}
               >
-                <span className="text-xl shrink-0">{opt.flag}</span>
-                <span className="flex-1 text-xs sm:text-sm font-bold truncate leading-normal">{opt.label}</span>
-                {isSelected && (
-                  <div className="w-5 h-5 rounded-full bg-amber-500 text-stone-950 flex items-center justify-center shrink-0 shadow-2xs">
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  </div>
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs sm:text-sm font-semibold truncate leading-tight">
+                    {opt.label}
+                  </span>
+                  <span className="text-[10px] text-stone-400 dark:text-zinc-500 uppercase font-mono mt-0.5">
+                    {opt.value}
+                  </span>
+                </div>
+                {isSelected ? (
+                  <FaCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded-full border border-stone-300 dark:border-zinc-700 shrink-0" />
                 )}
               </button>
             );
           })}
         </div>
 
-        {/* Primary CTA */}
+        {/* Minimal Primary Button */}
         <button
           type="button"
-          onClick={onDone}
-          className="w-full h-14 bg-stone-950 hover:bg-black dark:bg-white dark:text-black active:scale-[0.98] transition-all text-white text-base sm:text-lg font-black rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-xl shadow-black/10"
+          onClick={handleContinue}
+          className="w-full h-12 bg-stone-900 hover:bg-black dark:bg-white dark:hover:bg-stone-100 dark:text-zinc-950 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all active:scale-[0.99]"
         >
           <span>{t.continueBtn || "Continue"}</span>
-          <ArrowRight className="w-5 h-5 rtl:rotate-180" />
+          <FaArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
         </button>
+
+        {/* Minimal Footer Info */}
+        <p className="text-[11px] text-stone-400 dark:text-zinc-500 font-medium text-center mt-6">
+          Smart Dining & Contactless Ordering
+        </p>
       </div>
     </div>
   );
 }
+
+

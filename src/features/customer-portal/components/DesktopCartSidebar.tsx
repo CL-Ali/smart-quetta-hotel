@@ -2,16 +2,15 @@
 
 import React, { useState, useMemo } from "react";
 import {
-  ShoppingBag,
-  Trash2,
-  Plus,
-  Minus,
-  User,
-  ArrowRight,
-  Zap,
-  Sparkles,
-  Check,
-} from "lucide-react";
+  FaBagShopping,
+  FaTrashCan,
+  FaPlus,
+  FaMinus,
+  FaArrowRight,
+  FaCheck,
+  FaSpinner,
+  FaPen,
+} from "react-icons/fa6";
 import { CartItem, MenuItem } from "@/types/hotel";
 import { useLang } from "@/contexts/LangContext";
 import { playTapSound, unlockAudio } from "@/lib/sound";
@@ -35,9 +34,9 @@ interface SpecialRequestOption {
   id: string;
   labelUr: string;
   labelEn: string;
-  category: "chai" | "paratha" | "egg" | "curry" | "drink" | "general";
 }
 
+// Clean special requests without emojis
 function getDynamicSpecialRequests(cart: CartItem[]): SpecialRequestOption[] {
   if (!cart || cart.length === 0) return [];
 
@@ -48,74 +47,56 @@ function getDynamicSpecialRequests(cart: CartItem[]): SpecialRequestOption[] {
 
   const options: SpecialRequestOption[] = [];
 
-  // 1. Chai / Tea detection
-  const hasChai = /chai|tea|chaye|چائے|قہوہ|green tea|doodh patti|karak/i.test(cartText);
+  // 1. Chai detection
+  const hasChai = /chai|tea|chaye|چائے|doodh patti|karak/i.test(cartText);
   if (hasChai) {
     options.push(
-      { id: "chai_karak", labelUr: "☕ کڑک / تیز پتی", labelEn: "Strong Tea", category: "chai" },
-      { id: "chai_less_sugar", labelUr: "☕ کم چینی", labelEn: "Less Sugar", category: "chai" },
-      { id: "chai_no_sugar", labelUr: "☕ بغیر چینی", labelEn: "No Sugar", category: "chai" },
-      { id: "chai_sweet", labelUr: "☕ زیادہ میٹھی", labelEn: "Extra Sweet", category: "chai" }
+      { id: "chai_karak", labelUr: "کڑک چائے", labelEn: "Strong Karak" },
+      { id: "chai_less_sugar", labelUr: "کم چینی", labelEn: "Less Sugar" },
+      { id: "chai_no_sugar", labelUr: "بغیر چینی", labelEn: "No Sugar" }
     );
   }
 
-  // 2. Paratha / Roti detection
+  // 2. Paratha / Roti
   const hasParatha = /paratha|lacha|roti|naan|پراٹھا|روٹی|نان/i.test(cartText);
   if (hasParatha) {
     options.push(
-      { id: "paratha_crispy", labelUr: "🫓 کرکرا / کڑک پراٹھا", labelEn: "Crispy Paratha", category: "paratha" },
-      { id: "paratha_less_oil", labelUr: "🫓 کم گھی / تیل", labelEn: "Less Oil", category: "paratha" },
-      { id: "paratha_soft", labelUr: "🫓 نرم پراٹھا", labelEn: "Soft Paratha", category: "paratha" }
+      { id: "paratha_crispy", labelUr: "کرکرا پراٹھا", labelEn: "Extra Crispy" },
+      { id: "paratha_less_oil", labelUr: "کم تیل/گھی", labelEn: "Less Oil" }
     );
   }
 
-  // 3. Egg / Omelette / Breakfast detection
-  const hasEgg = /anda|egg|omelette|fry|half fry|chanay|چنے|انڈہ|آملیٹ|ناشتہ/i.test(cartText);
+  // 3. Egg / Breakfast
+  const hasEgg = /anda|egg|omelette|fry|half fry|انڈہ|آملیٹ|ناشتہ/i.test(cartText);
   if (hasEgg) {
     options.push(
-      { id: "egg_half_fry", labelUr: "🍳 ہاف فرائی انڈہ", labelEn: "Half Fry Egg", category: "egg" },
-      { id: "egg_full_fry", labelUr: "🍳 فل فرائی / کڑک", labelEn: "Full Fry Egg", category: "egg" },
-      { id: "egg_spicy", labelUr: "🌶️ ہری مرچ زیادہ", labelEn: "Extra Green Chili", category: "egg" }
+      { id: "egg_half_fry", labelUr: "ہاف فرائی", labelEn: "Half Fry" },
+      { id: "egg_full_fry", labelUr: "فل فرائی", labelEn: "Full Fry" },
+      { id: "egg_spicy", labelUr: "تیز مرچ", labelEn: "Extra Spicy" }
     );
   }
 
-  // 4. Karahi / Handi / Curry / Meat detection
-  const hasCurry = /karahi|chicken|gosht|mutton|handi|qeema|کڑاہی|قیمہ|سالن|مرغی/i.test(cartText);
+  // 4. Curry / Karahi
+  const hasCurry = /karahi|chicken|gosht|mutton|handi|qeema|کڑاہی|قیمہ|سالن/i.test(cartText);
   if (hasCurry) {
     options.push(
-      { id: "curry_spicy", labelUr: "🌶️ تیز مصالحہ", labelEn: "Extra Spicy", category: "curry" },
-      { id: "curry_mild", labelUr: "🌶️ ہلکی مرچ", labelEn: "Mild Spicy", category: "curry" },
-      { id: "curry_lemon", labelUr: "🍋 لیموں ساتھ", labelEn: "Extra Lemon", category: "curry" }
+      { id: "curry_spicy", labelUr: "تیز مصالحہ", labelEn: "Extra Spicy" },
+      { id: "curry_mild", labelUr: "ہلکی مرچ", labelEn: "Mild Spicy" }
     );
   }
 
-  // 5. Lassi / Beverages detection
-  const hasDrink = /lassi|drink|cold drink|water|sprite|coke|لسی|شربت|پانی/i.test(cartText);
-  if (hasDrink) {
-    options.push(
-      { id: "drink_extra_ice", labelUr: "🧊 زیادہ برف", labelEn: "Extra Ice", category: "drink" },
-      { id: "drink_no_ice", labelUr: "🚫 بغیر برف", labelEn: "No Ice", category: "drink" },
-      { id: "drink_sweet", labelUr: "🍯 میٹھی لسی", labelEn: "Sweet Lassi", category: "drink" },
-      { id: "drink_namkeen", labelUr: "🧂 نمکین لسی", labelEn: "Namkeen Lassi", category: "drink" }
-    );
-  }
-
-  // 6. Packing & General
+  // 5. Takeaway
   options.push(
-    { id: "takeaway_pack", labelUr: "📦 پارسل / پیکنگ", labelEn: "Takeaway Packing", category: "general" },
-    { id: "extra_cutlery", labelUr: "🍽️ اضافی برتن", labelEn: "Extra Cutlery", category: "general" }
+    { id: "takeaway_pack", labelUr: "پارسل / پیکنگ", labelEn: "Takeaway Packing" }
   );
 
   return options;
 }
 
-/**
- * Intelligent Recommender: Selects active, available menu items that best complement the user's cart
- */
+// Smart upsell finder
 function getSmartMenuUpsells(menu: MenuItem[] = [], cart: CartItem[] = []): MenuItem[] {
   if (!menu || menu.length === 0) return [];
 
-  // Exclude items already in cart and unavailable items
   const cartIds = new Set(cart.map((i) => i.id));
   const candidates = menu.filter((m) => m.isAvailable !== false && !cartIds.has(m.id));
   if (candidates.length === 0) return [];
@@ -125,15 +106,12 @@ function getSmartMenuUpsells(menu: MenuItem[] = [], cart: CartItem[] = []): Menu
     .join(" ")
     .toLowerCase();
 
-  const hasChai = /chai|tea|chaye|چائے|قہوہ|green tea|doodh patti|karak/i.test(cartText);
-  const hasParatha = /paratha|lacha|roti|naan|پراٹھا|روٹی|نان/i.test(cartText);
-  const hasEgg = /anda|egg|omelette|fry|half fry|chanay|چنے|انڈہ|آملیٹ|ناشتہ/i.test(cartText);
-  const hasCurry = /karahi|chicken|gosht|mutton|handi|qeema|کڑاہی|قیمہ|سالن|مرغی/i.test(cartText);
-  const hasDrink = /lassi|drink|cold drink|water|sprite|coke|لسی|شربت|پانی/i.test(cartText);
+  const hasChai = /chai|tea|chaye|چائے|doodh patti|karak/i.test(cartText);
+  const hasParatha = /paratha|lacha|roti|naan|پراٹھا|روٹی/i.test(cartText);
+  const hasEgg = /anda|egg|omelette|fry/i.test(cartText);
 
   const matched: MenuItem[] = [];
 
-  // Helper to find and add candidate
   const findCandidate = (regex: RegExp) => {
     const found = candidates.find(
       (c) =>
@@ -143,33 +121,12 @@ function getSmartMenuUpsells(menu: MenuItem[] = [], cart: CartItem[] = []): Menu
     if (found) matched.push(found);
   };
 
-  // Rule 1: If user has Paratha/Egg but NO Chai -> Strongly recommend Chai
-  if ((hasParatha || hasEgg) && !hasChai) {
-    findCandidate(/chai|tea|chaye|چائے|karak|doodh patti/i);
-  }
+  if (hasParatha && !hasChai) findCandidate(/chai|doodh patti|tea/i);
+  if (hasParatha && !hasEgg) findCandidate(/anda|egg|omelette|fry/i);
+  if (hasChai && !hasParatha) findCandidate(/paratha|roti|samosa/i);
 
-  // Rule 2: If user has Chai but NO Paratha/Egg -> Strongly recommend Paratha/Omelette
-  if (hasChai && !hasParatha && !hasEgg) {
-    findCandidate(/paratha|lacha|پراٹھا|roti/i);
-    findCandidate(/anda|egg|omelette|آملیٹ/i);
-  }
-
-  // Rule 3: If user has Karahi/Curry but NO Roti/Naan -> Recommend Roti/Naan
-  if (hasCurry && !hasParatha) {
-    findCandidate(/roti|naan|روٹی|نان|paratha/i);
-  }
-
-  // Rule 4: If user has heavy food but NO beverage -> Recommend Lassi or Drink
-  if ((hasCurry || hasEgg || hasParatha) && !hasDrink) {
-    findCandidate(/lassi|لسی|drink|cold drink|شربت/i);
-  }
-
-  // Fallback: Fill up to 2 items with other available items
-  for (const item of candidates) {
-    if (matched.length >= 2) break;
-    if (!matched.some((m) => m.id === item.id)) {
-      matched.push(item);
-    }
+  if (matched.length === 0) {
+    matched.push(...candidates.slice(0, 2));
   }
 
   return matched.slice(0, 2);
@@ -178,175 +135,171 @@ function getSmartMenuUpsells(menu: MenuItem[] = [], cart: CartItem[] = []): Menu
 export function DesktopCartSidebar({
   cart,
   cartTotal,
-  guestName,
-  ticketNo,
-  seatingLabel,
   placing,
   menu = [],
   onAdd,
   onDec,
   onRemoveItem,
+  onClearCart,
   onCheckout,
 }: DesktopCartSidebarProps) {
   const { t, lang } = useLang();
-  const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
+  const [customNote, setCustomNote] = useState("");
+  const [showNoteInput, setShowNoteInput] = useState(false);
 
-  // Dynamically calculate special requests based on cart items
-  const dynamicPreferences = useMemo(() => getDynamicSpecialRequests(cart), [cart]);
+  const totalItems = useMemo(
+    () => cart.reduce((sum, item) => sum + item.quantity, 0),
+    [cart]
+  );
 
-  // Dynamically suggest upsells from real available database menu based on current cart
+  const specialOptions = useMemo(() => getDynamicSpecialRequests(cart), [cart]);
   const smartUpsells = useMemo(() => getSmartMenuUpsells(menu, cart), [menu, cart]);
 
-  const toggleNote = (noteId: string) => {
+  const toggleSpecialRequest = (id: string) => {
+    unlockAudio();
     playTapSound();
-    setSelectedNotes((prev) =>
-      prev.includes(noteId) ? prev.filter((id) => id !== noteId) : [...prev, noteId]
+    setSelectedRequests((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
-  const handleCheckoutClick = () => {
-    unlockAudio();
-    playTapSound();
-    onCheckout();
-  };
-
-  const displayToken = ticketNo
-    ? ticketNo.startsWith("VIS-")
-      ? `#${ticketNo.split("-")[1] || ticketNo}`
-      : ticketNo
-    : null;
-
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-stone-200/90 dark:border-zinc-800 shadow-xs flex flex-col h-full overflow-hidden">
-      {/* ── Material 3 Top Sidebar Header ────────────────────────────── */}
-      <div className="px-4 py-3 border-b border-stone-100 dark:border-zinc-800 flex items-center justify-between bg-stone-50/80 dark:bg-zinc-900/80 shrink-0">
-        <h2 className="text-xs sm:text-sm font-extrabold text-stone-900 dark:text-white flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
-            <ShoppingBag className="w-3.5 h-3.5" />
+    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200/80 dark:border-zinc-800 shadow-2xs flex flex-col h-full overflow-hidden">
+      {/* ── M3 Header ─────────────────────────────────────── */}
+      <div className="p-3.5 border-b border-stone-200/80 dark:border-zinc-800 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold shrink-0">
+            <FaBagShopping className="w-4 h-4" />
           </div>
-          <span>{t.currentOrder || "Current Order"}</span>
-          <span className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 text-[11px] px-2 py-0.2 rounded-full font-black font-mono">
-            {totalItems}
-          </span>
-        </h2>
-
-        {/* Guest & Seating Badge */}
-        <div className="flex items-center gap-1.5 text-xs text-stone-700 dark:text-zinc-300 font-bold bg-white dark:bg-zinc-800 px-2.5 py-1 rounded-xl border border-stone-200 dark:border-zinc-700 shadow-2xs">
-          <User className="w-3 h-3 text-amber-600" />
-          <span className="truncate max-w-[85px]">{guestName || "Guest"}</span>
-          {displayToken && (
-            <span className="text-[10px] bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 px-1.5 py-0.2 rounded font-mono font-black border border-amber-200/50">
-              {displayToken}
-            </span>
-          )}
+          <div>
+            <h3 className="font-bold text-stone-900 dark:text-white text-sm leading-tight">
+              {t.orderSummary || "Order Summary"}
+            </h3>
+            <p className="text-[11px] text-stone-500 dark:text-zinc-400 font-medium">
+              {totalItems} {totalItems === 1 ? "item" : "items"} selected
+            </p>
+          </div>
         </div>
+
+        {cart.length > 0 && onClearCart && (
+          <button
+            type="button"
+            onClick={onClearCart}
+            className="text-xs text-stone-400 hover:text-red-500 font-medium transition cursor-pointer px-2 py-1 rounded-md hover:bg-red-50 dark:hover:bg-red-950/20"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
-      {/* ── Scrollable Cart Items Area ──────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 py-2.5 divide-y divide-stone-100 dark:divide-zinc-800 no-scrollbar min-h-0 space-y-2.5">
+      {/* ── Cart Items List ──────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 no-scrollbar min-h-0">
         {cart.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-stone-400 py-8 text-center select-none">
-            <div className="w-14 h-14 rounded-3xl bg-stone-100 dark:bg-zinc-800 flex items-center justify-center mb-2 text-stone-400">
-              <ShoppingBag className="w-7 h-7 stroke-[1.5]" />
+          <div className="flex flex-col items-center justify-center h-56 text-center text-stone-400">
+            <div className="w-12 h-12 rounded-full bg-stone-100 dark:bg-zinc-800 flex items-center justify-center mb-2.5">
+              <FaBagShopping className="w-5 h-5 opacity-40 text-stone-500" />
             </div>
-            <p className="text-xs sm:text-sm font-extrabold text-stone-700 dark:text-zinc-300">
-              {t.cartEmpty || "Your cart is empty"}
+            <p className="text-sm font-bold text-stone-700 dark:text-zinc-300">
+              Your cart is empty
             </p>
-            <p className="text-[11px] text-stone-400 dark:text-zinc-400 mt-0.5 max-w-[190px]">
-              {t.tapItemsToAdd || "Tap items on the left to add"}
-            </p>
+            <p className="text-xs text-stone-400 mt-0.5">Click + Add on any food item to start</p>
           </div>
         ) : (
-          <div className="divide-y divide-stone-100 dark:divide-zinc-800">
-            {/* Items List */}
-            {cart.map((item) => (
-              <div key={item.id} className="py-2.5 flex items-center justify-between gap-2 group">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline justify-between">
-                    <p className="text-xs sm:text-sm font-extrabold text-stone-900 dark:text-white truncate">
+          <>
+            {/* List of items */}
+            <div className="space-y-2">
+              {cart.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-stone-50 dark:bg-zinc-800/60 p-2.5 rounded-xl border border-stone-200/80 dark:border-zinc-800/80 flex items-center justify-between gap-2.5"
+                >
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-bold text-xs text-stone-900 dark:text-white truncate">
                       {item.name}
-                    </p>
-                    <span className="text-xs sm:text-sm font-black text-stone-900 dark:text-white ml-2 font-mono">
+                    </h4>
+                    <p className="text-xs font-mono font-black text-amber-600 dark:text-amber-400 mt-0.5">
                       Rs. {(item.price * item.quantity).toLocaleString()}
-                    </span>
+                    </p>
                   </div>
 
-                  <div className="flex items-center justify-between mt-1.5">
-                    <span className="text-[11px] text-stone-400 dark:text-zinc-400 font-medium font-mono">
-                      Rs. {item.price} {t.each || "each"}
-                    </span>
-
-                    {/* Micro Stepper & 1-Tap Delete */}
-                    <div className="flex items-center gap-1.5">
-                      <div className="flex items-center border border-stone-200 dark:border-zinc-700 rounded-xl bg-stone-50 dark:bg-zinc-800 p-0.5 shadow-2xs">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            playTapSound();
-                            onDec(item.id);
-                          }}
-                          className="w-5 h-5 rounded-lg bg-white dark:bg-zinc-700 shadow-2xs flex items-center justify-center text-stone-700 dark:text-zinc-200 hover:bg-stone-100 active:scale-90 transition cursor-pointer"
-                        >
-                          <Minus className="w-2.5 h-2.5" />
-                        </button>
-                        <span className="w-6 text-center text-xs font-black text-stone-900 dark:text-white font-mono">
-                          {item.quantity}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            playTapSound();
-                            onAdd(item);
-                          }}
-                          className="w-5 h-5 rounded-lg bg-amber-600 text-white shadow-2xs flex items-center justify-center hover:bg-amber-700 active:scale-90 transition cursor-pointer"
-                        >
-                          <Plus className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
-
+                  {/* Stepper + Delete */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-700 rounded-full p-0.5 shadow-2xs">
                       <button
                         type="button"
                         onClick={() => {
                           playTapSound();
-                          onRemoveItem(item.id);
+                          onDec(item.id);
                         }}
-                        className="text-stone-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
-                        title="Remove item"
+                        className={`w-5 h-5 rounded-full flex items-center justify-center transition cursor-pointer ${
+                          item.quantity === 1
+                            ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                            : "text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800"
+                        }`}
+                        title={item.quantity === 1 ? "Remove" : "Decrease"}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        {item.quantity === 1 ? (
+                          <FaTrashCan className="w-2 h-2" />
+                        ) : (
+                          <FaMinus className="w-2 h-2" />
+                        )}
+                      </button>
+                      <span className="w-5 text-center text-xs font-bold font-mono text-stone-900 dark:text-white">
+                        {item.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          unlockAudio();
+                          playTapSound();
+                          onAdd(item);
+                        }}
+                        className="w-5 h-5 rounded-full bg-amber-500 hover:bg-amber-400 text-stone-950 flex items-center justify-center transition cursor-pointer shadow-xs"
+                        title="Increase"
+                      >
+                        <FaPlus className="w-2 h-2" />
                       </button>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playTapSound();
+                        onRemoveItem(item.id);
+                      }}
+                      className="w-6 h-6 rounded-full bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-900/40 text-red-500 transition flex items-center justify-center cursor-pointer shadow-2xs"
+                      title="Delete item"
+                    >
+                      <FaTrashCan className="w-2.5 h-2.5" />
+                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
 
-            {/* ── Dynamic Kitchen Notes / Preference Chips ── */}
-            {dynamicPreferences.length > 0 && (
-              <div className="pt-3 pb-1">
-                <p className="text-[11px] font-extrabold text-stone-700 dark:text-zinc-300 mb-1.5 flex items-center justify-between">
-                  <span>{t.orderPreferences || "Order Preferences:"}</span>
-                  <span className="text-[10px] text-stone-400 font-medium">
-                    {t.kitchenNote || "Kitchen Note"}
-                  </span>
+            {/* Special Instructions / Quick Request Chips */}
+            {specialOptions.length > 0 && (
+              <div className="pt-2">
+                <p className="text-xs font-bold text-stone-700 dark:text-zinc-300 mb-1.5">
+                  Preferences
                 </p>
                 <div className="flex flex-wrap gap-1.5">
-                  {dynamicPreferences.map((pref) => {
-                    const active = selectedNotes.includes(pref.id);
+                  {specialOptions.map((opt) => {
+                    const isSelected = selectedRequests.includes(opt.id);
                     return (
                       <button
-                        key={pref.id}
+                        key={opt.id}
                         type="button"
-                        onClick={() => toggleNote(pref.id)}
-                        className={`text-[10px] font-extrabold px-2.5 py-1 rounded-xl border transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
-                          active
-                            ? "bg-amber-500 border-amber-500 text-stone-950 shadow-2xs font-black"
-                            : "bg-stone-50 dark:bg-zinc-800 border-stone-200 dark:border-zinc-700 text-stone-700 dark:text-zinc-300 hover:bg-stone-100"
+                        onClick={() => toggleSpecialRequest(opt.id)}
+                        className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition cursor-pointer flex items-center gap-1 active:scale-95 ${
+                          isSelected
+                            ? "bg-amber-500 text-stone-950 border-amber-500 shadow-xs"
+                            : "bg-white dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 border-stone-200/80 dark:border-zinc-700 hover:border-stone-400"
                         }`}
                       >
-                        {active && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                        <span>{lang === "en" ? pref.labelEn : pref.labelUr}</span>
+                        {isSelected && <FaCheck className="w-2 h-2" />}
+                        <span>{lang === "ur" ? opt.labelUr : opt.labelEn}</span>
                       </button>
                     );
                   })}
@@ -354,94 +307,102 @@ export function DesktopCartSidebar({
               </div>
             )}
 
-            {/* ── Intelligent Recommendations ── */}
+            {/* Custom Kitchen Note */}
+            <div className="pt-1">
+              {!showNoteInput ? (
+                <button
+                  type="button"
+                  onClick={() => setShowNoteInput(true)}
+                  className="text-xs text-amber-600 dark:text-amber-400 hover:underline font-semibold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FaPen className="w-2.5 h-2.5 opacity-80" />
+                  <span>+ Add kitchen note</span>
+                </button>
+              ) : (
+                <div className="space-y-1">
+                  <textarea
+                    rows={2}
+                    value={customNote}
+                    onChange={(e) => setCustomNote(e.target.value)}
+                    placeholder="e.g. Extra hot chai, less oil..."
+                    className="w-full text-xs p-2 bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Recommended Complements */}
             {smartUpsells.length > 0 && (
-              <div className="pt-3 pb-1">
-                <p className="text-[11px] font-extrabold text-amber-700 dark:text-amber-400 mb-1.5 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-500" />
-                  <span>{t.frequentlyAdded || "Frequently Added Together:"}</span>
+              <div className="pt-2 border-t border-stone-100 dark:border-zinc-800">
+                <p className="text-xs font-bold text-stone-700 dark:text-zinc-300 mb-1.5">
+                  Frequently Ordered Together
                 </p>
                 <div className="space-y-1.5">
                   {smartUpsells.map((upsell) => (
                     <div
                       key={upsell.id}
-                      className="flex items-center justify-between bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 rounded-2xl px-2.5 py-1.5"
+                      className="bg-stone-50 dark:bg-zinc-800/50 p-2 rounded-xl border border-stone-200/80 dark:border-zinc-700 flex items-center justify-between gap-2"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        {upsell.imageUrl ? (
-                          <img
-                            src={upsell.imageUrl}
-                            alt={upsell.name}
-                            className="w-7 h-7 rounded-lg object-cover shrink-0"
-                          />
-                        ) : (
-                          <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950 flex items-center justify-center text-amber-700 dark:text-amber-300 text-xs font-bold shrink-0">
-                            🍽️
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-extrabold text-stone-900 dark:text-white truncate">
-                            {upsell.name}
-                          </p>
-                          <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 font-mono">
-                            Rs. {upsell.price}
-                          </p>
-                        </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-stone-900 dark:text-white truncate">
+                          {upsell.name}
+                        </p>
+                        <p className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
+                          Rs. {upsell.price}
+                        </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => {
+                          unlockAudio();
                           playTapSound();
                           onAdd(upsell);
                         }}
-                        className="bg-white dark:bg-zinc-800 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-500 hover:text-stone-950 active:scale-90 text-[10px] font-black px-2.5 py-1 rounded-xl transition shadow-2xs cursor-pointer shrink-0"
+                        className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold rounded-full transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-xs"
                       >
-                        + {t.addToCart || "Add"}
+                        <FaPlus className="w-2 h-2" />
+                        <span>Add</span>
                       </button>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
       {/* ── Fixed Bottom Summary & Order CTA ──────── */}
-      <div className="p-3.5 border-t border-stone-100 dark:border-zinc-800 bg-stone-50/90 dark:bg-zinc-900/90 shrink-0 space-y-2.5">
-        {/* Bill Breakdown */}
-        <div className="space-y-1 text-xs font-bold text-stone-600 dark:text-zinc-400">
-          <div className="flex justify-between font-mono">
-            <span>{t.subtotalLabel || "Subtotal"}</span>
-            <span>Rs. {cartTotal.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between text-[11px] text-emerald-700 dark:text-emerald-400">
-            <span>{t.taxAndService || "Tax & Service"}</span>
-            <span className="font-extrabold">{t.free || "Free"}</span>
-          </div>
-          <div className="flex justify-between items-center text-sm sm:text-base font-black text-stone-900 dark:text-white pt-1.5 border-t border-stone-200 dark:border-zinc-800">
-            <span>{t.totalBillLabel || "Total Bill"}</span>
-            <span className="text-amber-600 dark:text-amber-400 text-base sm:text-lg font-mono">
+      {cart.length > 0 && (
+        <div className="p-3.5 border-t border-stone-200/80 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-900/90 shrink-0 space-y-2.5">
+          <div className="flex items-center justify-between text-xs font-semibold text-stone-600 dark:text-zinc-400">
+            <span>{t.totalBillLabel || "Total Due"}</span>
+            <span className="text-lg font-black font-mono text-stone-900 dark:text-white">
               Rs. {cartTotal.toLocaleString()}
             </span>
           </div>
-        </div>
 
-        <button
-          type="button"
-          onClick={handleCheckoutClick}
-          disabled={placing || cart.length === 0}
-          className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-[0.98] text-stone-950 font-black py-3.5 px-4 rounded-2xl shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-40 cursor-pointer"
-        >
-          <Zap className="w-4 h-4 fill-current" />
-          <span>
-            {placing
-              ? t.sendingOrder || "Sending Order..."
-              : `${t.placeOrder || "Place Order"} • Rs. ${cartTotal.toLocaleString()}`}
-          </span>
-          {!placing && <ArrowRight className="w-4 h-4 rtl:rotate-180 stroke-[2.5]" />}
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => {
+              unlockAudio();
+              playTapSound();
+              onCheckout();
+            }}
+            disabled={placing}
+            className="w-full h-11 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-stone-950 font-bold rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-sm transition active:scale-[0.99] disabled:opacity-50 text-xs sm:text-sm"
+          >
+            {placing ? (
+              <FaSpinner className="w-4 h-4 animate-spin text-stone-950" />
+            ) : (
+              <>
+                <span>{t.placeOrder || "Place Order"}</span>
+                <FaArrowRight className="w-3 h-3 rtl:rotate-180" />
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

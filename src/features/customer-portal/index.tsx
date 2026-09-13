@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Loader2, ChefHat, Armchair, UtensilsCrossed, Edit2, Flame } from "lucide-react";
+import { FaUtensils, FaFire, FaReceipt, FaPen, FaChair, FaSpinner } from "react-icons/fa6";
 import { useLang } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 import { playTapSound } from "@/lib/sound";
@@ -24,7 +24,7 @@ import { OrdersOverviewBanner } from "./components/OrdersOverviewBanner";
 
 /**
  * Customer Portal View (MVVM)
- * Ultra-Fast Mobile-First POS Experience with Seating Setup & Live Active Kitchen Tracking
+ * Minimalist, ultra-clean POS & customer ordering experience
  */
 export function CustomerPortalView() {
   const { t } = useLang();
@@ -38,10 +38,10 @@ export function CustomerPortalView() {
   // 2. Opening fresh visit / loading
   if (vm.isOpeningVisit) {
     return (
-      <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="animate-spin h-10 w-10 text-amber-500" />
-          <p className="text-sm text-stone-500 font-medium">Setting up your table & session…</p>
+      <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 flex items-center justify-center p-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <FaSpinner className="animate-spin h-7 w-7 text-amber-500" />
+          <p className="text-xs text-stone-500 dark:text-zinc-400 font-medium">Setting up session…</p>
         </div>
       </div>
     );
@@ -83,32 +83,74 @@ export function CustomerPortalView() {
     );
   }
 
-  // Format ticket/token number cleanly
-  const displayToken = vm.ticketNo
-    ? vm.ticketNo.startsWith("VIS-")
-      ? `Token #${vm.ticketNo.split("-")[1] || vm.ticketNo}`
-      : vm.ticketNo.startsWith("TKT-") || vm.ticketNo.startsWith("ORD-")
-      ? vm.ticketNo
-      : `Token #${vm.ticketNo}`
-    : null;
+  // Format active non-served tokens
+  const activeTokensList = (vm.activeTickets && vm.activeTickets.length > 0)
+    ? vm.activeTickets
+    : vm.ticketNo ? [vm.ticketNo] : [];
 
-  // 5. Active Single-Screen Viewport (Zero Window Scroll on Desktop/Tablet)
+  // 5. Active Single-Screen Viewport with Material Design 3 Architecture
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden bg-stone-50 dark:bg-zinc-950">
-      {/* ── Tier 1: Main Brand, Segmented Navigation Tabs & Lang Switcher ────────── */}
-      <header className="h-12 sm:h-13 bg-white dark:bg-zinc-900 border-b border-stone-200/80 dark:border-zinc-800 px-3 sm:px-4 lg:px-6 flex items-center justify-between shrink-0 shadow-2xs z-20 gap-2">
-        {/* Left: Brand Logo */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center font-black text-xs sm:text-sm shadow-2xs">
-            Q
+      {/* ── M3 Top App Bar ──────────────────────────────────────── */}
+      <header className="h-14 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-stone-200/80 dark:border-zinc-800/80 px-3 sm:px-4 lg:px-6 flex items-center justify-between shrink-0 z-20 gap-3">
+        {/* Left: Brand + Seating Context */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+            <FaUtensils className="w-4 h-4" />
           </div>
-          <span className="hidden sm:inline text-xs sm:text-sm font-black text-stone-900 dark:text-white">
-            {t.hotelName}
-          </span>
+          
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-stone-900 dark:text-white tracking-tight truncate">
+                {t.hotelName}
+              </span>
+              {activeTokensList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    vm.setActiveTab("active");
+                  }}
+                  className="inline-flex items-center gap-1 bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-amber-500/20 shrink-0 cursor-pointer transition"
+                  title="View active kitchen orders"
+                >
+                  <span>
+                    {activeTokensList.length === 1
+                      ? activeTokensList[0].startsWith("VIS-")
+                        ? `#${activeTokensList[0].split("-")[1]}`
+                        : activeTokensList[0]
+                      : `${activeTokensList[0]} (+${activeTokensList.length - 1})`}
+                  </span>
+                </button>
+              )}
+            </div>
+            
+            {/* Context chip (Guest & Table) */}
+            <button
+              type="button"
+              onClick={() => {
+                playTapSound();
+                vm.setStep("seating");
+              }}
+              className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white transition group text-left cursor-pointer truncate"
+              title="Change table or name"
+            >
+              {vm.peopleCount === 1 ? (
+                <FaChair className="w-2.5 h-2.5 text-stone-400 shrink-0" />
+              ) : (
+                <FaUtensils className="w-2.5 h-2.5 text-stone-400 shrink-0" />
+              )}
+              <span className="font-medium text-stone-700 dark:text-zinc-300 truncate">
+                {vm.formattedSeatingLabel}
+              </span>
+              <span className="text-stone-400 dark:text-zinc-500">• {vm.guestName || "Guest"}</span>
+              <FaPen className="w-2 h-2 opacity-40 group-hover:opacity-100 transition-opacity ml-0.5 shrink-0" />
+            </button>
+          </div>
         </div>
 
-        {/* Center: 3-Tier Segmented Tabs */}
-        <div className="flex items-center bg-stone-100 dark:bg-zinc-800 p-0.5 rounded-xl border border-stone-200/80 dark:border-zinc-700">
+        {/* Center: Desktop M3 Segmented Navigation (Hidden on mobile, bottom bar used instead) */}
+        <div className="hidden lg:flex items-center bg-stone-100 dark:bg-zinc-800/80 p-1 rounded-full border border-stone-200/60 dark:border-zinc-700/60 shadow-2xs">
           {/* 1. Menu Tab */}
           <button
             type="button"
@@ -116,38 +158,37 @@ export function CustomerPortalView() {
               playTapSound();
               vm.setActiveTab("menu");
             }}
-            className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
               vm.activeTab === "menu"
-                ? "bg-white dark:bg-zinc-900 text-stone-900 dark:text-white shadow-xs font-black"
-                : "text-stone-600 dark:text-zinc-400 hover:text-stone-900"
+                ? "bg-white dark:bg-zinc-900 text-stone-900 dark:text-white shadow-xs font-bold"
+                : "text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white"
             }`}
           >
-            {t.menu || "Menu"}
+            <FaUtensils className="w-3 h-3" />
+            <span>{t.menu || "Menu"}</span>
           </button>
 
-          {/* 2. Live Active Orders (Non-Served) Tab */}
+          {/* 2. Live Active Orders Tab */}
           <button
             type="button"
             onClick={() => {
               playTapSound();
               vm.setActiveTab("active");
             }}
-            className={`px-2.5 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer ${
+            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 cursor-pointer ${
               vm.activeTab === "active"
-                ? "bg-white dark:bg-zinc-900 text-stone-900 dark:text-white shadow-xs font-black"
-                : "text-stone-600 dark:text-zinc-400 hover:text-stone-900"
+                ? "bg-white dark:bg-zinc-900 text-stone-900 dark:text-white shadow-xs font-bold"
+                : "text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white"
             }`}
           >
-            <Flame
-              className={`w-3.5 h-3.5 ${
-                vm.hasActiveOrders
-                  ? "text-amber-500 fill-amber-500 animate-pulse"
-                  : "text-stone-400"
+            <FaFire
+              className={`w-3 h-3 ${
+                vm.hasActiveOrders ? "text-amber-500" : "text-stone-400"
               }`}
             />
-            <span>{t.activeKitchen || "Active"}</span>
+            <span>{t.activeKitchen || "Active Kitchen"}</span>
             {vm.activeItemsCount > 0 && (
-              <span className="bg-stone-900 text-amber-400 dark:bg-amber-500 dark:text-stone-950 text-[10px] rounded-full px-1.5 font-bold font-mono">
+              <span className="bg-amber-500 text-stone-950 text-[10px] rounded-full px-1.5 py-0.2 font-black font-mono">
                 {vm.activeItemsCount}
               </span>
             )}
@@ -162,17 +203,18 @@ export function CustomerPortalView() {
                 vm.setActiveTab("history");
               }
             }}
-            className={`px-2.5 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer ${
+            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 cursor-pointer ${
               !vm.hasOrders
                 ? "text-stone-400 dark:text-zinc-600 cursor-not-allowed opacity-50"
                 : vm.activeTab === "history"
-                ? "bg-white dark:bg-zinc-900 text-stone-900 dark:text-white shadow-xs font-black"
-                : "text-stone-600 dark:text-zinc-400 hover:text-stone-900"
+                ? "bg-white dark:bg-zinc-900 text-stone-900 dark:text-white shadow-xs font-bold"
+                : "text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white"
             }`}
           >
+            <FaReceipt className="w-3 h-3 opacity-60" />
             <span>{t.myOrders || "Orders"}</span>
             {vm.hasOrders && (
-              <span className="bg-stone-200 dark:bg-zinc-700 text-stone-800 dark:text-zinc-200 text-[10px] rounded-full px-1.5 font-bold font-mono">
+              <span className="bg-stone-200 dark:bg-zinc-700 text-stone-800 dark:text-zinc-200 text-[10px] rounded-full px-1.5 py-0.2 font-bold font-mono">
                 {vm.myOrders!.length}
               </span>
             )}
@@ -180,51 +222,17 @@ export function CustomerPortalView() {
         </div>
 
         {/* Right: Language Switcher */}
-        <div className="shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <LangSwitcher />
         </div>
       </header>
 
-      {/* ── Tier 2: User Context & Seating Sub-Bar (Next Line on All Screens) ─────── */}
-      <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xs border-b border-stone-200/70 dark:border-zinc-800/70 px-3 sm:px-4 lg:px-6 py-1.5 flex items-center justify-between gap-2 shrink-0">
-        {/* Left: Guest Name & Clear Ticket ID */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="text-xs font-bold text-stone-800 dark:text-zinc-200 truncate">
-            {vm.guestName || "Guest"}
-          </span>
-          {displayToken && (
-            <span className="bg-stone-100 dark:bg-zinc-800 text-stone-800 dark:text-stone-200 border border-stone-200 dark:border-zinc-700 text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-md shrink-0">
-              🎫 {displayToken}
-            </span>
-          )}
-        </div>
-
-        {/* Right: Seating Pill & Change Seating Action */}
-        <button
-          type="button"
-          onClick={() => {
-            playTapSound();
-            vm.setStep("seating");
-          }}
-          className="inline-flex items-center gap-1.5 bg-stone-50 hover:bg-stone-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-stone-800 dark:text-zinc-200 px-2.5 py-0.8 rounded-xl text-[11px] font-bold border border-stone-200 dark:border-zinc-700 shadow-2xs cursor-pointer transition active:scale-95 shrink-0"
-          title="Change Seating"
-        >
-          {vm.peopleCount === 1 ? (
-            <Armchair className="w-3 h-3 text-amber-600" />
-          ) : (
-            <UtensilsCrossed className="w-3 h-3 text-amber-600" />
-          )}
-          <span>{vm.formattedSeatingLabel}</span>
-          <Edit2 className="w-2.5 h-2.5 opacity-50 ml-0.5" />
-        </button>
-      </div>
-
-      {/* ── Main Viewport ────────────────────────────────────────────────────────── */}
-      <main className="flex-1 min-h-0 w-full px-3 sm:px-4 lg:px-6 py-2 overflow-hidden">
+      {/* ── Main Viewport ────────────────────────────────────────── */}
+      <main className="flex-1 min-h-0 w-full px-3 sm:px-4 lg:px-6 py-2 overflow-hidden pb-16 lg:pb-2">
         {/* 1. Menu Tab */}
         {vm.activeTab === "menu" && (
-          <div className="h-full flex flex-col overflow-hidden space-y-1.5">
-            {/* Sleek Minimal Kitchen Notification Pill (if active non-served items exist) */}
+          <div className="h-full flex flex-col overflow-hidden space-y-2">
+            {/* Subtle Tonal Kitchen Notice for all Active Non-Served Tickets */}
             {vm.hasActiveOrders && (
               <button
                 type="button"
@@ -232,18 +240,25 @@ export function CustomerPortalView() {
                   playTapSound();
                   vm.setActiveTab("active");
                 }}
-                className="w-full bg-white dark:bg-zinc-900 hover:bg-stone-50 dark:hover:bg-zinc-800 border border-stone-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2 transition cursor-pointer text-left shrink-0 shadow-2xs group"
+                className="w-full bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-800/60 rounded-xl px-3.5 py-2 flex items-center justify-between gap-2 transition cursor-pointer text-left shrink-0 shadow-2xs group"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-5 h-5 rounded-md bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
-                    <Flame className="w-3 h-3 fill-current animate-pulse" />
-                  </div>
-                  <p className="text-xs font-bold text-stone-800 dark:text-stone-200 truncate">
-                    {displayToken ? `${displayToken}: ` : ""}{vm.activeItemsCount} {t.nonServedItems || "items being cooked in kitchen"}
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                  </span>
+                  <p className="text-xs font-semibold text-amber-950 dark:text-amber-200 truncate">
+                    {activeTokensList.length === 1
+                      ? `${activeTokensList[0]}: `
+                      : activeTokensList.length > 1
+                      ? `${activeTokensList.length} Active Orders: `
+                      : ""}
+                    {vm.activeItemsCount} {t.nonServedItems || "items being cooked in kitchen"}
                   </p>
                 </div>
-                <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform shrink-0">
-                  {t.trackOrderBtn || "Track Live"} →
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform shrink-0 flex items-center gap-1">
+                  <span>{t.trackOrderBtn || "Track Progress"}</span>
+                  <span>→</span>
                 </span>
               </button>
             )}
@@ -300,7 +315,7 @@ export function CustomerPortalView() {
           <div className="h-full max-w-4xl mx-auto overflow-y-auto pr-1 py-2 space-y-3 no-scrollbar">
             {vm.ordersLoading ? (
               <div className="flex justify-center py-20">
-                <Loader2 className="animate-spin h-8 w-8 text-amber-500" />
+                <FaSpinner className="animate-spin h-7 w-7 text-amber-500" />
               </div>
             ) : vm.myOrders && vm.myOrders.length > 0 ? (
               <>
@@ -317,9 +332,9 @@ export function CustomerPortalView() {
                 </div>
               </>
             ) : (
-              <div className="text-center py-24 bg-white dark:bg-zinc-900 rounded-3xl border border-stone-200 dark:border-zinc-800 text-stone-400">
-                <ChefHat className="w-12 h-12 mx-auto mb-3 opacity-30 text-amber-500" />
-                <p className="text-sm font-extrabold text-stone-700 dark:text-stone-300">{t.noPastOrders}</p>
+              <div className="text-center py-20 bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 text-stone-400">
+                <FaUtensils className="w-8 h-8 mx-auto mb-3 opacity-30 text-stone-400" />
+                <p className="text-sm font-bold text-stone-700 dark:text-stone-300">{t.noPastOrders}</p>
                 <p className="text-xs text-stone-400 mt-1">
                   {t.placeOrderPrompt}
                 </p>
@@ -341,6 +356,111 @@ export function CustomerPortalView() {
           />
         </div>
       )}
+
+      {/* ── Material 3 Mobile Bottom Navigation Bar ────────────────────── */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-t border-stone-200/80 dark:border-zinc-800/80 z-20 flex items-center justify-around px-2 pb-safe">
+        {/* Destination 1: Menu */}
+        <button
+          type="button"
+          onClick={() => {
+            playTapSound();
+            vm.setActiveTab("menu");
+          }}
+          className="flex-1 flex flex-col items-center justify-center gap-1 py-1 cursor-pointer transition-colors"
+        >
+          <div
+            className={`w-12 h-7 rounded-full flex items-center justify-center transition-all ${
+              vm.activeTab === "menu"
+                ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold"
+                : "text-stone-400 dark:text-zinc-500 hover:text-stone-600"
+            }`}
+          >
+            <FaUtensils className="w-3.5 h-3.5" />
+          </div>
+          <span
+            className={`text-[11px] font-medium leading-none ${
+              vm.activeTab === "menu"
+                ? "text-stone-900 dark:text-white font-bold"
+                : "text-stone-500 dark:text-zinc-400"
+            }`}
+          >
+            {t.menu || "Menu"}
+          </span>
+        </button>
+
+        {/* Destination 2: Active Kitchen */}
+        <button
+          type="button"
+          onClick={() => {
+            playTapSound();
+            vm.setActiveTab("active");
+          }}
+          className="flex-1 flex flex-col items-center justify-center gap-1 py-1 cursor-pointer transition-colors relative"
+        >
+          <div
+            className={`w-12 h-7 rounded-full flex items-center justify-center transition-all relative ${
+              vm.activeTab === "active"
+                ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold"
+                : "text-stone-400 dark:text-zinc-500 hover:text-stone-600"
+            }`}
+          >
+            <FaFire className="w-3.5 h-3.5" />
+            {vm.activeItemsCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-amber-500 text-stone-950 text-[10px] font-black font-mono w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                {vm.activeItemsCount}
+              </span>
+            )}
+          </div>
+          <span
+            className={`text-[11px] font-medium leading-none ${
+              vm.activeTab === "active"
+                ? "text-stone-900 dark:text-white font-bold"
+                : "text-stone-500 dark:text-zinc-400"
+            }`}
+          >
+            {t.activeKitchen || "Active"}
+          </span>
+        </button>
+
+        {/* Destination 3: Orders History */}
+        <button
+          type="button"
+          onClick={() => {
+            if (vm.hasOrders) {
+              playTapSound();
+              vm.setActiveTab("history");
+            }
+          }}
+          disabled={!vm.hasOrders}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 transition-colors ${
+            !vm.hasOrders ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+          }`}
+        >
+          <div
+            className={`w-12 h-7 rounded-full flex items-center justify-center transition-all relative ${
+              vm.activeTab === "history"
+                ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold"
+                : "text-stone-400 dark:text-zinc-500 hover:text-stone-600"
+            }`}
+          >
+            <FaReceipt className="w-3.5 h-3.5" />
+            {vm.hasOrders && (
+              <span className="absolute -top-1 -right-1 bg-stone-700 text-white text-[9px] font-mono font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {vm.myOrders!.length}
+              </span>
+            )}
+          </div>
+          <span
+            className={`text-[11px] font-medium leading-none ${
+              vm.activeTab === "history"
+                ? "text-stone-900 dark:text-white font-bold"
+                : "text-stone-500 dark:text-zinc-400"
+            }`}
+          >
+            {t.myOrders || "History"}
+          </span>
+        </button>
+      </nav>
 
       {/* Place Order Confirmation Modal */}
       <ConfirmPlaceModal

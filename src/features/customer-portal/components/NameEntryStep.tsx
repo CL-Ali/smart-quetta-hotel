@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { User, Phone, Users, Armchair, UtensilsCrossed, ArrowRight, Loader2, AlertCircle, X } from "lucide-react";
+import { FaUser, FaPhone, FaUsers, FaUtensils, FaChair, FaArrowRight, FaSpinner, FaCircleExclamation, FaXmark } from "react-icons/fa6";
 import { Input } from "@/components/ui/input";
 import { LangSwitcher } from "@/components/LangSwitcher";
 import { useLang } from "@/contexts/LangContext";
-import { playTapSound } from "@/lib/sound";
+import { playTapSound, unlockAudio } from "@/lib/sound";
 import { toast } from "sonner";
 
 interface NameEntryStepProps {
@@ -49,12 +49,20 @@ export function NameEntryStep({
   const displaySeatVal = seatOrTableNo.replace(/\(\d+p\)/gi, "").trim();
 
   const handleQuickSeat = (num: string) => {
+    unlockAudio();
     playTapSound();
     setSeatOrTableNo(num);
     if (seatError) setSeatError(false);
   };
 
+  const handleSelectParty = (num: number) => {
+    unlockAudio();
+    playTapSound();
+    setPeopleCount(num);
+  };
+
   const handleFormSubmit = () => {
+    unlockAudio();
     if (!guestName.trim()) {
       setNameError(true);
       nameInputRef.current?.focus();
@@ -70,6 +78,7 @@ export function NameEntryStep({
       return;
     }
     setSeatError(false);
+    playTapSound();
     onSubmit();
   };
 
@@ -77,28 +86,28 @@ export function NameEntryStep({
     return (
       <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-6">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="animate-spin h-8 w-8 text-amber-600" />
-          <p className="text-sm text-stone-500 font-medium">{t.resumingVisit || "Resuming your visit…"}</p>
+          <FaSpinner className="animate-spin h-7 w-7 text-amber-500" />
+          <p className="text-sm text-stone-500 dark:text-zinc-400 font-medium">{t.resumingVisit || "Resuming your visit…"}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-stone-100/70 dark:bg-zinc-950 flex flex-col items-center justify-center p-4 sm:p-6 text-stone-900 dark:text-stone-100">
-      <div className="w-full max-w-md">
-        {/* Main Clean Card */}
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 sm:p-8 shadow-xl shadow-stone-200/50 dark:shadow-none border border-stone-200/80 dark:border-zinc-800">
+    <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-4 sm:p-6 text-stone-900 dark:text-stone-100">
+      <div className="w-full max-w-sm">
+        
+        {/* Minimal Card */}
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm border border-stone-200 dark:border-zinc-800">
           
-          {/* Card Top Header */}
-          <div className="pb-5 border-b border-stone-100 dark:border-zinc-800/80">
-            {/* Top Row: Brand & Language Switcher */}
+          {/* Header */}
+          <div className="pb-4 mb-4 border-b border-stone-100 dark:border-zinc-800">
             <div className="flex items-center justify-between gap-3 mb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-500 text-stone-950 font-black text-sm flex items-center justify-center shadow-xs shrink-0">
-                  Q
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-amber-500 text-stone-950 font-bold text-xs flex items-center justify-center shrink-0">
+                  <FaUtensils className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs font-bold text-stone-700 dark:text-stone-300">
+                <span className="text-xs font-semibold text-stone-800 dark:text-stone-200">
                   {t.hotelName}
                 </span>
               </div>
@@ -107,86 +116,83 @@ export function NameEntryStep({
               </div>
             </div>
 
-            {/* Title & Subtitle */}
-            <div className="space-y-1">
-              <h1 className="text-lg sm:text-xl font-black tracking-tight text-stone-900 dark:text-white leading-normal pb-0.5">
-                {t.welcome || "Welcome"}
-              </h1>
-              <p className="text-xs text-stone-500 dark:text-stone-400 font-medium leading-relaxed">
-                {t.enterName || "Enter your name to continue"}
-              </p>
-            </div>
+            <h1 className="text-xl font-bold tracking-tight text-stone-900 dark:text-white">
+              {t.welcome || "Welcome"}
+            </h1>
+            <p className="text-xs text-stone-500 dark:text-zinc-400 font-normal mt-0.5">
+              {t.enterName || "Enter details to proceed to menu"}
+            </p>
           </div>
 
           {/* Form Fields */}
-          <div className="space-y-4 pt-5">
+          <div className="space-y-4">
             
-            {/* 1. Full Name (Compulsory *) */}
+            {/* 1. Full Name */}
             <div>
-              <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1.5 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-stone-400" />
-                <span>{t.namePlaceholder || "Your Full Name"}</span>
-                <span className="text-red-500 font-bold text-sm">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
+                  <FaUser className="w-3 h-3 text-stone-400" />
+                  <span>{t.namePlaceholder || "Your Full Name"}</span>
+                  <span className="text-red-500">*</span>
+                </label>
+
+                {previousName && guestName.trim() !== previousName.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      unlockAudio();
+                      playTapSound();
+                      setGuestName(previousName);
+                      setNameError(false);
+                    }}
+                    className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline cursor-pointer font-medium"
+                  >
+                    Use &quot;{previousName}&quot;
+                  </button>
+                )}
+              </div>
+
               <div className="relative">
                 <Input
                   ref={nameInputRef}
-                  placeholder={t.namePlaceholder || "Enter your full name"}
+                  placeholder={t.namePlaceholder || "e.g. Ali Khan"}
                   value={guestName}
                   onChange={(e) => {
                     setGuestName(e.target.value);
                     if (nameError && e.target.value.trim()) setNameError(false);
                   }}
                   onKeyDown={(e) => e.key === "Enter" && !isBusy && handleFormSubmit()}
-                  className={`h-12 text-sm sm:text-base px-3.5 bg-stone-50 dark:bg-zinc-800/80 rounded-xl font-medium transition-all ${
+                  className={`h-11 text-sm px-3.5 bg-stone-50 dark:bg-zinc-800/80 rounded-xl font-medium transition-all ${
                     nameError
-                      ? "border-red-500 ring-2 ring-red-500/20 bg-red-50/30"
-                      : "border-stone-200 dark:border-zinc-700 focus:border-stone-900 dark:focus:border-amber-500 focus:bg-white dark:focus:bg-zinc-800"
+                      ? "border-red-500 ring-1 ring-red-500/30"
+                      : "border-stone-200 dark:border-zinc-700 focus:border-stone-900 dark:focus:border-stone-100"
                   }`}
                   autoFocus
                   disabled={isBusy}
                 />
               </div>
 
-              {/* Red Error Message if empty */}
               {nameError && (
-                <p className="text-xs font-semibold text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span>{t.nameRequiredError || "Please enter your name to continue"}</span>
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <FaCircleExclamation className="w-3 h-3 shrink-0" />
+                  <span>{t.nameRequiredError || "Please enter your name"}</span>
                 </p>
-              )}
-
-              {/* Autofill Previous Name pill */}
-              {previousName && guestName.trim() !== previousName.trim() && (
-                <div className="flex items-center gap-1 mt-1.5 text-xs text-stone-500">
-                  <span>{t.tapToAutofill}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGuestName(previousName);
-                      setNameError(false);
-                    }}
-                    className="font-bold text-amber-700 dark:text-amber-400 hover:underline cursor-pointer"
-                  >
-                    {previousName}
-                  </button>
-                </div>
               )}
             </div>
 
-            {/* 2. Party Size (Sleek Single-Row Segmented Control) */}
+            {/* 2. Party Size */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-stone-400" />
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
+                  <FaUsers className="w-3 h-3 text-stone-400" />
                   <span>{t.peopleCountLabel || "Party Size"}</span>
                 </label>
-                <span className="text-xs font-bold text-stone-900 dark:text-stone-100">
-                  {isSingle ? t.singlePerson || "1 Person" : `${peopleCount} ${t.partySize || "People"}`}
+                <span className="text-xs text-stone-500 dark:text-zinc-400 font-medium">
+                  {isSingle ? (t.singlePerson || "1 Person") : `${peopleCount} ${t.partySize || "People"}`}
                 </span>
               </div>
 
-              <div className="grid grid-cols-6 gap-1 p-1 bg-stone-100 dark:bg-zinc-800 rounded-2xl border border-stone-200/60 dark:border-zinc-700">
+              <div className="grid grid-cols-6 gap-1 p-1 bg-stone-100 dark:bg-zinc-800 rounded-xl border border-stone-200 dark:border-zinc-700">
                 {PEOPLE_OPTIONS.map((num) => {
                   const selected = peopleCount === num;
                   return (
@@ -194,14 +200,11 @@ export function NameEntryStep({
                       key={num}
                       type="button"
                       disabled={isBusy}
-                      onClick={() => {
-                        playTapSound();
-                        setPeopleCount(num);
-                      }}
-                      className={`h-10 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
+                      onClick={() => handleSelectParty(num)}
+                      className={`h-9 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center justify-center ${
                         selected
-                          ? "bg-stone-900 text-white dark:bg-amber-500 dark:text-stone-950 shadow-xs scale-[1.02]"
-                          : "text-stone-600 dark:text-stone-400 hover:text-stone-900 hover:bg-white/60 dark:hover:bg-zinc-700"
+                          ? "bg-stone-900 text-white dark:bg-white dark:text-zinc-950 shadow-xs"
+                          : "text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white"
                       }`}
                     >
                       <span>{num === 6 ? "6+" : num}</span>
@@ -211,25 +214,25 @@ export function NameEntryStep({
               </div>
             </div>
 
-            {/* 3. Table / Seat Number (Compulsory *) */}
+            {/* 3. Table / Seat Number */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
                   {isSingle ? (
                     <>
-                      <Armchair className="w-3.5 h-3.5 text-stone-400" />
+                      <FaChair className="w-3 h-3 text-stone-400" />
                       <span>{t.seatNo || "Seat Number"}</span>
                     </>
                   ) : (
                     <>
-                      <UtensilsCrossed className="w-3.5 h-3.5 text-stone-400" />
+                      <FaUtensils className="w-3 h-3 text-stone-400" />
                       <span>{t.tableNo || "Table Number"}</span>
                     </>
                   )}
-                  <span className="text-red-500 font-bold text-sm">*</span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <span className="text-[11px] text-stone-400">
-                  {isSingle ? "Counter / Solo" : "Dine-in"}
+                  {isSingle ? "Solo / Counter" : "Dine-in"}
                 </span>
               </div>
 
@@ -247,52 +250,56 @@ export function NameEntryStep({
                     if (seatError && e.target.value.trim()) setSeatError(false);
                   }}
                   onKeyDown={(e) => e.key === "Enter" && !isBusy && handleFormSubmit()}
-                  className={`h-12 text-sm sm:text-base px-3.5 bg-stone-50 dark:bg-zinc-800/80 rounded-xl font-medium transition-all ${
+                  className={`h-11 text-sm px-3.5 bg-stone-50 dark:bg-zinc-800/80 rounded-xl font-medium transition-all ${
                     seatError
-                      ? "border-red-500 ring-2 ring-red-500/20 bg-red-50/30"
-                      : "border-stone-200 dark:border-zinc-700 focus:border-stone-900 dark:focus:border-amber-500 focus:bg-white dark:focus:bg-zinc-800"
+                      ? "border-red-500 ring-1 ring-red-500/30"
+                      : "border-stone-200 dark:border-zinc-700 focus:border-stone-900 dark:focus:border-stone-100"
                   }`}
                   disabled={isBusy}
                 />
               </div>
 
-              {/* Red Error Message if empty */}
               {seatError && (
-                <p className="text-xs font-semibold text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span>{t.seatRequiredError || "Please enter or select your seat / table number"}</span>
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <FaCircleExclamation className="w-3 h-3 shrink-0" />
+                  <span>{t.seatRequiredError || "Please enter seat or table number"}</span>
                 </p>
               )}
 
-              {/* Quick Preset Selector Chips */}
+              {/* Minimal Table Presets */}
               <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                {(isSingle ? ["S-1", "S-2", "S-3", "Counter"] : ["T-1", "T-2", "T-3", "T-4", "Hall"]).map((quick) => (
-                  <button
-                    key={quick}
-                    type="button"
-                    onClick={() => handleQuickSeat(quick)}
-                    className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition cursor-pointer active:scale-95 ${
-                      displaySeatVal.toLowerCase() === quick.toLowerCase()
-                        ? "bg-stone-900 text-white dark:bg-amber-500 dark:text-stone-950 border-stone-900 dark:border-amber-500"
-                        : "bg-stone-50 dark:bg-zinc-800 text-stone-600 dark:text-stone-400 border-stone-200 dark:border-zinc-700 hover:bg-stone-100"
-                    }`}
-                  >
-                    {quick}
-                  </button>
-                ))}
+                {(isSingle 
+                  ? ["S-1", "S-2", "S-3", "Counter"] 
+                  : ["T-1", "T-2", "T-3", "T-4", "T-5", "Hall"]
+                ).map((quick) => {
+                  const isMatch = displaySeatVal.toLowerCase() === quick.toLowerCase();
+                  return (
+                    <button
+                      key={quick}
+                      type="button"
+                      onClick={() => handleQuickSeat(quick)}
+                      className={`text-xs font-medium px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                        isMatch
+                          ? "bg-stone-900 text-white dark:bg-white dark:text-zinc-950 border-stone-900 dark:border-white font-semibold"
+                          : "bg-white dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 border-stone-200 dark:border-zinc-700 hover:border-stone-400"
+                      }`}
+                    >
+                      {quick}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* 4. Phone Number (Optional - Right above Continue button) */}
+            {/* 4. Phone Number (Optional) */}
             <div>
-              <div className="flex items-center justify-between mb-1.5 gap-2">
-                <label className="text-xs font-bold text-stone-700 dark:text-stone-300 flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-                  <Phone className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
+                  <FaPhone className="w-3 h-3 text-stone-400" />
                   <span>{t.phoneLabel || "Phone Number"}</span>
-                  <span className="text-stone-400 font-normal text-[11px]">({t.optionalLabel || "Optional"})</span>
                 </label>
-                <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-900/40 shrink-0 whitespace-nowrap">
-                  ⭐ {t.phoneVipTag || "VIP Rewards"}
+                <span className="text-[11px] text-stone-400">
+                  {t.optionalLabel || "Optional"}
                 </span>
               </div>
               <div className="relative">
@@ -303,51 +310,49 @@ export function NameEntryStep({
                   value={guestPhone}
                   onChange={(e) => setGuestPhone(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !isBusy && handleFormSubmit()}
-                  className="h-12 text-sm sm:text-base px-3.5 font-mono bg-stone-50 dark:bg-zinc-800/80 border-stone-200 dark:border-zinc-700 rounded-xl focus:border-stone-900 dark:focus:border-amber-500 focus:bg-white dark:focus:bg-zinc-800 transition-all pr-9"
+                  className="h-11 text-sm px-3.5 font-mono bg-stone-50 dark:bg-zinc-800/80 border-stone-200 dark:border-zinc-700 rounded-xl focus:border-stone-900 dark:focus:border-stone-100 transition-all pr-8"
                   disabled={isBusy}
                 />
                 {guestPhone && (
                   <button
                     type="button"
                     tabIndex={-1}
-                    onClick={() => setGuestPhone("")}
+                    onClick={() => {
+                      unlockAudio();
+                      playTapSound();
+                      setGuestPhone("");
+                    }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 cursor-pointer"
                   >
-                    <X className="w-4 h-4" />
+                    <FaXmark className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             </div>
 
-            {/* 5. Primary Action CTA */}
+            {/* 5. Submit CTA */}
             <div className="pt-2">
               <button
                 type="button"
                 onClick={handleFormSubmit}
                 disabled={isBusy}
-                className="w-full h-13 bg-stone-950 hover:bg-black dark:bg-amber-500 dark:hover:bg-amber-400 dark:text-stone-950 text-white text-sm sm:text-base font-bold rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-black/10 dark:shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
+                className="w-full h-12 bg-stone-900 hover:bg-black dark:bg-white dark:hover:bg-stone-100 dark:text-zinc-950 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all active:scale-[0.99] disabled:opacity-50"
               >
                 {isBusy ? (
-                  <Loader2 className="animate-spin w-5 h-5" />
+                  <FaSpinner className="animate-spin w-4 h-4" />
                 ) : (
                   <>
                     <span>{t.continueBtn || "Continue to Menu"}</span>
-                    <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+                    <FaArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
                   </>
                 )}
               </button>
             </div>
           </div>
         </div>
-
-        {/* Subtle Live Ticker */}
-        <div className="mt-4 text-center">
-          <p className="text-xs text-stone-500 dark:text-stone-400 font-medium flex items-center justify-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>{t.liveTicker || "Fresh & Crispy Lachha Paratha & Karak Chai Live"}</span>
-          </p>
-        </div>
       </div>
     </div>
   );
 }
+
+

@@ -351,6 +351,23 @@ function initSchema(sqlite: Database.Database) {
     `);
   } catch (_) {}
 
+  // Fix any incorrect seed images (e.g. Lassi burger image)
+  try {
+    sqlite.exec(`
+      UPDATE menu_items 
+      SET imageUrl = 'https://images.unsplash.com/photo-1553787499-6f9133860278?w=400&q=80' 
+      WHERE name LIKE '%Lassi%' OR imageUrl LIKE '%photo-1571091718767%';
+
+      UPDATE menu_items 
+      SET imageUrl = 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=400&q=80' 
+      WHERE name = 'Paratha' AND imageUrl LIKE '%photo-1565557623262%';
+
+      UPDATE menu_items 
+      SET imageUrl = 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&q=80' 
+      WHERE name LIKE '%Karwa Chai%';
+    `);
+  } catch (_) {}
+
   // Seed default menu items if empty
   const count = sqlite
     .prepare("SELECT COUNT(*) as c FROM menu_items")
@@ -359,11 +376,11 @@ function initSchema(sqlite: Database.Database) {
     sqlite.exec(`
       INSERT INTO menu_items (name, description, price, category, imageUrl, departmentId, isAvailable) VALUES
         ('Chai',        'Special doodh pati',      30,  'Drinks', '/images/chai.png', 1, 1),
-        ('Karwa Chai',  'Bina doodh ki chai',       20,  'Drinks', '/images/chai.png', 1, 1),
-        ('Lassi',       'Thandi meethi lassi',      60,  'Drinks', 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400&q=80', 2, 1),
-        ('Paratha',     'Crispy butter paratha',    40,  'Food',   'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&q=80', 3, 1),
-        ('Anda Paratha','Egg stuffed paratha',      60,  'Food',   'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&q=80', 3, 1),
-        ('Halwa Puri',  'Weekend special',         100,  'Food',   'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400&q=80', 3, 1),
+        ('Karwa Chai',  'Bina doodh ki chai',       20,  'Drinks', 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&q=80', 1, 1),
+        ('Lassi',       'Thandi meethi lassi',      60,  'Drinks', 'https://images.unsplash.com/photo-1553787499-6f9133860278?w=400&q=80', 2, 1),
+        ('Paratha',     'Crispy butter paratha',    40,  'Food',   'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=400&q=80', 3, 1),
+        ('Anda Paratha','Egg stuffed paratha',      60,  'Food',   'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&q=80', 3, 1),
+        ('Halwa Puri',  'Weekend special',         100,  'Food',   'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=400&q=80', 3, 1),
         ('Samosa',      '2 piece crispy samosa',    30,  'Snacks', 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400&q=80', 4, 1),
         ('Pakora',      'Pyaz aur aloo pakora',     40,  'Snacks', 'https://images.unsplash.com/photo-1630383249896-424e482df921?w=400&q=80', 4, 1);
     `);
