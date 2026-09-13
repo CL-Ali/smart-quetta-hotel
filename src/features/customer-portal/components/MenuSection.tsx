@@ -217,7 +217,7 @@ export function MenuSection({
 
       {/* ── Menu List & Grid Viewport ────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto pr-0.5 min-h-0 no-scrollbar pb-24 lg:pb-4">
-        {/* 1. Mobile List Mode: Image on LEFT, Info & HIG Stepper on RIGHT */}
+        {/* 1. Mobile List Mode: Compact Minimalist Material 3 List Cards */}
         {viewMode === "list" && (
           <div className="space-y-2.5 sm:hidden">
             {filteredMenu.map((item) => {
@@ -225,119 +225,75 @@ export function MenuSection({
               const isSelected = qty > 0;
               const badge = getItemBadge(item.name, lang);
               const accurateImg = getAccurateItemImage(item);
-
               const displayName = getItemDisplayName(item.name, lang);
 
               return (
                 <div
                   key={item.id}
                   onClick={() => handleItemTap(item)}
-                  className={`bg-white dark:bg-zinc-900 rounded-2xl border p-3 flex gap-3.5 transition-all select-none shadow-2xs hover:shadow-sm active:scale-[0.99] cursor-pointer ${
+                  className={`bg-white dark:bg-zinc-900 rounded-2xl border p-3 flex items-center justify-between gap-3 transition-all select-none shadow-2xs hover:shadow-xs active:scale-[0.99] cursor-pointer ${
                     isSelected
-                      ? "border-amber-500/80 bg-amber-500/5 dark:bg-amber-950/20"
-                      : "border-stone-200/80 dark:border-zinc-800"
+                      ? "border-amber-500/60 bg-amber-500/[0.03] dark:bg-amber-950/20"
+                      : "border-stone-200/70 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700"
                   }`}
                 >
-                  {/* ── LEFT: Food Image (High-Res, Rounded, with Large HIG Badge) ── */}
-                  <div className="w-22 h-22 rounded-2xl bg-stone-100 dark:bg-zinc-800 overflow-hidden relative border border-stone-200/80 dark:border-zinc-700/80 shadow-2xs shrink-0">
+                  {/* Left: Thumbnail */}
+                  <div className="w-16 h-16 rounded-xl bg-stone-100 dark:bg-zinc-800 overflow-hidden relative border border-stone-200/60 dark:border-zinc-700/60 shrink-0">
                     <img
                       src={accurateImg}
                       alt={displayName}
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
-                    {badge && (
-                      <div className={`absolute top-1.5 left-1.5 text-[8px] px-1.5 py-0.5 rounded-full font-bold shadow-xs ${badge.bg}`}>
-                        {badge.text}
-                      </div>
-                    )}
-                    {isSelected && (
-                      /* Large, High-Legibility Badge (HIG Compliance for weak eyesight) */
-                      <div className="absolute top-1.5 right-1.5 bg-stone-950 text-amber-400 font-black text-xs min-w-[22px] h-[22px] px-1 rounded-full flex items-center justify-center font-mono border-2 border-white dark:border-zinc-900 shadow-md">
-                        {qty}
-                      </div>
-                    )}
                   </div>
 
-                  {/* ── RIGHT: Food Details + Large Horizontal Interactive Button Row ── */}
-                  <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
-                    <div>
-                      <div className="flex items-center justify-between gap-1">
-                        <h4 className="font-extrabold text-stone-900 dark:text-white text-base leading-snug line-clamp-1">
-                          {displayName}
-                        </h4>
-                        {item.category && (
-                          <span className="text-[9px] font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
-                            {item.category}
-                          </span>
-                        )}
+                  {/* Middle: Details (Title, Tiny Bestseller Tag, Price) */}
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <h4 className="font-bold text-stone-900 dark:text-white text-sm truncate leading-snug">
+                      {displayName}
+                    </h4>
+
+                    {/* Tiny Bestseller / Popular Tag */}
+                    {badge && (
+                      <div className="flex items-center">
+                        <span className="text-[9px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200/70 dark:border-amber-800/60 px-1.5 py-0.2 rounded-md">
+                          ★ {badge.text}
+                        </span>
                       </div>
+                    )}
 
-                      {item.description && (
-                        <p className="text-xs text-stone-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
-                          {item.description}
-                        </p>
-                      )}
+                    <div className="font-mono font-bold text-xs text-amber-600 dark:text-amber-400 pt-0.5">
+                      Rs. {item.price}
                     </div>
+                  </div>
 
-                    {/* Price & Action Button Row */}
-                    <div className="pt-2 flex items-center justify-between gap-2">
-                      <span className="font-mono font-black text-base text-amber-600 dark:text-amber-400">
-                        Rs. {item.price}
-                      </span>
-
-                      {isSelected ? (
-                        /* HIG High-Contrast Horizontal Interactive Stepper */
-                        <div
-                          className="flex items-center bg-stone-950 dark:bg-white text-white dark:text-zinc-950 rounded-xl p-1 shadow-md border border-amber-500/40"
-                          onClick={(e) => e.stopPropagation()}
+                  {/* Right: Modern Stepper / Add Pill */}
+                  <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {isSelected ? (
+                      <div className="h-8 bg-stone-900 dark:bg-white text-white dark:text-stone-950 rounded-xl px-1.5 py-0.5 flex items-center gap-1.5 shadow-xs border border-stone-800 dark:border-stone-200">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playTapSound();
+                            if (qty === 1 && onRemoveItem) {
+                              onRemoveItem(item.id);
+                            } else {
+                              onDec(item.id);
+                            }
+                          }}
+                          className="w-6 h-6 rounded-lg flex items-center justify-center text-stone-300 hover:text-white dark:text-stone-700 dark:hover:text-stone-950 hover:bg-white/10 dark:hover:bg-stone-100 transition active:scale-90 cursor-pointer"
+                          title={qty === 1 ? "Remove" : "Decrease"}
                         >
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playTapSound();
-                              if (qty === 1 && onRemoveItem) {
-                                onRemoveItem(item.id);
-                              } else {
-                                onDec(item.id);
-                              }
-                            }}
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition cursor-pointer active:scale-85 ${
-                              qty === 1
-                                ? "text-red-400 hover:bg-red-950/40"
-                                : "text-stone-300 hover:bg-white/10 dark:text-stone-700 dark:hover:bg-zinc-100"
-                            }`}
-                            title={qty === 1 ? "Remove item" : "Decrease"}
-                          >
-                            {qty === 1 ? (
-                              <FaTrashCan className="w-3.5 h-3.5 text-red-400" />
-                            ) : (
-                              <FaMinus className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-
-                          {/* Large High-Legibility Number (HIG) */}
-                          <span className="w-7 text-center text-base font-black font-mono text-amber-400 dark:text-amber-600">
-                            {qty}
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              unlockAudio();
-                              playCartAddSound();
-                              onAdd(item);
-                            }}
-                            className="w-7 h-7 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold flex items-center justify-center transition cursor-pointer active:scale-85 shadow-xs"
-                            title="Increase"
-                          >
-                            <FaPlus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        /* Large Interactive + Add Button */
+                          {qty === 1 ? (
+                            <FaTrashCan className="w-2.5 h-2.5 text-red-400 dark:text-red-500" />
+                          ) : (
+                            <FaMinus className="w-2.5 h-2.5" />
+                          )}
+                        </button>
+                        <span className="min-w-[18px] text-center text-xs font-mono font-black text-amber-400 dark:text-amber-600">
+                          {qty}
+                        </span>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -346,13 +302,27 @@ export function MenuSection({
                             playCartAddSound();
                             onAdd(item);
                           }}
-                          className="h-8 px-4 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-stone-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                          className="w-6 h-6 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold flex items-center justify-center transition active:scale-90 cursor-pointer shadow-2xs"
+                          title="Increase"
                         >
-                          <FaPlus className="w-3 h-3" />
-                          <span>{t.addToCart || "Add"}</span>
+                          <FaPlus className="w-2.5 h-2.5" />
                         </button>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          unlockAudio();
+                          playCartAddSound();
+                          onAdd(item);
+                        }}
+                        className="h-8 px-3.5 bg-amber-500 hover:bg-amber-400 active:scale-95 text-stone-950 font-bold text-xs rounded-xl shadow-2xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      >
+                        <FaPlus className="w-2.5 h-2.5" />
+                        <span>{t.addToCart || "Add"}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -360,11 +330,11 @@ export function MenuSection({
           </div>
         )}
 
-        {/* 2. Grid Mode (Desktop & Mobile 2-Column Grid) */}
+        {/* 2. Grid Mode (Desktop & 2-Column Grid): Compact Minimalist Material 3 */}
         <div
           className={`${
             viewMode === "list" ? "hidden sm:grid" : "grid"
-          } grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3`}
+          } grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5`}
         >
           {filteredMenu.map((item) => {
             const qty = getQty(item.id);
@@ -377,66 +347,46 @@ export function MenuSection({
               <div
                 key={item.id}
                 onClick={() => handleItemTap(item)}
-                className={`group bg-white dark:bg-zinc-900 rounded-2xl border transition-all flex flex-col overflow-hidden select-none cursor-pointer text-left shadow-2xs hover:shadow-md active:scale-[0.99] ${
+                className={`group bg-white dark:bg-zinc-900 rounded-2xl border transition-all flex flex-col overflow-hidden select-none cursor-pointer text-left shadow-2xs hover:shadow-xs active:scale-[0.99] ${
                   isSelected
-                    ? "border-amber-500/80 bg-amber-500/5 dark:bg-amber-950/15"
-                    : "border-stone-200/80 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700"
+                    ? "border-amber-500/60 bg-amber-500/[0.04] dark:bg-amber-950/15"
+                    : "border-stone-200/70 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700"
                 }`}
               >
                 {/* Image Section */}
-                <div className="h-28 sm:h-32 w-full bg-stone-100 dark:bg-zinc-800 relative overflow-hidden">
+                <div className="h-24 sm:h-26 w-full bg-stone-100 dark:bg-zinc-800 relative overflow-hidden shrink-0">
                   <img
                     src={accurateImg}
                     alt={displayName}
-                    className="w-full h-full object-cover group-hover:scale-103 transition duration-300"
+                    className="w-full h-full object-cover group-hover:scale-102 transition duration-200"
                     loading="lazy"
                   />
-
-                  {/* Clean Badge */}
-                  {badge && (
-                    <div className={`absolute top-2 left-2 text-[9px] px-1.5 py-0.2 rounded-full shadow-xs ${badge.bg}`}>
-                      {badge.text}
-                    </div>
-                  )}
-
-                  {/* Quantity Indicator (HIG High Legibility) */}
-                  {isSelected && (
-                    <div className="absolute top-2 right-2 bg-stone-950 text-amber-400 font-black text-xs min-w-[24px] h-[24px] px-1 rounded-full flex items-center justify-center shadow-md font-mono border-2 border-white dark:border-zinc-900">
-                      {qty}
-                    </div>
-                  )}
                 </div>
 
-                {/* Content Section */}
-                <div className="p-2.5 flex-1 flex flex-col justify-between bg-white dark:bg-zinc-900">
-                  <div>
-                    {item.category && (
-                      <p className="text-[9px] font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">
-                        {item.category}
-                      </p>
-                    )}
-                    <h3 className="font-bold text-stone-900 dark:text-white text-xs sm:text-sm line-clamp-1 leading-tight mt-0.5">
-                      {displayName}
-                    </h3>
-                    {item.description && (
-                      <p className="text-[11px] text-stone-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
-                        {item.description}
-                      </p>
-                    )}
+                {/* Compact Content & Action Section */}
+                <div className="p-2.5 flex flex-col justify-between flex-1 bg-white dark:bg-zinc-900 gap-2">
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <h3 className="font-bold text-stone-900 dark:text-white text-xs sm:text-sm truncate">
+                        {displayName}
+                      </h3>
+                      {badge && (
+                        <span className="text-[8px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200/70 dark:border-amber-800/60 px-1 py-0.2 rounded shrink-0">
+                          ★ {badge.text}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Action Row */}
-                  <div className="mt-2.5 pt-2 border-t border-stone-100 dark:border-zinc-800/80 flex items-center justify-between gap-1">
-                    <span className="font-mono font-black text-xs sm:text-sm text-amber-600 dark:text-amber-400">
+                  {/* Price & Action Row */}
+                  <div className="pt-1.5 border-t border-stone-100 dark:border-zinc-800/80 flex items-center justify-between gap-1.5 mt-auto">
+                    <span className="font-mono font-bold text-xs sm:text-sm text-amber-600 dark:text-amber-400">
                       Rs. {item.price}
                     </span>
 
-                    {isSelected ? (
-                      <div
-                        className="flex items-center gap-1"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex items-center bg-stone-900 dark:bg-white text-white dark:text-zinc-950 rounded-xl px-1.5 py-0.5 shadow-sm border border-amber-500/40">
+                    <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                      {isSelected ? (
+                        <div className="h-6.5 bg-stone-900 dark:bg-white text-white dark:text-stone-950 rounded-lg px-1 flex items-center gap-1 shadow-2xs border border-stone-800 dark:border-stone-200">
                           <button
                             type="button"
                             onClick={(e) => {
@@ -448,20 +398,16 @@ export function MenuSection({
                                 onDec(item.id);
                               }
                             }}
-                            className={`w-6 h-6 rounded-lg flex items-center justify-center transition cursor-pointer ${
-                              qty === 1
-                                ? "text-red-400 hover:text-red-300"
-                                : "hover:opacity-75"
-                            }`}
-                            title={qty === 1 ? "Remove item" : "Decrease"}
+                            className="w-4.5 h-4.5 rounded flex items-center justify-center text-stone-300 hover:text-white dark:text-stone-700 transition cursor-pointer"
+                            title={qty === 1 ? "Remove" : "Decrease"}
                           >
                             {qty === 1 ? (
-                              <FaTrashCan className="w-2.5 h-2.5 text-red-400" />
+                              <FaTrashCan className="w-2 h-2 text-red-400" />
                             ) : (
-                              <FaMinus className="w-2.5 h-2.5" />
+                              <FaMinus className="w-2 h-2" />
                             )}
                           </button>
-                          <span className="w-5 text-center text-xs font-black font-mono text-amber-400 dark:text-amber-600">
+                          <span className="min-w-[14px] text-center text-xs font-mono font-black text-amber-400 dark:text-amber-600">
                             {qty}
                           </span>
                           <button
@@ -472,43 +418,28 @@ export function MenuSection({
                               playCartAddSound();
                               onAdd(item);
                             }}
-                            className="w-6 h-6 rounded-lg bg-amber-500 text-stone-950 flex items-center justify-center hover:bg-amber-400 transition cursor-pointer shadow-xs"
+                            className="w-4.5 h-4.5 rounded bg-amber-500 hover:bg-amber-400 text-stone-950 flex items-center justify-center transition cursor-pointer shadow-2xs"
                             title="Increase"
                           >
-                            <FaPlus className="w-2.5 h-2.5" />
+                            <FaPlus className="w-2 h-2" />
                           </button>
                         </div>
-
-                        {onRemoveItem && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playTapSound();
-                              onRemoveItem(item.id);
-                            }}
-                            className="w-6 h-6 rounded-lg bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-900/40 text-red-500 flex items-center justify-center transition cursor-pointer shrink-0"
-                            title="Delete item"
-                          >
-                            <FaTrashCan className="w-2.5 h-2.5" />
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          unlockAudio();
-                          playCartAddSound();
-                          onAdd(item);
-                        }}
-                        className="py-1 px-3 rounded-full bg-amber-500 hover:bg-amber-400 font-bold text-xs text-stone-950 transition cursor-pointer flex items-center justify-center gap-1 shadow-xs active:scale-95"
-                      >
-                        <FaPlus className="w-2.5 h-2.5" />
-                        <span>{t.addToCart || "Add"}</span>
-                      </button>
-                    )}
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            unlockAudio();
+                            playCartAddSound();
+                            onAdd(item);
+                          }}
+                          className="h-6.5 px-2 rounded-lg bg-amber-500 hover:bg-amber-400 font-bold text-xs text-stone-950 transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-95"
+                        >
+                          <FaPlus className="w-2 h-2" />
+                          <span>{t.addToCart || "Add"}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

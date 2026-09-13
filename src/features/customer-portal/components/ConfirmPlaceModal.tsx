@@ -80,51 +80,47 @@ export function ConfirmPlaceModal({
                 </p>
               </div>
 
-            {/* Stepper + Delete Icon */}
-            <div className="flex items-center gap-1.5 shrink-0">
+            {/* Stepper Pill */}
+            <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
               {onDec && onAdd && (
-                <div className="flex items-center border border-stone-200 dark:border-zinc-700 rounded-full bg-white dark:bg-zinc-900 p-0.5 shadow-2xs">
+                <div className="h-7 bg-stone-900 dark:bg-white text-white dark:text-stone-950 rounded-xl px-1.5 py-0.5 flex items-center gap-1.5 shadow-2xs border border-stone-800 dark:border-stone-200">
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       playTapSound();
-                      onDec(item.id);
+                      if (item.quantity === 1 && onRemoveItem) {
+                        onRemoveItem(item.id);
+                      } else {
+                        onDec(item.id);
+                      }
                     }}
-                    className="w-5 h-5 rounded-full hover:bg-stone-100 dark:hover:bg-zinc-800 flex items-center justify-center text-stone-700 dark:text-zinc-300 transition cursor-pointer"
-                    title="Decrease"
+                    className="w-5 h-5 rounded flex items-center justify-center text-stone-300 hover:text-white dark:text-stone-700 dark:hover:text-stone-950 hover:bg-white/10 dark:hover:bg-stone-100 transition active:scale-90 cursor-pointer"
+                    title={item.quantity === 1 ? "Remove" : "Decrease"}
                   >
-                    <FaMinus className="w-2 h-2" />
+                    {item.quantity === 1 ? (
+                      <FaTrashCan className="w-2.5 h-2.5 text-red-400 dark:text-red-500" />
+                    ) : (
+                      <FaMinus className="w-2.5 h-2.5" />
+                    )}
                   </button>
-                  <span className="w-5 text-center text-xs font-bold text-stone-900 dark:text-white font-mono">
+                  <span className="min-w-[16px] text-center text-xs font-mono font-black text-amber-400 dark:text-amber-600">
                     {item.quantity}
                   </span>
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       unlockAudio();
                       playTapSound();
                       onAdd(item);
                     }}
-                    className="w-5 h-5 rounded-full bg-amber-500 hover:bg-amber-400 text-stone-950 flex items-center justify-center transition cursor-pointer shadow-xs"
+                    className="w-5 h-5 rounded bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold flex items-center justify-center transition active:scale-90 cursor-pointer shadow-2xs"
                     title="Increase"
                   >
-                    <FaPlus className="w-2 h-2" />
+                    <FaPlus className="w-2.5 h-2.5" />
                   </button>
                 </div>
-              )}
-
-              {onRemoveItem && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    playTapSound();
-                    onRemoveItem(item.id);
-                  }}
-                  className="w-6 h-6 rounded-lg flex items-center justify-center text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition cursor-pointer"
-                  title="Remove item"
-                >
-                  <FaTrashCan className="w-2.5 h-2.5" />
-                </button>
               )}
             </div>
           </div>
