@@ -76,6 +76,7 @@ export function useCustomerService({
   const openVisitMutation = trpc.visit.openVisit.useMutation();
   const resumeVisitMutation = trpc.visit.resumeVisit.useMutation();
   const placeOrderMutation = trpc.hotel.placeOrder.useMutation();
+  const cancelOrderItemMutation = trpc.hotel.cancelOrderItem.useMutation();
 
   return {
     menu: menuQuery.data,
@@ -102,5 +103,8 @@ export function useCustomerService({
 
     placeOrder: placeOrderMutation.mutateAsync,
     isPlacingOrder: placeOrderMutation.isPending,
+
+    cancelOrderItem: cancelOrderItemMutation.mutateAsync,
+    isCancellingItem: cancelOrderItemMutation.isPending,
   };
 }

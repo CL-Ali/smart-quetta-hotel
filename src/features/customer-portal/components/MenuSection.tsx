@@ -138,7 +138,7 @@ export function MenuSection({
   return (
     <div className="flex flex-col h-full overflow-hidden space-y-2">
       {/* ── Compact Search Bar & Filter Chips ─────────── */}
-      <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-2xl border border-stone-200/80 dark:border-zinc-800 shadow-2xs flex flex-col gap-2 shrink-0">
+      <div className="bg-white dark:bg-zinc-900 p-3 rounded-2xl border border-stone-200/70 dark:border-zinc-800 shadow-2xs flex flex-col gap-2.5 shrink-0">
         {/* Search Input */}
         <div className="relative flex items-center">
           <FaMagnifyingGlass className="w-3.5 h-3.5 text-stone-400 absolute left-3 pointer-events-none" />
@@ -147,7 +147,7 @@ export function MenuSection({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t.searchFoodPlaceholder || "Search food, tea, breakfast..."}
-            className="w-full pl-9 pr-8 py-1.5 bg-stone-100 dark:bg-zinc-800/90 focus:bg-white dark:focus:bg-zinc-800 border border-transparent focus:border-amber-500 dark:focus:border-amber-500 rounded-full text-xs sm:text-sm text-stone-900 dark:text-white placeholder:text-stone-400 transition-all focus:outline-none"
+            className="w-full pl-9 pr-8 py-1.5 bg-stone-100 dark:bg-zinc-800/90 focus:bg-white dark:focus:bg-zinc-800 border border-stone-200/60 dark:border-zinc-700/60 focus:border-amber-500 dark:focus:border-amber-500 rounded-full text-xs text-stone-900 dark:text-white placeholder:text-stone-400 transition-all focus:outline-none"
           />
           {searchQuery && (
             <button
@@ -162,7 +162,7 @@ export function MenuSection({
 
         {/* Filter Chips + Mobile View Mode Switcher */}
         <div className="flex items-center justify-between gap-1.5">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 pb-0.5">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 py-0.5">
             {categories.map((cat) => {
               const isSelected = selectedCategory === cat;
               return (
@@ -173,10 +173,12 @@ export function MenuSection({
                     playTapSound();
                     setSelectedCategory(cat);
                   }}
-                  className={`px-3.5 py-1 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer select-none active:scale-95 ${
+                  className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 transition-all cursor-pointer select-none active:scale-95 flex items-center gap-1 ${
                     isSelected
-                      ? "bg-amber-500 text-stone-950 shadow-xs"
-                      : "bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-300 hover:bg-stone-200/80 border border-stone-200/60 dark:border-zinc-700/60"
+                      ? cat === "all"
+                        ? "bg-stone-900 text-white dark:bg-white dark:text-stone-950 font-bold shadow-2xs"
+                        : "bg-amber-500 text-stone-950 font-bold shadow-2xs"
+                      : "bg-stone-100 dark:bg-zinc-800/90 text-stone-600 dark:text-zinc-300 hover:bg-stone-200/80 border border-stone-200/70 dark:border-zinc-700/70"
                   }`}
                 >
                   <span>{formatCategoryLabel(cat, lang)}</span>

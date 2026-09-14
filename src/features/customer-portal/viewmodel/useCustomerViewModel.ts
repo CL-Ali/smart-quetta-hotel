@@ -215,8 +215,8 @@ export function useCustomerViewModel() {
     if (!service.myOrders) return 0;
     let count = 0;
     service.myOrders.forEach((o) => {
-      // Must be recent or active
-      if (!isRecentOrToday(o.createdAt)) return;
+      // Must be recent (last 24h session)
+      if (!isRecentOrToday(o.createdAt, 24)) return;
       if (o.status !== "served" && o.status !== "cancelled") {
         o.items?.forEach((item: any) => {
           const st = item.kitchenStatus || item.status || o.status || "pending";
@@ -446,9 +446,24 @@ export function useCustomerViewModel() {
       const numA = parseInt(a.replace(/\D/g, "") || "0", 10);
       const numB = parseInt(b.replace(/\D/g, "") || "0", 10);
       if (numA && numB) return numA - numB;
-      return a.localeCompare(b);
     });
   }, [service.myOrders, ticketNo]);
+
+  const [cancellingItemId, setCancellingItemId] = useState<number | null>(null);
+
+  const handleCancelOrderItem = async (itemId: number, orderId: number) => {
+    unlockAudio();
+    setCancellingItemId(itemId);
+    try {
+      await service.cancelOrderItem({ itemId, orderId });
+      toast.success(lang === "ur" ? "آئٹم کامیابی سے منسوخ کر دیا گیا" : "Item cancelled successfully");
+      service.refetchOrders();
+    } catch (err: any) {
+      toast.error(err?.message || (lang === "ur" ? "منسوخ نہیں ہو سکا" : "Failed to cancel item"));
+    } finally {
+      setCancellingItemId(null);
+    }
+  };
 
   return {
     // State
@@ -482,6 +497,7 @@ export function useCustomerViewModel() {
     ordersLoading: service.ordersLoading,
     kitchenQueue: service.kitchenQueue,
     kitchenQueueLoading: service.kitchenQueueLoading,
+    cancellingItemId,
 
     // Actions
     setStep,
@@ -499,5 +515,6 @@ export function useCustomerViewModel() {
     handleDecFromCart,
     handleRemoveFromCart,
     handlePlaceOrder,
+    handleCancelOrderItem,
   };
 }

@@ -66,9 +66,10 @@ export function isToday(iso: string | null | undefined): boolean {
 }
 
 /**
- * Check if a timestamp is from recent session / today (within 24 hours or today)
+ * Check if a timestamp is from recent session / today (within 36 hours or today)
+ * Covers late-night hotel shifts (10 PM - 2 AM crossing midnight) and today/yesterday unpaid orders.
  */
-export function isRecentOrToday(iso: string | null | undefined, maxHours: number = 24): boolean {
+export function isRecentOrToday(iso: string | null | undefined, maxHours: number = 36): boolean {
   if (!iso) return true;
   try {
     const d = new Date(iso);
@@ -78,4 +79,43 @@ export function isRecentOrToday(iso: string | null | undefined, maxHours: number
   } catch {
     return true;
   }
+}
+
+/**
+ * Determines if an order card should be expanded by default in customer portal:
+ * - Active orders from current session (within 24h AND (unpaid OR active non-served items)) -> OPEN (true)
+ * - Historical orders (>24h ago or settled/paid) -> COLLAPSED (false)
+ */
+export function isOrderOpenByDefault(order: any, isFirst: boolean = false): boolean {
+  if (!order) return false;
+
+  // Strict 24h session window: old orders from previous days/sessions are NEVER active
+  const isRecent = isRecentOrToday(order.createdAt, 24);
+  if (!isRecent) {
+    return false;
+  }
+
+  const isNotServed = order.status !== "served" && order.status !== "cancelled";
+  const hasActiveItem = order.items?.some(
+    (i: any) =>
+      (i.kitchenStatus || i.status) !== "served" &&
+      (i.kitchenStatus || i.status) !== "cancelled"
+  );
+  const isUnpaid =
+    order.paymentStatus === "unpaid" ||
+    order.paymentStatus === "partial" ||
+    (order.totalAmount || 0) > (order.paidAmount || 0);
+
+  // If recent order is active (pending, preparing, ready, has unserved items) or unpaid -> always open
+  if (isNotServed || hasActiveItem || isUnpaid) {
+    return true;
+  }
+
+  // If it's the very first order of today's session -> open
+  if (isFirst) {
+    return true;
+  }
+
+  // Historical settled/paid orders are collapsed
+  return false;
 }

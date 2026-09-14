@@ -526,6 +526,82 @@ export const hotelRouter = router({
       return { success: true, newServedQty, finalStatus, newOrderStatus };
     }),
 
+  // ── Cancel a single item before cooking starts (pending status only) ─────────
+  cancelOrderItem: publicProcedure
+    .input(
+      z.object({
+        itemId: z.number(),
+        orderId: z.number(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const rows = db
+        .select()
+        .from(orderItems)
+        .where(eq(orderItems.id, input.itemId))
+        .all();
+
+      if (rows.length === 0) throw new Error("Item not found");
+      const item = rows[0];
+
+      if (item.kitchenStatus && item.kitchenStatus !== "pending") {
+        throw new Error("Item is already being cooked or served and cannot be cancelled");
+      }
+
+      // Mark this item as cancelled
+      db.update(orderItems)
+        .set({ kitchenStatus: "cancelled" })
+        .where(eq(orderItems.id, input.itemId))
+        .run();
+
+      const allItems = db
+        .select()
+        .from(orderItems)
+        .where(eq(orderItems.orderId, input.orderId))
+        .all();
+
+      const nonCancelledItems = allItems.filter((i) => i.kitchenStatus !== "cancelled");
+
+      if (nonCancelledItems.length === 0) {
+        // All items cancelled -> cancel whole order
+        db.update(orders)
+          .set({
+            status: "cancelled",
+            totalAmount: 0,
+            updatedAt: new Date().toISOString(),
+          })
+          .where(eq(orders.id, input.orderId))
+          .run();
+      } else {
+        // Recalculate order total from remaining active items
+        const newTotal = nonCancelledItems.reduce(
+          (sum, i) => sum + (i.unitPrice * i.quantity),
+          0
+        );
+        db.update(orders)
+          .set({
+            totalAmount: newTotal,
+            updatedAt: new Date().toISOString(),
+          })
+          .where(eq(orders.id, input.orderId))
+          .run();
+      }
+
+      // Emit real-time WebSocket events for kitchen & customer sync
+      getIo()?.emit("kitchen:item:updated", {
+        itemId: input.itemId,
+        orderId: input.orderId,
+        kitchenStatus: "cancelled",
+      });
+      getIo()?.emit(SOCKET_EVENT.OrderCancelled, {
+        orderId: input.orderId,
+        itemId: input.itemId,
+      });
+
+      return { success: true };
+    }),
+
   // ── Update order status ──────────────────────────────────────────────────────
   updateOrderStatus: dashboardProcedure
     .input(z.object({ orderId: z.number(), status: z.string() }))

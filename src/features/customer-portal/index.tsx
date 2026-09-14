@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { FaUtensils, FaFire, FaReceipt, FaPen, FaChair, FaSpinner, FaArrowRight, FaTicket } from "react-icons/fa6";
 import { useLang } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 import { playTapSound } from "@/lib/sound";
+import { isOrderOpenByDefault } from "@/lib/time";
 
 // ViewModel
 import { useCustomerViewModel } from "./viewmodel/useCustomerViewModel";
@@ -29,6 +30,52 @@ import { OrdersOverviewBanner } from "./components/OrdersOverviewBanner";
 export function CustomerPortalView() {
   const { t } = useLang();
   const vm = useCustomerViewModel();
+
+  const [historyFilter, setHistoryFilter] = useState<string>("active");
+
+  const filteredHistoryOrders = useMemo(() => {
+    if (!vm.myOrders) return [];
+    if (historyFilter === "all") return vm.myOrders;
+    if (historyFilter === "active") {
+      const activeList = vm.myOrders.filter((o) => {
+        const isOpenActive = isOrderOpenByDefault(o);
+        const hasActiveStatus =
+          o.status === "pending" ||
+          o.status === "preparing" ||
+          o.items?.some(
+            (i: any) =>
+              (i.kitchenStatus || i.status) === "pending" ||
+              (i.kitchenStatus || i.status) === "preparing"
+          );
+        return isOpenActive && hasActiveStatus;
+      });
+      return activeList.length > 0
+        ? activeList
+        : vm.myOrders.filter((o) => isOrderOpenByDefault(o));
+    }
+    if (historyFilter === "ready") {
+      return vm.myOrders.filter((o) => {
+        const isOpenActive = isOrderOpenByDefault(o);
+        const hasReadyStatus =
+          o.status === "ready" ||
+          o.items?.some((i: any) => (i.kitchenStatus || i.status) === "ready");
+        return isOpenActive && hasReadyStatus;
+      });
+    }
+    if (historyFilter === "served") {
+      return vm.myOrders.filter(
+        (o) => o.status === "served" || o.status === "paid"
+      );
+    }
+    if (historyFilter.startsWith("ticket:")) {
+      const tkt = historyFilter.replace("ticket:", "").trim().toUpperCase();
+      return vm.myOrders.filter((o) => {
+        const orderTkt = (o.ticketNo || o.orderNo || `TKT-${o.id}`).trim().toUpperCase();
+        return orderTkt === tkt;
+      });
+    }
+    return vm.myOrders;
+  }, [vm.myOrders, historyFilter]);
 
   // 1. Initial Language Selection Step
   if (vm.step === "lang") {
@@ -221,21 +268,23 @@ export function CustomerPortalView() {
                   playTapSound();
                   vm.setActiveTab("active");
                 }}
-                className="w-full bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-300/80 dark:border-amber-800/80 rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-3 transition cursor-pointer text-left shrink-0 shadow-2xs group"
+                className="w-full bg-white dark:bg-zinc-900 hover:bg-stone-50 dark:hover:bg-zinc-800/80 border border-stone-200/70 dark:border-zinc-800 rounded-2xl p-3 flex items-center justify-between gap-3 transition cursor-pointer text-left shrink-0 shadow-2xs group"
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <span className="relative flex h-2.5 w-2.5 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
-                  </span>
-                  <div className="text-xs font-bold text-stone-900 dark:text-white truncate">
-                    <span className="text-stone-800 dark:text-zinc-200">
-                      {vm.activeItemsCount} {t.nonServedItems || "items being cooked in kitchen"}
-                    </span>
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <FaFire className="w-4 h-4 text-amber-500 animate-pulse" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-stone-900 dark:text-white truncate">
+                      <span>{vm.activeItemsCount} {t.nonServedItems || "items being cooked in kitchen"}</span>
+                    </div>
+                    <div className="text-[11px] text-stone-500 dark:text-zinc-400 truncate">
+                      {t.trackOrderRealtime || (lang === "ur" ? "لائیو کچن تفصیلات دیکھیں" : "Live Kitchen Tracking")}
+                    </div>
                   </div>
                 </div>
-                <span className="text-xs font-black text-amber-700 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform shrink-0 flex items-center gap-1.5 bg-amber-500/15 px-2.5 py-1 rounded-xl">
-                  <span>{t.trackOrderBtn || "Track Progress"}</span>
+                <span className="h-8 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 shrink-0 shadow-2xs group-hover:scale-95 transition-transform">
+                  <span>{t.trackOrderBtn || "Track"}</span>
                   <FaArrowRight className="w-2.5 h-2.5 rtl:rotate-180" />
                 </span>
               </button>
@@ -284,6 +333,8 @@ export function CustomerPortalView() {
               seatingLabel={vm.formattedSeatingLabel}
               ticketNo={vm.ticketNo}
               activeTickets={vm.activeTickets || []}
+              onCancelItem={vm.handleCancelOrderItem}
+              cancellingItemId={vm.cancellingItemId}
               onOrderMore={() => vm.setActiveTab("menu")}
               onViewAllOrders={() => vm.setActiveTab("history")}
             />
@@ -292,7 +343,7 @@ export function CustomerPortalView() {
 
         {/* 3. All Orders History Tab */}
         {vm.activeTab === "history" && (
-          <div className="h-full max-w-4xl mx-auto overflow-y-auto pr-1 py-2 space-y-3 no-scrollbar">
+          <div className="h-full max-w-2xl mx-auto overflow-y-auto pr-1 py-1.5 space-y-2 no-scrollbar">
             {vm.ordersLoading ? (
               <div className="flex justify-center py-20">
                 <FaSpinner className="animate-spin h-7 w-7 text-amber-500" />
@@ -301,14 +352,24 @@ export function CustomerPortalView() {
               <>
                 <OrdersOverviewBanner
                   orders={vm.myOrders}
-                  guestName={vm.guestName}
-                  seatingLabel={vm.formattedSeatingLabel}
-                  ticketNo={vm.ticketNo}
+                  selectedFilter={historyFilter}
+                  onSelectFilter={setHistoryFilter}
                 />
-                <div className="space-y-3">
-                  {vm.myOrders.map((order, idx) => (
-                    <OrderHistoryCard key={order.id} order={order} defaultOpen={idx === 0 || order.status !== "served"} />
+                <div className="space-y-1.5 sm:space-y-2">
+                  {filteredHistoryOrders.map((order, idx) => (
+                    <OrderHistoryCard
+                      key={order.id}
+                      order={order}
+                      defaultOpen={isOrderOpenByDefault(order, idx === 0)}
+                      onCancelItem={vm.handleCancelOrderItem}
+                      cancellingItemId={vm.cancellingItemId}
+                    />
                   ))}
+                  {filteredHistoryOrders.length === 0 && (
+                    <div className="text-center py-10 bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 text-stone-400">
+                      <p className="text-xs font-medium">No orders matching this filter</p>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (
