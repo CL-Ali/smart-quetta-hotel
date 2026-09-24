@@ -33,36 +33,36 @@ export function CartBottomBar({
   };
 
   return (
-    <div className="fixed bottom-[68px] left-0 right-0 z-30 px-3 pointer-events-none animate-in slide-in-from-bottom-3 duration-200">
+    <div className="fixed bottom-[68px] left-0 right-0 z-30 px-4 pointer-events-none animate-in slide-in-from-bottom-3 duration-200">
       <div className="max-w-md mx-auto pointer-events-auto">
         <button
           type="button"
           onClick={handleClick}
           disabled={placing}
-          className="w-full bg-stone-900/95 dark:bg-zinc-800/95 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-2xl shadow-xl hover:shadow-2xl transition-all flex items-center justify-between gap-3 border border-white/10 dark:border-zinc-700 cursor-pointer active:scale-[0.99]"
+          className="w-full bg-[#121824] text-white p-2.5 sm:p-3 rounded-full border border-stone-800 shadow-2xl shadow-black/40 ring-1 ring-white/10 transition-all flex items-center justify-between gap-3 cursor-pointer active:scale-[0.98]"
         >
           {/* Left: Cart Count & Total Price */}
-          <div className="flex items-center gap-2.5 pl-1.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold shrink-0 border border-amber-500/30">
+          <div className="flex items-center gap-2.5 pl-2">
+            <div className="w-10 h-10 rounded-full bg-[#D98A3C]/20 text-[#D98A3C] flex items-center justify-center font-bold shrink-0">
               <FaBagShopping className="w-4 h-4" />
             </div>
-            <div className="text-left">
+            <div className="text-left rtl:text-right">
               <p className="text-[11px] font-medium text-stone-300 leading-tight">
                 {totalItems} {totalItems === 1 ? "item" : "items"} selected
               </p>
-              <p className="text-base font-black font-mono text-white leading-tight mt-0.5">
+              <p className="text-base font-black font-mono text-[#D98A3C] leading-tight mt-0.5">
                 Rs. {cartTotal.toLocaleString()}
               </p>
             </div>
           </div>
 
           {/* Right: Checkout CTA */}
-          <div className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-4 py-2.5 rounded-xl text-xs shadow-sm shrink-0 active:scale-95 transition-transform">
+          <div className="flex items-center gap-1.5 bg-[#D98A3C] hover:bg-[#C27930] text-stone-950 font-black px-5 py-2.5 rounded-full text-xs shrink-0 active:scale-95 transition-transform shadow-md shadow-amber-500/20">
             {placing ? (
               <FaSpinner className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <>
-                <span>{t.placeOrder || "Review & Order"}</span>
+                <span>{t.placeOrder || "Place Order"}</span>
                 <FaArrowRight className="w-3 h-3 rtl:rotate-180" />
               </>
             )}

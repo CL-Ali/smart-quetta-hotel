@@ -25,75 +25,78 @@ export function LangSelectScreen({ onDone }: LangSelectScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 flex flex-col items-center justify-center px-4 sm:px-6 py-8">
-      <div className="w-full max-w-sm flex flex-col items-center">
-        
-        {/* Minimal Brand Header */}
-        <div className="text-center mb-8 flex flex-col items-center">
-          <div className="w-14 h-14 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center mb-4 shadow-sm">
-            <FaUtensils className="w-6 h-6" />
+    <div className="min-h-screen bg-[#F8F3EC] dark:bg-[#0B0F17] flex flex-col items-center justify-center p-4 sm:p-6 text-[#24180A] dark:text-[#F8FAFC]">
+      <div className="w-full max-w-sm">
+        {/* Floating Squircle Card */}
+        <div className="bg-white dark:bg-[#121824] rounded-[28px] sm:rounded-[32px] p-6 sm:p-8 border-0 shadow-none flex flex-col items-center">
+          
+          {/* Brand Header */}
+          <div className="text-center mb-6 flex flex-col items-center">
+            <div className="w-12 h-12 rounded-2xl bg-[#D98A3C] text-white flex items-center justify-center mb-3 shadow-none">
+              <FaUtensils className="w-5 h-5" />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-[#24180A] dark:text-white tracking-tight">
+              {t.hotelName || "Quetta Hotel"}
+            </h1>
+            <p className="text-xs text-[#786B5D] dark:text-stone-400 font-medium mt-1">
+              Choose Language / اپنی زبان منتخب کریں
+            </p>
           </div>
-          <h1 className="text-2xl font-bold text-stone-900 dark:text-white tracking-tight">
-            {t.hotelName || "Quetta Hotel"}
-          </h1>
-          <p className="text-xs text-stone-500 dark:text-zinc-400 font-medium mt-1">
-            Choose Language / اپنی زبان منتخب کریں
+
+          {/* Language Grid */}
+          <div className="w-full grid grid-cols-2 gap-2.5 mb-6">
+            {LANG_OPTIONS.map((opt) => {
+              const isSelected = lang === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleSelectLang(opt.value)}
+                  className={`flex items-center justify-between p-3.5 min-h-[58px] rounded-2xl transition-all cursor-pointer select-none text-left border-0 ${
+                    isSelected
+                      ? "bg-[#D98A3C] text-white font-bold shadow-none scale-[1.02]"
+                      : "bg-[#F8F3EC] dark:bg-[#1A2232] text-[#24180A] dark:text-zinc-200 hover:bg-[#EFE7DC] dark:hover:bg-[#222C40]"
+                  }`}
+                >
+                  <div className="flex flex-col min-w-0 pr-2">
+                    <span className="text-sm sm:text-base font-black truncate leading-tight">
+                      {opt.nativeName}
+                    </span>
+                    <span
+                      className={`text-[11px] font-semibold mt-0.5 ${
+                        isSelected ? "text-white/90 font-bold" : "text-[#786B5D] dark:text-zinc-400"
+                      }`}
+                    >
+                      {opt.englishName}
+                    </span>
+                  </div>
+                  {isSelected ? (
+                    <div className="w-5 h-5 rounded-full bg-white text-[#D98A3C] flex items-center justify-center shrink-0 shadow-none font-bold">
+                      <FaCheck className="w-2.5 h-2.5" />
+                    </div>
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border-2 border-stone-300 dark:border-zinc-600 shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Primary Button */}
+          <button
+            type="button"
+            onClick={handleContinue}
+            className="w-full h-12 bg-[#24180A] hover:bg-black dark:bg-[#D98A3C] dark:hover:bg-[#C27930] text-white text-sm font-bold rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-none transition-all active:scale-[0.99]"
+          >
+            <span>{t.continueBtn || "Continue"}</span>
+            <FaArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
+          </button>
+
+          {/* Footer Info */}
+          <p className="text-[11px] text-[#786B5D] dark:text-stone-400 font-medium text-center mt-5">
+            Smart Dining & Contactless Ordering
           </p>
         </div>
-
-        {/* Minimal Language Grid (No Emojis) */}
-        <div className="w-full grid grid-cols-2 gap-2.5 mb-6">
-          {LANG_OPTIONS.map((opt) => {
-            const isSelected = lang === opt.value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => handleSelectLang(opt.value)}
-                className={`flex items-center justify-between p-3.5 min-h-[58px] rounded-2xl border transition-all cursor-pointer select-none text-left ${
-                  isSelected
-                    ? "border-amber-500 bg-amber-500 text-stone-950 font-bold shadow-xs scale-[1.02]"
-                    : "border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:border-stone-300 dark:hover:border-zinc-700"
-                }`}
-              >
-                <div className="flex flex-col min-w-0 pr-2">
-                  <span className="text-sm sm:text-base font-black truncate leading-tight">
-                    {opt.nativeName}
-                  </span>
-                  <span
-                    className={`text-[11px] font-semibold mt-0.5 ${
-                      isSelected ? "text-stone-900 font-bold" : "text-stone-400 dark:text-zinc-500"
-                    }`}
-                  >
-                    {opt.englishName}
-                  </span>
-                </div>
-                {isSelected ? (
-                  <div className="w-5 h-5 rounded-full bg-stone-950 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                    <FaCheck className="w-2.5 h-2.5" />
-                  </div>
-                ) : (
-                  <div className="w-4 h-4 rounded-full border-2 border-stone-300 dark:border-zinc-700 shrink-0" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Minimal Primary Button */}
-        <button
-          type="button"
-          onClick={handleContinue}
-          className="w-full h-12 bg-stone-900 hover:bg-black dark:bg-white dark:hover:bg-stone-100 dark:text-zinc-950 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all active:scale-[0.99]"
-        >
-          <span>{t.continueBtn || "Continue"}</span>
-          <FaArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
-        </button>
-
-        {/* Minimal Footer Info */}
-        <p className="text-[11px] text-stone-400 dark:text-zinc-500 font-medium text-center mt-6">
-          Smart Dining & Contactless Ordering
-        </p>
       </div>
     </div>
   );

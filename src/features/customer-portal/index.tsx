@@ -1,8 +1,22 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { FaUtensils, FaFire, FaReceipt, FaPen, FaChair, FaSpinner, FaArrowRight, FaTicket } from "react-icons/fa6";
-import { useLang } from "@/contexts/LangContext";
+import {
+  FaUtensils,
+  FaFire,
+  FaReceipt,
+  FaPen,
+  FaChair,
+  FaSpinner,
+  FaArrowRight,
+  FaTicket,
+  FaUser,
+  FaGlobe,
+  FaCheck,
+  FaXmark,
+  FaGear,
+} from "react-icons/fa6";
+import { useLang, LANG_OPTIONS } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 import { playTapSound } from "@/lib/sound";
 import { isOrderOpenByDefault } from "@/lib/time";
@@ -28,10 +42,11 @@ import { OrdersOverviewBanner } from "./components/OrdersOverviewBanner";
  * Minimalist, ultra-clean POS & customer ordering experience
  */
 export function CustomerPortalView() {
-  const { t, lang } = useLang();
+  const { t, lang, setLang } = useLang();
   const vm = useCustomerViewModel();
 
   const [historyFilter, setHistoryFilter] = useState<string>("active");
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
 
   const filteredHistoryOrders = useMemo(() => {
     if (!vm.myOrders) return [];
@@ -135,21 +150,21 @@ export function CustomerPortalView() {
     ? vm.activeTickets
     : vm.ticketNo ? [vm.ticketNo] : [];
 
-  // 5. Active Single-Screen Viewport with Material Design 3 Architecture
+  // 5. Active Single-Screen Viewport with Monolithic Floating Luxe Aesthetic
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden bg-stone-50 dark:bg-zinc-950">
-      {/* ── M3 Top App Bar ──────────────────────────────────────── */}
-      <header className="h-14 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-stone-200/80 dark:border-zinc-800/80 px-3 sm:px-4 lg:px-6 flex items-center justify-between shrink-0 z-20 gap-3">
+    <div className="h-screen w-full flex flex-col overflow-hidden bg-[#F8F3EC] dark:bg-[#0B0F17]">
+      {/* ── Monolithic Floating Luxe Top App Bar (Desktop & Tablets only, hidden on mobile for maximum space) ────────────────── */}
+      <header className="hidden sm:flex bg-white dark:bg-[#121824] rounded-[24px] sm:rounded-[28px] border-0 shadow-none px-4 sm:px-6 py-3.5 items-center justify-between shrink-0 gap-3 sticky top-3 z-30 mx-3 sm:mx-4 my-2">
         {/* Left: Brand + Seating Context */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-[#D98A3C] text-white flex items-center justify-center font-black shrink-0 shadow-none">
             <FaUtensils className="w-4 h-4" />
           </div>
           
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-stone-900 dark:text-white tracking-tight truncate">
-                {t.hotelName}
+              <span className="text-sm sm:text-base font-black text-[#24180A] dark:text-white leading-none truncate">
+                {t.hotelName || "Smart Quetta Hotel"}
               </span>
             </div>
             
@@ -160,25 +175,24 @@ export function CustomerPortalView() {
                 playTapSound();
                 vm.setStep("seating");
               }}
-              className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white transition group text-left cursor-pointer truncate"
+              className="flex items-center gap-1.5 text-[10px] text-[#D98A3C] font-extrabold uppercase tracking-widest hover:underline transition group text-left cursor-pointer truncate mt-1"
               title="Change table or name"
             >
               {vm.peopleCount === 1 ? (
-                <FaChair className="w-2.5 h-2.5 text-stone-400 shrink-0" />
+                <FaChair className="w-2.5 h-2.5 text-[#D98A3C] shrink-0" />
               ) : (
-                <FaUtensils className="w-2.5 h-2.5 text-stone-400 shrink-0" />
+                <FaUtensils className="w-2.5 h-2.5 text-[#D98A3C] shrink-0" />
               )}
-              <span className="font-medium text-stone-700 dark:text-zinc-300 truncate">
-                {vm.formattedSeatingLabel}
+              <span className="truncate">
+                {vm.formattedSeatingLabel} • {vm.guestName || "Guest"}
               </span>
-              <span className="text-stone-400 dark:text-zinc-500">• {vm.guestName || "Guest"}</span>
-              <FaPen className="w-2 h-2 opacity-40 group-hover:opacity-100 transition-opacity ml-0.5 shrink-0" />
+              <FaPen className="w-2 h-2 opacity-60 group-hover:opacity-100 transition-opacity ml-0.5 shrink-0" />
             </button>
           </div>
         </div>
 
-        {/* Center: Desktop M3 Segmented Navigation (Hidden on mobile, bottom bar used instead) */}
-        <div className="hidden lg:flex items-center bg-stone-100 dark:bg-zinc-800/80 p-1 rounded-full border border-stone-200/60 dark:border-zinc-700/60 shadow-2xs">
+        {/* Center: Desktop Segmented Navigation (Pill container) */}
+        <div className="hidden lg:flex items-center bg-[#F4EFEA] dark:bg-[#1A2234] p-1.5 rounded-full border-0 shadow-none gap-1.5">
           {/* 1. Menu Tab */}
           <button
             type="button"
@@ -186,43 +200,17 @@ export function CustomerPortalView() {
               playTapSound();
               vm.setActiveTab("menu");
             }}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer border-0 ${
               vm.activeTab === "menu"
-                ? "bg-white dark:bg-zinc-900 text-stone-900 dark:text-white shadow-xs font-bold"
-                : "text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white"
+                ? "bg-[#D98A3C] text-white shadow-none font-black"
+                : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
             }`}
           >
-            <FaUtensils className="w-3 h-3" />
+            <FaUtensils className="w-3.5 h-3.5" />
             <span>{t.menu || "Menu"}</span>
           </button>
 
-          {/* 2. Live Active Orders Tab */}
-          <button
-            type="button"
-            onClick={() => {
-              playTapSound();
-              vm.setActiveTab("active");
-            }}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 cursor-pointer ${
-              vm.activeTab === "active"
-                ? "bg-white dark:bg-zinc-900 text-stone-900 dark:text-white shadow-xs font-bold"
-                : "text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white"
-            }`}
-          >
-            <FaFire
-              className={`w-3 h-3 ${
-                vm.hasActiveOrders ? "text-amber-500" : "text-stone-400"
-              }`}
-            />
-            <span>{t.activeKitchen || "Active Kitchen"}</span>
-            {vm.activeItemsCount > 0 && (
-              <span className="bg-amber-500 text-stone-950 text-[10px] rounded-full px-1.5 py-0.2 font-black font-mono">
-                {vm.activeItemsCount}
-              </span>
-            )}
-          </button>
-
-          {/* 3. All Orders History Tab */}
+          {/* 2. Today Orders / My Orders Tab (Comes before Queue) */}
           <button
             type="button"
             onClick={() => {
@@ -231,36 +219,74 @@ export function CustomerPortalView() {
                 vm.setActiveTab("history");
               }
             }}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer border-0 ${
               !vm.hasOrders
-                ? "text-stone-400 dark:text-zinc-600 cursor-not-allowed opacity-50"
+                ? "text-stone-300 dark:text-zinc-600 cursor-not-allowed opacity-50"
                 : vm.activeTab === "history"
-                ? "bg-white dark:bg-zinc-900 text-stone-900 dark:text-white shadow-xs font-bold"
-                : "text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white"
+                ? "bg-[#D98A3C] text-white shadow-none font-black"
+                : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
             }`}
           >
-            <FaReceipt className="w-3 h-3 opacity-60" />
-            <span>{t.myOrders || "Orders"}</span>
+            <FaReceipt className="w-3.5 h-3.5 opacity-80" />
+            <span>{lang === "ur" ? "میرے آرڈرز و بل" : "My Orders & Bill"}</span>
             {vm.hasOrders && (
-              <span className="bg-stone-200 dark:bg-zinc-700 text-stone-800 dark:text-zinc-200 text-[10px] rounded-full px-1.5 py-0.2 font-bold font-mono">
+              <span className={`text-[10px] rounded-full px-2 py-0.5 font-bold font-mono ${
+                vm.activeTab === "history" ? "bg-white/20 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
+              }`}>
                 {vm.myOrders!.length}
+              </span>
+            )}
+          </button>
+
+          {/* 3. Live Kitchen Queue Tab */}
+          <button
+            type="button"
+            onClick={() => {
+              playTapSound();
+              vm.setActiveTab("active");
+            }}
+            className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer border-0 ${
+              vm.activeTab === "active"
+                ? "bg-[#D98A3C] text-white shadow-none font-black"
+                : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
+            }`}
+          >
+            <FaFire
+              className={`w-3.5 h-3.5 ${
+                vm.activeTab === "active" ? "text-white" : vm.hasActiveOrders ? "text-[#D98A3C]" : "text-stone-400"
+              }`}
+            />
+            <span>{lang === "ur" ? "کچن قطار" : "Kitchen Queue"}</span>
+            {vm.activeItemsCount > 0 && (
+              <span className={`text-[10px] rounded-full px-2 py-0.5 font-bold font-mono ${
+                vm.activeTab === "active" ? "bg-white/20 text-white" : "bg-[#D98A3C] text-white"
+              }`}>
+                {vm.activeItemsCount}
               </span>
             )}
           </button>
         </div>
 
-        {/* Right: Language Switcher */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right: Guest Badge & Language Switcher */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="hidden sm:flex items-center gap-2 bg-[#F4EFEA] dark:bg-[#1A2234] px-3.5 py-1.5 rounded-full text-xs border-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-bold text-[#24180A] dark:text-white">{vm.guestName || "Guest"}</span>
+            <span className="text-[10px] font-extrabold text-[#D98A3C] uppercase bg-amber-500/15 px-2 py-0.5 rounded-full">
+              {vm.formattedSeatingLabel}
+            </span>
+          </div>
+
           <LangSwitcher />
         </div>
       </header>
 
       {/* ── Main Viewport ────────────────────────────────────────── */}
-      <main className="flex-1 min-h-0 w-full px-3 sm:px-4 lg:px-6 py-2 overflow-hidden pb-16 lg:pb-2">
+      <main className="flex-1 min-h-0 w-full px-3 sm:px-4 lg:px-6 py-2.5 overflow-hidden pb-16 lg:pb-3">
         {/* 1. Menu Tab */}
         {vm.activeTab === "menu" && (
-          <div className="h-full flex flex-col overflow-hidden space-y-2">
-            {/* Subtle Tonal Kitchen Notice for all Active Non-Served Orders */}
+          <div className="h-full flex flex-col overflow-hidden space-y-2.5">
+            {/* Tonal Floating Notice for Active Non-Served Orders (Hidden on mobile) */}
             {vm.hasActiveOrders && (
               <button
                 type="button"
@@ -268,24 +294,24 @@ export function CustomerPortalView() {
                   playTapSound();
                   vm.setActiveTab("active");
                 }}
-                className="w-full bg-white dark:bg-zinc-900 hover:bg-stone-50 dark:hover:bg-zinc-800/80 border border-stone-200/70 dark:border-zinc-800 rounded-2xl p-3 flex items-center justify-between gap-3 transition cursor-pointer text-left shrink-0 shadow-2xs group"
+                className="hidden sm:flex w-full bg-white dark:bg-[#121824] hover:bg-[#F8F3EC] dark:hover:bg-[#1A2232] rounded-[24px] sm:rounded-[26px] p-3.5 sm:p-4 items-center justify-between gap-3 transition cursor-pointer text-left shrink-0 border-0 shadow-none group"
               >
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                    <FaFire className="w-4 h-4 text-amber-500 animate-pulse" />
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-10 h-10 rounded-2xl bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center shrink-0">
+                    <FaFire className="w-5 h-5 text-[#D98A3C] animate-pulse" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-xs font-bold text-stone-900 dark:text-white truncate">
+                    <div className="text-xs font-black text-[#24180A] dark:text-white truncate">
                       <span>{vm.activeItemsCount} {t.nonServedItems || "items being cooked in kitchen"}</span>
                     </div>
-                    <div className="text-[11px] text-stone-500 dark:text-zinc-400 truncate">
+                    <div className="text-[11px] text-[#786B5D] dark:text-zinc-400 truncate mt-0.5">
                       {t.trackOrderRealtime || (lang === "ur" ? "لائیو کچن تفصیلات دیکھیں" : "Live Kitchen Tracking")}
                     </div>
                   </div>
                 </div>
-                <span className="h-8 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 shrink-0 shadow-2xs group-hover:scale-95 transition-transform">
+                <span className="h-9 px-4 rounded-full bg-[#D98A3C] text-white font-extrabold text-xs flex items-center gap-1.5 shrink-0 shadow-none group-hover:scale-[0.98] transition-transform">
                   <span>{t.trackOrderBtn || "Track"}</span>
-                  <FaArrowRight className="w-2.5 h-2.5 rtl:rotate-180" />
+                  <FaArrowRight className="w-3 h-3 rtl:rotate-180" />
                 </span>
               </button>
             )}
@@ -343,10 +369,10 @@ export function CustomerPortalView() {
 
         {/* 3. All Orders History Tab */}
         {vm.activeTab === "history" && (
-          <div className="h-full max-w-2xl mx-auto overflow-y-auto pr-1 py-1.5 space-y-2 no-scrollbar">
+          <div className="h-full max-w-2xl mx-auto overflow-y-auto pr-1 py-1.5 space-y-2.5 no-scrollbar">
             {vm.ordersLoading ? (
               <div className="flex justify-center py-20">
-                <FaSpinner className="animate-spin h-7 w-7 text-amber-500" />
+                <FaSpinner className="animate-spin h-8 w-8 text-[#D98A3C]" />
               </div>
             ) : vm.myOrders && vm.myOrders.length > 0 ? (
               <>
@@ -355,7 +381,7 @@ export function CustomerPortalView() {
                   selectedFilter={historyFilter}
                   onSelectFilter={setHistoryFilter}
                 />
-                <div className="space-y-1.5 sm:space-y-2">
+                <div className="space-y-2 sm:space-y-2.5">
                   {filteredHistoryOrders.map((order, idx) => (
                     <OrderHistoryCard
                       key={order.id}
@@ -366,17 +392,17 @@ export function CustomerPortalView() {
                     />
                   ))}
                   {filteredHistoryOrders.length === 0 && (
-                    <div className="text-center py-10 bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 text-stone-400">
-                      <p className="text-xs font-medium">No orders matching this filter</p>
+                    <div className="text-center py-12 bg-white dark:bg-[#121824] rounded-[24px] border-0 text-[#786B5D] dark:text-zinc-400">
+                      <p className="text-xs font-bold">No orders matching this filter</p>
                     </div>
                   )}
                 </div>
               </>
             ) : (
-              <div className="text-center py-20 bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 text-stone-400">
-                <FaUtensils className="w-8 h-8 mx-auto mb-3 opacity-30 text-stone-400" />
-                <p className="text-sm font-bold text-stone-700 dark:text-stone-300">{t.noPastOrders}</p>
-                <p className="text-xs text-stone-400 mt-1">
+              <div className="text-center py-24 bg-white dark:bg-[#121824] rounded-[28px] border-0 text-[#786B5D] dark:text-zinc-400">
+                <FaUtensils className="w-10 h-10 mx-auto mb-3 opacity-30 text-[#D98A3C]" />
+                <p className="text-sm font-black text-[#24180A] dark:text-white">{t.noPastOrders}</p>
+                <p className="text-xs text-[#786B5D] dark:text-zinc-400 mt-1 font-medium">
                   {t.placeOrderPrompt}
                 </p>
               </div>
@@ -398,8 +424,8 @@ export function CustomerPortalView() {
         </div>
       )}
 
-      {/* ── Material 3 Mobile Bottom Navigation Bar ────────────────────── */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-t border-stone-200/80 dark:border-zinc-800/80 z-20 flex items-center justify-around px-2 pb-safe">
+      {/* ── Monolithic Luxe Mobile Bottom Navigation Bar ────────────────────── */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-[#121824] border-0 shadow-none z-20 flex items-center justify-around px-3 pb-safe">
         {/* Destination 1: Menu */}
         <button
           type="button"
@@ -407,63 +433,25 @@ export function CustomerPortalView() {
             playTapSound();
             vm.setActiveTab("menu");
           }}
-          className="flex-1 flex flex-col items-center justify-center gap-1 py-1 cursor-pointer transition-colors"
+          className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 cursor-pointer transition-all ${
+            vm.activeTab === "menu" ? "text-[#D98A3C]" : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
+          }`}
         >
           <div
-            className={`w-12 h-7 rounded-full flex items-center justify-center transition-all ${
+            className={`w-10 h-6 rounded-full flex items-center justify-center transition-all ${
               vm.activeTab === "menu"
-                ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold"
-                : "text-stone-400 dark:text-zinc-500 hover:text-stone-600"
+                ? "bg-[#D98A3C] text-white"
+                : "bg-transparent text-current"
             }`}
           >
             <FaUtensils className="w-3.5 h-3.5" />
           </div>
-          <span
-            className={`text-[11px] font-medium leading-none ${
-              vm.activeTab === "menu"
-                ? "text-stone-900 dark:text-white font-bold"
-                : "text-stone-500 dark:text-zinc-400"
-            }`}
-          >
+          <span className="text-[11px] font-bold leading-none">
             {t.menu || "Menu"}
           </span>
         </button>
 
-        {/* Destination 2: Active Kitchen */}
-        <button
-          type="button"
-          onClick={() => {
-            playTapSound();
-            vm.setActiveTab("active");
-          }}
-          className="flex-1 flex flex-col items-center justify-center gap-1 py-1 cursor-pointer transition-colors relative"
-        >
-          <div
-            className={`w-12 h-7 rounded-full flex items-center justify-center transition-all relative ${
-              vm.activeTab === "active"
-                ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold"
-                : "text-stone-400 dark:text-zinc-500 hover:text-stone-600"
-            }`}
-          >
-            <FaFire className="w-3.5 h-3.5" />
-            {vm.activeItemsCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-amber-500 text-stone-950 text-[10px] font-black font-mono w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
-                {vm.activeItemsCount}
-              </span>
-            )}
-          </div>
-          <span
-            className={`text-[11px] font-medium leading-none ${
-              vm.activeTab === "active"
-                ? "text-stone-900 dark:text-white font-bold"
-                : "text-stone-500 dark:text-zinc-400"
-            }`}
-          >
-            {t.activeKitchen || "Active"}
-          </span>
-        </button>
-
-        {/* Destination 3: Orders History */}
+        {/* Destination 2: Today Orders / Bill (Comes before Queue) */}
         <button
           type="button"
           onClick={() => {
@@ -473,35 +461,218 @@ export function CustomerPortalView() {
             }
           }}
           disabled={!vm.hasOrders}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 transition-colors ${
+          className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 transition-all ${
             !vm.hasOrders ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+          } ${
+            vm.activeTab === "history" ? "text-[#D98A3C]" : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
           }`}
         >
           <div
-            className={`w-12 h-7 rounded-full flex items-center justify-center transition-all relative ${
+            className={`w-10 h-6 rounded-full flex items-center justify-center transition-all relative ${
               vm.activeTab === "history"
-                ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold"
-                : "text-stone-400 dark:text-zinc-500 hover:text-stone-600"
+                ? "bg-[#D98A3C] text-white"
+                : "bg-transparent text-current"
             }`}
           >
             <FaReceipt className="w-3.5 h-3.5" />
             {vm.hasOrders && (
-              <span className="absolute -top-1 -right-1 bg-stone-700 text-white text-[9px] font-mono font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-2 bg-stone-700 text-white text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full ring-2 ring-white dark:ring-[#121824]">
                 {vm.myOrders!.length}
               </span>
             )}
           </div>
-          <span
-            className={`text-[11px] font-medium leading-none ${
-              vm.activeTab === "history"
-                ? "text-stone-900 dark:text-white font-bold"
-                : "text-stone-500 dark:text-zinc-400"
+          <span className="text-[11px] font-bold leading-none">
+            {lang === "ur" ? "میرے آرڈرز" : "Today Orders"}
+          </span>
+        </button>
+
+        {/* Destination 3: Live Kitchen Queue */}
+        <button
+          type="button"
+          onClick={() => {
+            playTapSound();
+            vm.setActiveTab("active");
+          }}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 cursor-pointer transition-all relative ${
+            vm.activeTab === "active" ? "text-[#D98A3C]" : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
+          }`}
+        >
+          <div
+            className={`w-10 h-6 rounded-full flex items-center justify-center transition-all relative ${
+              vm.activeTab === "active"
+                ? "bg-[#D98A3C] text-white"
+                : "bg-transparent text-current"
             }`}
           >
-            {t.myOrders || "History"}
+            <FaFire className="w-3.5 h-3.5" />
+            {vm.activeItemsCount > 0 && (
+              <span className="absolute -top-1.5 -right-2 bg-[#D98A3C] text-white text-[9px] font-black font-mono px-1.5 py-0.2 rounded-full ring-2 ring-white dark:ring-[#121824]">
+                {vm.activeItemsCount}
+              </span>
+            )}
+          </div>
+          <span className="text-[11px] font-bold leading-none">
+            {lang === "ur" ? "کچن قطار" : "Queue"}
+          </span>
+        </button>
+
+        {/* Destination 4: Settings / Preferences */}
+        <button
+          type="button"
+          onClick={() => {
+            playTapSound();
+            setShowProfileModal(true);
+          }}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 cursor-pointer transition-all ${
+            showProfileModal
+              ? "text-[#D98A3C]"
+              : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
+          }`}
+        >
+          <div
+            className={`w-10 h-6 rounded-full flex items-center justify-center transition-all ${
+              showProfileModal
+                ? "bg-[#D98A3C] text-white"
+                : "bg-transparent text-current"
+            }`}
+          >
+            <FaGear className="w-3.5 h-3.5" />
+          </div>
+          <span className="text-[11px] font-bold leading-none truncate max-w-[65px]">
+            {lang === "ur" ? "ترتیبات" : "Settings"}
           </span>
         </button>
       </nav>
+
+      {/* ── Table, Guest Profile & Language Modal (Interactive Dynamic Bottom Sheet) ─────────────── */}
+      {showProfileModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowProfileModal(false)}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-150 cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white dark:bg-[#121824] rounded-t-[32px] sm:rounded-[28px] p-5 sm:p-6 space-y-4 border-0 shadow-2xl animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-2 duration-200 cursor-default max-h-[90vh] overflow-y-auto pb-safe"
+          >
+            {/* Top Sheet Drag Handle on mobile */}
+            <div className="w-12 h-1.5 rounded-full bg-stone-300 dark:bg-zinc-700 mx-auto -mt-1 mb-2 sm:hidden shrink-0" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center font-bold shrink-0">
+                  <FaGear className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[#24180A] dark:text-white leading-tight">
+                    {lang === "ur" ? "ترتیبات و معلومات" : "Settings & Preferences"}
+                  </h3>
+                  <p className="text-[11px] font-bold text-stone-500 dark:text-zinc-400">
+                    {t.hotelName || "Smart Quetta Hotel"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  playTapSound();
+                  setShowProfileModal(false);
+                }}
+                className="w-8 h-8 rounded-full bg-stone-100 dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-[#222C42] text-stone-500 dark:text-zinc-300 flex items-center justify-center transition cursor-pointer active:scale-90"
+              >
+                <FaXmark className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Current Table & Guest */}
+            <div className="bg-[#F8F3EC] dark:bg-[#1A2232] rounded-2xl p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#786B5D] dark:text-zinc-400">
+                    {lang === "ur" ? "منتخب نشست" : "Seating / Table"}
+                  </div>
+                  <div className="text-sm font-black text-[#D98A3C] mt-0.5">
+                    {vm.formattedSeatingLabel} • {vm.guestName || "Guest"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    setShowProfileModal(false);
+                    vm.setStep("seating");
+                  }}
+                  className="px-3.5 py-1.5 rounded-full bg-[#D98A3C] hover:bg-[#C27930] text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-none active:scale-95"
+                >
+                  <FaPen className="w-2.5 h-2.5" />
+                  <span>{lang === "ur" ? "تبدیل کریں" : "Change"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Language Selector (All 8 Languages) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-stone-700 dark:text-zinc-300">
+                <div className="flex items-center gap-2">
+                  <FaGlobe className="w-3.5 h-3.5 text-[#D98A3C]" />
+                  <span>{lang === "ur" ? "زبان منتخب کریں" : "Select Language"}</span>
+                </div>
+                <span className="text-[10px] font-mono text-stone-400 font-bold">
+                  {LANG_OPTIONS.length} Languages
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto no-scrollbar pr-0.5">
+                {LANG_OPTIONS.map((opt) => {
+                  const isSelected = opt.value === lang;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        playTapSound();
+                        setLang(opt.value);
+                      }}
+                      className={`p-2.5 rounded-2xl text-xs font-bold transition flex items-center justify-between cursor-pointer border-0 select-none ${
+                        isSelected
+                          ? "bg-[#D98A3C] text-white font-black shadow-2xs"
+                          : "bg-[#F8F3EC] dark:bg-[#1A2232] text-stone-700 dark:text-zinc-300 hover:bg-stone-200/60 dark:hover:bg-[#222C42]"
+                      }`}
+                    >
+                      <div className="flex flex-col text-left rtl:text-right min-w-0">
+                        <span className="text-xs font-bold leading-tight truncate">
+                          {opt.nativeName}
+                        </span>
+                        <span
+                          className={`text-[10px] ${
+                            isSelected ? "text-white/80 font-bold" : "text-stone-400 dark:text-zinc-500"
+                          }`}
+                        >
+                          {opt.englishName}
+                        </span>
+                      </div>
+                      {isSelected && <FaCheck className="w-3 h-3 shrink-0 ml-1 rtl:mr-1" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Done CTA */}
+            <button
+              type="button"
+              onClick={() => {
+                playTapSound();
+                setShowProfileModal(false);
+              }}
+              className="w-full h-11 bg-stone-900 dark:bg-white text-white dark:text-stone-900 font-black text-xs rounded-full transition cursor-pointer active:scale-95 shadow-sm"
+            >
+              {lang === "ur" ? "مکمل" : "Done"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Place Order Confirmation Modal */}
       <ConfirmPlaceModal

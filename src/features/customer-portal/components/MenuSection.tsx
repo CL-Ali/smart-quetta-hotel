@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   FaUtensils,
   FaMagnifyingGlass,
@@ -20,63 +20,122 @@ interface MenuSectionProps {
   menu?: MenuItem[];
   isLoading: boolean;
   cart: CartItem[];
-  onAdd: (item: MenuItem) => void;
+  onAdd: (item: MenuItem, qty?: number) => void;
   onDec: (id: number) => void;
   onRemoveItem?: (id: number) => void;
 }
 
 import { getAccurateItemImageByName } from "../utils/itemImage";
 import { getItemDisplayName } from "../utils/itemTranslation";
+import { trpc } from "@/lib/trpc";
 
 function getAccurateItemImage(item: MenuItem): string {
   return getAccurateItemImageByName(item.name, item.imageUrl);
 }
 
-// Category Label Formatter
-function formatCategoryLabel(cat: string, lang: string) {
-  const lower = cat.toLowerCase();
-  if (lower === "all") return lang === "ur" ? "تمام" : "All";
-  if (lower.includes("chai") || lower.includes("tea") || lower.includes("drink")) {
-    return lang === "ur" ? "چائے و مشروبات" : "Tea & Drinks";
+// Map live department name to clean localized display text
+function getLiveDeptDisplayName(deptName: string, lang: string = "en"): string {
+  if (!deptName) return "";
+  const n = deptName.toLowerCase().trim();
+  if (lang === "ur") {
+    if (n === "tea" || n.includes("chai")) return "چائے (Tea)";
+    if (n === "drinks" || n.includes("drink") || n.includes("lassi")) return "مشروبات (Drinks)";
+    if (n === "paratha" || n.includes("tandoor")) return "پراٹھا (Paratha)";
+    if (n === "appetizer") return "ایپیٹائزر (Appetizer)";
+    if (n.includes("snack")) return "سنیکس (Snacks)";
+    if (n.includes("kitchen") || n.includes("salan") || n.includes("karahi")) return "کچن و سالن";
+    return deptName;
   }
-  if (lower.includes("paratha") || lower.includes("roti") || lower.includes("bread")) {
-    return lang === "ur" ? "پراٹھا و نان" : "Paratha & Bread";
-  }
-  if (lower.includes("nashta") || lower.includes("breakfast") || lower.includes("puri")) {
-    return lang === "ur" ? "ناشتہ" : "Breakfast";
-  }
-  if (lower.includes("karahi") || lower.includes("chicken") || lower.includes("meat") || lower.includes("curry") || lower.includes("salan")) {
-    return lang === "ur" ? "کڑاہی و سالن" : "Curry & Meals";
-  }
-  if (lower.includes("snack") || lower.includes("samosa") || lower.includes("pakora")) {
-    return lang === "ur" ? "سنیکس" : "Snacks";
-  }
-  if (lower.includes("food") || lower.includes("dish") || lower.includes("general") || lower.includes("main")) {
-    return lang === "ur" ? "کھانے" : "Food";
-  }
-  if (lower.includes("sweet") || lower.includes("mithai") || lower.includes("dessert") || lower.includes("halwa")) {
-    return lang === "ur" ? "میٹھی ڈش" : "Dessert";
-  }
-  if (lower.includes("rice") || lower.includes("biryani") || lower.includes("pulao")) {
-    return lang === "ur" ? "چاول" : "Rice";
-  }
-  return cat;
+  return deptName;
 }
 
-// Clean Minimal Badge
-function getItemBadge(name: string, lang: string): { text: string; bg: string } | null {
+// Match any menu item strictly to the Live Departments configured in the database
+function resolveItemDepartment(
+  item: {
+    name: string;
+    category?: string | null;
+    departmentId?: number | null;
+  },
+  liveDepts: any[],
+  lang: string = "en"
+): { key: string; name: string; label: string } {
+  // 1. Direct departmentId match with Live Departments from DB
+  if (item.departmentId && liveDepts.length > 0) {
+    const matched = liveDepts.find((d) => d.id === item.departmentId);
+    if (matched) {
+      return {
+        key: `dept-${matched.id}`,
+        name: matched.name,
+        label: getLiveDeptDisplayName(matched.name, lang),
+      };
+    }
+  }
+
+  // 2. Category matching with Live Departments from DB
+  if (item.category && liveDepts.length > 0) {
+    const catLower = item.category.toLowerCase().trim();
+    const matched = liveDepts.find((d) => {
+      const dLower = (d.name || "").toLowerCase().trim();
+      return dLower === catLower || dLower.includes(catLower) || catLower.includes(dLower);
+    });
+    if (matched) {
+      return {
+        key: `dept-${matched.id}`,
+        name: matched.name,
+        label: getLiveDeptDisplayName(matched.name, lang),
+      };
+    }
+  }
+
+  // 3. Match item name / keywords against Live Departments from DB
+  const nameLower = (item.name || "").toLowerCase().trim();
+  if (liveDepts.length > 0) {
+    for (const d of liveDepts) {
+      const dLower = (d.name || "").toLowerCase().trim();
+      if (
+        (dLower.includes("tea") || dLower.includes("chai")) &&
+        (nameLower.includes("chai") || nameLower.includes("tea") || nameLower.includes("patti") || nameLower.includes("kahwa") || nameLower.includes("qehwa") || nameLower.includes("karak") || nameLower.includes("matka"))
+      ) {
+        return { key: `dept-${d.id}`, name: d.name, label: getLiveDeptDisplayName(d.name, lang) };
+      }
+      if (
+        (dLower.includes("paratha") || dLower.includes("tandoor") || dLower.includes("bread")) &&
+        (nameLower.includes("paratha") || nameLower.includes("roti") || nameLower.includes("naan") || nameLower.includes("kulcha") || nameLower.includes("puri"))
+      ) {
+        return { key: `dept-${d.id}`, name: d.name, label: getLiveDeptDisplayName(d.name, lang) };
+      }
+      if (
+        (dLower.includes("drink") || dLower.includes("beverage") || dLower.includes("lassi")) &&
+        (nameLower.includes("lassi") || nameLower.includes("drink") || nameLower.includes("water") || nameLower.includes("soda") || nameLower.includes("juice"))
+      ) {
+        return { key: `dept-${d.id}`, name: d.name, label: getLiveDeptDisplayName(d.name, lang) };
+      }
+      if (
+        (dLower.includes("appetizer") || dLower.includes("snack") || dLower.includes("fry")) &&
+        (nameLower.includes("samosa") || nameLower.includes("pakora") || nameLower.includes("appetizer") || nameLower.includes("snack") || nameLower.includes("egg") || nameLower.includes("anda") || nameLower.includes("fry"))
+      ) {
+        return { key: `dept-${d.id}`, name: d.name, label: getLiveDeptDisplayName(d.name, lang) };
+      }
+    }
+  }
+
+  // 4. Fallback category or item name
+  const fallback = item.category?.trim() || item.name;
+  return {
+    key: `cat-${fallback.toLowerCase()}`,
+    name: fallback,
+    label: getItemDisplayName(fallback, lang) || fallback,
+  };
+}
+
+// Clean Minimal Badge (Zero Emojis)
+function getItemBadge(name: string, category: string | null | undefined, lang: string): { text: string } | null {
   const lower = name.toLowerCase();
   if (lower.includes("chai") || lower.includes("doodh patti") || lower.includes("karak")) {
-    return {
-      text: lang === "ur" ? "مقبول" : "Bestseller",
-      bg: "bg-amber-500 text-stone-950 font-bold",
-    };
+    return { text: lang === "ur" ? "مقبول" : "Popular" };
   }
   if (lower.includes("paratha") || lower.includes("anda")) {
-    return {
-      text: lang === "ur" ? "خاص" : "Popular",
-      bg: "bg-stone-900 dark:bg-white text-white dark:text-zinc-950 font-semibold",
-    };
+    return { text: lang === "ur" ? "مقبول" : "Popular" };
   }
   return null;
 }
@@ -90,157 +149,342 @@ export function MenuSection({
   onRemoveItem,
 }: MenuSectionProps) {
   const { t, lang } = useLang();
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const departmentsQuery = trpc.hotel.getDepartments.useQuery();
+  const liveDepartments = departmentsQuery.data || [];
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  // Default view mode: list on mobile (< 768px), grid on tablets/desktop (>= 768px)
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setViewMode("list");
+    }
+  }, []);
 
   const getQty = (id: number) => cart.find((c) => c.id === id)?.quantity ?? 0;
 
-  // Extract distinct categories
-  const categories = useMemo(() => {
-    const cats = new Set<string>();
-    menu.forEach((item) => {
-      if (item.category) {
-        cats.add(item.category);
-      }
-    });
-    return ["all", ...Array.from(cats)];
-  }, [menu]);
+  // Build Department Options from Live Database Departments
+  const departmentOptions = useMemo(() => {
+    const list: { key: string; name: string; label: string; count: number }[] = [];
 
-  // Filter items
+    // 1. "All" Option
+    list.push({
+      key: "all",
+      name: "All",
+      label: lang === "ur" ? "تمام مینیو" : "All Menu",
+      count: menu.length,
+    });
+
+    // 2. Live Database Departments
+    if (liveDepartments.length > 0) {
+      liveDepartments.forEach((dept: any) => {
+        const key = `dept-${dept.id}`;
+        const count = menu.filter(
+          (item) => resolveItemDepartment(item, liveDepartments, lang).key === key
+        ).length;
+        list.push({
+          key,
+          name: dept.name,
+          label: getLiveDeptDisplayName(dept.name, lang),
+          count,
+        });
+      });
+    } else {
+      // Fallback categories if departments not loaded yet
+      const cats = new Set<string>();
+      menu.forEach((item) => {
+        if (item.category) cats.add(item.category);
+      });
+      cats.forEach((c) => {
+        const count = menu.filter((i) => i.category === c).length;
+        list.push({
+          key: `cat-${c.toLowerCase()}`,
+          name: c,
+          label: getItemDisplayName(c, lang) || c,
+          count,
+        });
+      });
+    }
+
+    return list;
+  }, [liveDepartments, menu, lang]);
+
+  // Filter items based on selected Department & Search Query
   const filteredMenu = useMemo(() => {
     return menu.filter((item) => {
-      const matchesCat =
-        selectedCategory === "all" || item.category === selectedCategory;
+      let matchesDept = true;
+      if (selectedDepartment !== "all") {
+        const itemDept = resolveItemDepartment(item, liveDepartments, lang);
+        matchesDept =
+          itemDept.key === selectedDepartment ||
+          (selectedDepartment.startsWith("cat-") &&
+            `cat-${(item.category || "").toLowerCase()}` === selectedDepartment);
+      }
       const matchesSearch =
         searchQuery === "" ||
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.description &&
           item.description.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesCat && matchesSearch;
+      return matchesDept && matchesSearch;
     });
-  }, [menu, selectedCategory, searchQuery]);
+  }, [menu, selectedDepartment, searchQuery, liveDepartments, lang]);
 
-  const handleItemTap = (item: MenuItem) => {
+  const handleFastAdd = (item: MenuItem, addQty: number = 1) => {
     unlockAudio();
     playCartAddSound();
-    onAdd(item);
+    onAdd(item, addQty);
   };
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64 bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200/80 dark:border-zinc-800">
-        <FaSpinner className="animate-spin h-7 w-7 text-amber-500" />
+      <div className="flex justify-center items-center h-64 bg-white dark:bg-[#121824] rounded-[28px]">
+        <FaSpinner className="animate-spin h-8 w-8 text-[#D98A3C]" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden space-y-2">
-      {/* ── Compact Search Bar & Filter Chips ─────────── */}
-      <div className="bg-white dark:bg-zinc-900 p-3 rounded-2xl border border-stone-200/70 dark:border-zinc-800 shadow-2xs flex flex-col gap-2.5 shrink-0">
-        {/* Search Input */}
-        <div className="relative flex items-center">
-          <FaMagnifyingGlass className="w-3.5 h-3.5 text-stone-400 absolute left-3 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t.searchFoodPlaceholder || "Search food, tea, breakfast..."}
-            className="w-full pl-9 pr-8 py-1.5 bg-stone-100 dark:bg-zinc-800/90 focus:bg-white dark:focus:bg-zinc-800 border border-stone-200/60 dark:border-zinc-700/60 focus:border-amber-500 dark:focus:border-amber-500 rounded-full text-xs text-stone-900 dark:text-white placeholder:text-stone-400 transition-all focus:outline-none"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer"
-            >
-              <FaXmark className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-
-        {/* Filter Chips + Mobile View Mode Switcher */}
-        <div className="flex items-center justify-between gap-1.5">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 py-0.5">
-            {categories.map((cat) => {
-              const isSelected = selectedCategory === cat;
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => {
-                    playTapSound();
-                    setSelectedCategory(cat);
-                  }}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 transition-all cursor-pointer select-none active:scale-95 flex items-center gap-1 ${
-                    isSelected
-                      ? cat === "all"
-                        ? "bg-stone-900 text-white dark:bg-white dark:text-stone-950 font-bold shadow-2xs"
-                        : "bg-amber-500 text-stone-950 font-bold shadow-2xs"
-                      : "bg-stone-100 dark:bg-zinc-800/90 text-stone-600 dark:text-zinc-300 hover:bg-stone-200/80 border border-stone-200/70 dark:border-zinc-700/70"
-                  }`}
-                >
-                  <span>{formatCategoryLabel(cat, lang)}</span>
-                </button>
-              );
-            })}
+    <div className="flex flex-col h-full overflow-hidden space-y-3">
+      {/* ── Unified Search & Filter Bar Card ─────────────────────────── */}
+      <div className="bg-white dark:bg-[#121824] rounded-[24px] p-3 sm:p-3.5 space-y-2.5 shrink-0 border-0 shadow-none">
+        {/* Top Row: Search Input (left) + Grid/List View Toggle (right) */}
+        <div className="flex items-center gap-2.5 w-full">
+          <div className="relative flex items-center flex-1 min-w-0">
+            <FaMagnifyingGlass className="w-3.5 h-3.5 text-stone-400 absolute left-3.5 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t.searchFoodPlaceholder || "Search food or tea..."}
+              className="w-full pl-9 pr-8 py-2 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full text-xs font-semibold text-[#24180A] dark:text-white placeholder:text-stone-400 border-0 shadow-none focus:outline-none focus:ring-2 focus:ring-[#D98A3C]"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
+              >
+                <FaXmark className="w-3 h-3" />
+              </button>
+            )}
           </div>
 
-          {/* View Mode Toggle (Mobile) */}
-          <div className="flex sm:hidden items-center border border-stone-200/80 dark:border-zinc-700 rounded-full p-0.5 bg-stone-100 dark:bg-zinc-800 shrink-0">
+          {/* View Mode Toggle on right side of Searchbar */}
+          <div className="flex items-center rounded-full p-1 bg-[#F8F3EC] dark:bg-[#1A2232] shrink-0 border-0">
             <button
               type="button"
-              onClick={() => setViewMode("list")}
-              className={`p-1 rounded-full transition cursor-pointer ${
-                viewMode === "list"
-                  ? "bg-white dark:bg-zinc-900 shadow-xs text-stone-900 dark:text-white font-bold"
-                  : "text-stone-400"
-              }`}
-              title="List View"
-            >
-              <FaList className="w-3 h-3" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("grid")}
-              className={`p-1 rounded-full transition cursor-pointer ${
+              onClick={() => {
+                playTapSound();
+                setViewMode("grid");
+              }}
+              className={`p-1.5 rounded-full transition cursor-pointer ${
                 viewMode === "grid"
-                  ? "bg-white dark:bg-zinc-900 shadow-xs text-stone-900 dark:text-white font-bold"
-                  : "text-stone-400"
+                  ? "bg-[#D98A3C] text-white shadow-none"
+                  : "text-[#786B5D] hover:text-[#24180A] dark:hover:text-white"
               }`}
               title="Grid View"
             >
-              <FaTableCellsLarge className="w-3 h-3" />
+              <FaTableCellsLarge className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                playTapSound();
+                setViewMode("list");
+              }}
+              className={`p-1.5 rounded-full transition cursor-pointer ${
+                viewMode === "list"
+                  ? "bg-[#D98A3C] text-white shadow-none"
+                  : "text-[#786B5D] hover:text-[#24180A] dark:hover:text-white"
+              }`}
+              title="List View"
+            >
+              <FaList className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
+
+        {/* Bottom Row: Department Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          {departmentOptions.map((dept) => {
+            const isSelected = selectedDepartment === dept.key;
+            return (
+              <button
+                key={dept.key}
+                type="button"
+                onClick={() => {
+                  playTapSound();
+                  setSelectedDepartment(dept.key);
+                }}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer select-none border-0 ${
+                  isSelected
+                    ? "bg-[#D98A3C] text-white shadow-none font-black"
+                    : "bg-[#F8F3EC] dark:bg-[#1A2232] text-[#4A3E31] dark:text-zinc-300 hover:bg-[#EFE7DC] dark:hover:bg-[#222C40]"
+                }`}
+              >
+                <span>{dept.label}</span>
+                {dept.key !== "all" && dept.count > 0 && (
+                  <span
+                    dir="ltr"
+                    className={`ml-1 rtl:mr-1 text-[10px] font-mono ${
+                      isSelected ? "opacity-90 font-bold" : "opacity-60"
+                    }`}
+                  >
+                    ({dept.count})
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* ── Menu List & Grid Viewport ────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto pr-0.5 min-h-0 no-scrollbar pb-24 lg:pb-4">
-        {/* 1. Mobile List Mode: Compact Minimalist Material 3 List Cards */}
-        {viewMode === "list" && (
-          <div className="space-y-2.5 sm:hidden">
+      {/* ── Menu Items Viewport ────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-1 pt-1.5 pb-24 lg:pb-6 min-h-0 no-scrollbar">
+        {/* 1. GRID VIEW MODE (Exact Match with Reference, Balanced Sizing) */}
+        {viewMode === "grid" && (
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 sm:gap-3.5">
             {filteredMenu.map((item) => {
               const qty = getQty(item.id);
               const isSelected = qty > 0;
-              const badge = getItemBadge(item.name, lang);
+              const badge = getItemBadge(item.name, item.category, lang);
               const accurateImg = getAccurateItemImage(item);
               const displayName = getItemDisplayName(item.name, lang);
 
               return (
                 <div
                   key={item.id}
-                  onClick={() => handleItemTap(item)}
-                  className={`bg-white dark:bg-zinc-900 rounded-2xl border p-3 flex items-center justify-between gap-3 transition-all select-none shadow-2xs hover:shadow-xs active:scale-[0.99] cursor-pointer ${
-                    isSelected
-                      ? "border-amber-500/60 bg-amber-500/[0.03] dark:bg-amber-950/20"
-                      : "border-stone-200/70 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700"
+                  onClick={() => handleFastAdd(item, 1)}
+                  className={`bg-white dark:bg-[#121824] rounded-[20px] sm:rounded-[24px] p-3 sm:p-3.5 transition-all duration-200 flex flex-col justify-between select-none cursor-pointer border-0 shadow-none hover:-translate-y-0.5 ${
+                    isSelected ? "ring-2 ring-inset ring-[#D98A3C]" : ""
                   }`}
                 >
-                  {/* Left: Thumbnail */}
-                  <div className="w-16 h-16 rounded-xl bg-stone-100 dark:bg-zinc-800 overflow-hidden relative border border-stone-200/60 dark:border-zinc-700/60 shrink-0">
+                  {/* Card Top: Photo + Title + Badge */}
+                  <div>
+                    {/* Food Photo Banner */}
+                    <div className="aspect-[16/10] w-full bg-[#F8F3EC] dark:bg-[#1A2232] rounded-[14px] sm:rounded-[16px] overflow-hidden relative mb-2.5">
+                      <img
+                        src={accurateImg}
+                        alt={displayName}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                      {/* Selected Quantity Badge */}
+                      {isSelected && (
+                        <div className="absolute top-1.5 right-1.5 bg-[#D98A3C] text-white font-black text-[11px] min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center shadow-none">
+                          {qty}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Title & Popular Badge Row */}
+                    <div className="flex items-center justify-between gap-1.5">
+                      <h3 className="font-bold text-[#1C1917] dark:text-white text-xs sm:text-sm leading-tight truncate">
+                        {displayName}
+                      </h3>
+                      {badge && (
+                        <span className="shrink-0 border border-amber-300 dark:border-amber-700/60 bg-amber-50/70 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-[10px] font-semibold px-1.5 py-0.2 rounded">
+                          {badge.text}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Divider Line */}
+                  <div className="border-t border-stone-100 dark:border-white/5 my-2" />
+
+                  {/* Card Bottom: Orange Price on Left | + Add Pill on Right */}
+                  <div className="flex items-center justify-between gap-1.5">
+                    {/* Left: Bold Orange Price */}
+                    <span className="text-xs sm:text-sm font-bold text-[#E65100] dark:text-[#FB8C00] font-mono">
+                      Rs. {item.price}
+                    </span>
+
+                    {/* Right: Pill Button or Stepper */}
+                    <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                      {isSelected ? (
+                        <div className="h-8 sm:h-9 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full px-1.5 sm:px-2 flex items-center gap-1.5 sm:gap-2 border-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playTapSound();
+                              if (qty === 1 && onRemoveItem) {
+                                onRemoveItem(item.id);
+                              } else {
+                                onDec(item.id);
+                              }
+                            }}
+                            className={`w-6 h-6 rounded-full flex items-center justify-center transition active:scale-90 cursor-pointer ${
+                              qty === 1
+                                ? "bg-red-500 text-white"
+                                : "bg-black text-white dark:bg-white dark:text-black"
+                            }`}
+                            title={qty === 1 ? "Remove from cart" : "Decrease quantity"}
+                          >
+                            {qty === 1 ? (
+                              <FaTrashCan className="w-2.5 h-2.5" />
+                            ) : (
+                              <FaMinus className="w-2.5 h-2.5" />
+                            )}
+                          </button>
+                          <span className="min-w-[16px] text-center text-xs font-mono font-bold text-[#24180A] dark:text-white">
+                            {qty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleFastAdd(item, 1);
+                            }}
+                            className="w-6 h-6 rounded-full bg-[#D98A3C] hover:bg-[#C27930] text-white flex items-center justify-center transition active:scale-90 cursor-pointer"
+                            title="Increase quantity"
+                          >
+                            <FaPlus className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleFastAdd(item, 1);
+                          }}
+                          className="h-8 sm:h-9 px-4 sm:px-5 rounded-full bg-[#D98A3C] hover:bg-[#C27930] text-black font-bold text-xs sm:text-sm transition cursor-pointer flex items-center justify-center gap-1 shadow-none active:scale-95"
+                        >
+                          <FaPlus className="w-3 h-3" />
+                          <span>{t.addToCart || "Add"}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 2. LIST VIEW MODE (Compact, Sleek Space-Saving Rows) */}
+        {viewMode === "list" && (
+          <div className="space-y-1.5 sm:space-y-2">
+            {filteredMenu.map((item) => {
+              const qty = getQty(item.id);
+              const isSelected = qty > 0;
+              const badge = getItemBadge(item.name, item.category, lang);
+              const accurateImg = getAccurateItemImage(item);
+              const displayName = getItemDisplayName(item.name, lang);
+
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => handleFastAdd(item, 1)}
+                  className={`bg-white dark:bg-[#121824] rounded-2xl sm:rounded-full p-2 sm:px-3.5 sm:py-2 flex items-center justify-between gap-2.5 sm:gap-3 transition-all select-none cursor-pointer border-0 shadow-none hover:bg-stone-50/80 dark:hover:bg-[#182030] ${
+                    isSelected ? "ring-2 ring-inset ring-[#D98A3C]" : ""
+                  }`}
+                >
+                  {/* Left: Compact Thumbnail */}
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-full bg-[#F8F3EC] dark:bg-[#1A2232] overflow-hidden relative shrink-0">
                     <img
                       src={accurateImg}
                       alt={displayName}
@@ -249,30 +493,28 @@ export function MenuSection({
                     />
                   </div>
 
-                  {/* Middle: Details (Title, Tiny Bestseller Tag, Price) */}
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <h4 className="font-bold text-stone-900 dark:text-white text-sm truncate leading-snug">
-                      {displayName}
-                    </h4>
-
-                    {/* Tiny Bestseller / Popular Tag */}
-                    {badge && (
-                      <div className="flex items-center">
-                        <span className="text-[9px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200/70 dark:border-amber-800/60 px-1.5 py-0.2 rounded-md">
+                  {/* Middle: Details */}
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="font-bold text-[#24180A] dark:text-white text-xs sm:text-sm truncate">
+                        {displayName}
+                      </h4>
+                      {badge && (
+                        <span className="shrink-0 bg-amber-500/15 text-[#D98A3C] text-[9px] font-bold px-1.5 py-0.2 rounded-full">
                           {badge.text}
                         </span>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
-                    <div className="font-mono font-bold text-xs text-amber-600 dark:text-amber-400 pt-0.5">
+                    <div className="text-[11px] sm:text-xs font-bold text-[#E65100] dark:text-[#FB8C00] font-mono">
                       Rs. {item.price}
                     </div>
                   </div>
 
-                  {/* Right: Modern Stepper / Add Pill */}
+                  {/* Right: Stepper / Add Pill */}
                   <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
                     {isSelected ? (
-                      <div className="h-8 bg-stone-900 dark:bg-white text-white dark:text-stone-950 rounded-xl px-1.5 py-0.5 flex items-center gap-1.5 shadow-xs border border-stone-800 dark:border-stone-200">
+                      <div className="h-6.5 sm:h-7 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full px-1.5 flex items-center gap-1 sm:gap-1.5 border-0">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -284,30 +526,32 @@ export function MenuSection({
                               onDec(item.id);
                             }
                           }}
-                          className="w-6 h-6 rounded-lg flex items-center justify-center text-stone-300 hover:text-white dark:text-stone-700 dark:hover:text-stone-950 hover:bg-white/10 dark:hover:bg-stone-100 transition active:scale-90 cursor-pointer"
-                          title={qty === 1 ? "Remove" : "Decrease"}
+                          className={`w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full flex items-center justify-center transition active:scale-90 cursor-pointer ${
+                            qty === 1
+                              ? "bg-red-500 text-white"
+                              : "bg-black text-white dark:bg-white dark:text-black"
+                          }`}
+                          title={qty === 1 ? "Remove from cart" : "Decrease quantity"}
                         >
                           {qty === 1 ? (
-                            <FaTrashCan className="w-2.5 h-2.5 text-red-400 dark:text-red-500" />
+                            <FaTrashCan className="w-2 h-2" />
                           ) : (
-                            <FaMinus className="w-2.5 h-2.5" />
+                            <FaMinus className="w-2 h-2" />
                           )}
                         </button>
-                        <span className="min-w-[18px] text-center text-xs font-mono font-black text-amber-400 dark:text-amber-600">
+                        <span className="min-w-[12px] text-center text-[11px] sm:text-xs font-mono font-bold text-[#24180A] dark:text-white">
                           {qty}
                         </span>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            unlockAudio();
-                            playCartAddSound();
-                            onAdd(item);
+                            handleFastAdd(item, 1);
                           }}
-                          className="w-6 h-6 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold flex items-center justify-center transition active:scale-90 cursor-pointer shadow-2xs"
-                          title="Increase"
+                          className="w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full bg-[#D98A3C] hover:bg-[#C27930] text-white flex items-center justify-center transition active:scale-90 cursor-pointer"
+                          title="Increase quantity"
                         >
-                          <FaPlus className="w-2.5 h-2.5" />
+                          <FaPlus className="w-2 h-2" />
                         </button>
                       </div>
                     ) : (
@@ -315,11 +559,9 @@ export function MenuSection({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          unlockAudio();
-                          playCartAddSound();
-                          onAdd(item);
+                          handleFastAdd(item, 1);
                         }}
-                        className="h-8 px-3.5 bg-amber-500 hover:bg-amber-400 active:scale-95 text-stone-950 font-bold text-xs rounded-xl shadow-2xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                        className="h-6.5 sm:h-7 px-3 bg-[#D98A3C] hover:bg-[#C27930] active:scale-95 text-black font-bold text-[11px] rounded-full shadow-none flex items-center justify-center gap-1 transition cursor-pointer"
                       >
                         <FaPlus className="w-2.5 h-2.5" />
                         <span>{t.addToCart || "Add"}</span>
@@ -332,138 +574,21 @@ export function MenuSection({
           </div>
         )}
 
-        {/* 2. Grid Mode (Desktop & 2-Column Grid): Compact Minimalist Material 3 */}
-        <div
-          className={`${
-            viewMode === "list" ? "hidden sm:grid" : "grid"
-          } grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5`}
-        >
-          {filteredMenu.map((item) => {
-            const qty = getQty(item.id);
-            const isSelected = qty > 0;
-            const badge = getItemBadge(item.name, lang);
-            const accurateImg = getAccurateItemImage(item);
-            const displayName = getItemDisplayName(item.name, lang);
-
-            return (
-              <div
-                key={item.id}
-                onClick={() => handleItemTap(item)}
-                className={`group bg-white dark:bg-zinc-900 rounded-2xl border transition-all flex flex-col overflow-hidden select-none cursor-pointer text-left shadow-2xs hover:shadow-xs active:scale-[0.99] ${
-                  isSelected
-                    ? "border-amber-500/60 bg-amber-500/[0.04] dark:bg-amber-950/15"
-                    : "border-stone-200/70 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700"
-                }`}
-              >
-                {/* Image Section */}
-                <div className="h-24 sm:h-26 w-full bg-stone-100 dark:bg-zinc-800 relative overflow-hidden shrink-0">
-                  <img
-                    src={accurateImg}
-                    alt={displayName}
-                    className="w-full h-full object-cover group-hover:scale-102 transition duration-200"
-                    loading="lazy"
-                  />
-                </div>
-
-                {/* Compact Content & Action Section */}
-                <div className="p-2.5 flex flex-col justify-between flex-1 bg-white dark:bg-zinc-900 gap-2">
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <h3 className="font-bold text-stone-900 dark:text-white text-xs sm:text-sm truncate">
-                        {displayName}
-                      </h3>
-                      {badge && (
-                        <span className="text-[8px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200/70 dark:border-amber-800/60 px-1 py-0.2 rounded shrink-0">
-                          {badge.text}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Price & Action Row */}
-                  <div className="pt-1.5 border-t border-stone-100 dark:border-zinc-800/80 flex items-center justify-between gap-1.5 mt-auto">
-                    <span className="font-mono font-bold text-xs sm:text-sm text-amber-600 dark:text-amber-400">
-                      Rs. {item.price}
-                    </span>
-
-                    <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-                      {isSelected ? (
-                        <div className="h-6.5 bg-stone-900 dark:bg-white text-white dark:text-stone-950 rounded-lg px-1 flex items-center gap-1 shadow-2xs border border-stone-800 dark:border-stone-200">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playTapSound();
-                              if (qty === 1 && onRemoveItem) {
-                                onRemoveItem(item.id);
-                              } else {
-                                onDec(item.id);
-                              }
-                            }}
-                            className="w-4.5 h-4.5 rounded flex items-center justify-center text-stone-300 hover:text-white dark:text-stone-700 transition cursor-pointer"
-                            title={qty === 1 ? "Remove" : "Decrease"}
-                          >
-                            {qty === 1 ? (
-                              <FaTrashCan className="w-2 h-2 text-red-400" />
-                            ) : (
-                              <FaMinus className="w-2 h-2" />
-                            )}
-                          </button>
-                          <span className="min-w-[14px] text-center text-xs font-mono font-black text-amber-400 dark:text-amber-600">
-                            {qty}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              unlockAudio();
-                              playCartAddSound();
-                              onAdd(item);
-                            }}
-                            className="w-4.5 h-4.5 rounded bg-amber-500 hover:bg-amber-400 text-stone-950 flex items-center justify-center transition cursor-pointer shadow-2xs"
-                            title="Increase"
-                          >
-                            <FaPlus className="w-2 h-2" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            unlockAudio();
-                            playCartAddSound();
-                            onAdd(item);
-                          }}
-                          className="h-6.5 px-2 rounded-lg bg-amber-500 hover:bg-amber-400 font-bold text-xs text-stone-950 transition cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-95"
-                        >
-                          <FaPlus className="w-2 h-2" />
-                          <span>{t.addToCart || "Add"}</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
         {/* Empty State */}
         {filteredMenu.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center text-stone-400">
-            <FaUtensils className="w-8 h-8 mb-2 opacity-30" />
-            <p className="text-sm font-semibold text-stone-600 dark:text-stone-300">
+          <div className="flex flex-col items-center justify-center py-20 text-center text-[#786B5D] dark:text-zinc-400">
+            <FaUtensils className="w-10 h-10 mb-2 opacity-30 text-[#D98A3C]" />
+            <p className="text-sm font-bold text-[#24180A] dark:text-white">
               No matching items found
             </p>
-            <p className="text-xs mt-0.5">Try searching for something else or reset filter</p>
+            <p className="text-xs mt-0.5 font-medium">Try searching for something else or reset filter</p>
             <button
               type="button"
               onClick={() => {
-                setSelectedCategory("all");
+                setSelectedDepartment("all");
                 setSearchQuery("");
               }}
-              className="mt-3 px-4 py-1.5 bg-stone-100 dark:bg-zinc-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300 rounded-full text-xs font-semibold transition cursor-pointer"
+              className="mt-4 px-5 py-2 bg-[#D98A3C] text-white rounded-full text-xs font-bold transition cursor-pointer shadow-none"
             >
               Reset Filters
             </button>

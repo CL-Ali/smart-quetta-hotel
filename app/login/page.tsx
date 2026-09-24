@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { playTapSound } from "@/lib/sound";
 
-export default function LoginPage() {
+function LoginForm() {
   const { login, isAuthenticated, staff, clientIp } = useAuth();
   const { t } = useLang();
   const router = useRouter();
@@ -251,5 +251,13 @@ export default function LoginPage() {
         <p>24-Hour Session • Auto-Refresh Active • Smart Quetta Hotel POS</p>
       </footer>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-stone-50 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-amber-500" /></div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

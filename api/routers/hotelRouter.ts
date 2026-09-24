@@ -214,6 +214,9 @@ export const hotelRouter = router({
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               name: item.name,
+              category: item.category,
+              departmentId: item.departmentId,
+              imageUrl: item.imageUrl,
               status: item.kitchenStatus || "pending",
               kitchenStatus: item.kitchenStatus || "pending",
               servedQty: item.servedQty || 0,
@@ -261,6 +264,10 @@ export const hotelRouter = router({
             id: item.id,
             name: item.name,
             quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            category: item.category,
+            departmentId: item.departmentId,
+            imageUrl: item.imageUrl,
             kitchenStatus: item.kitchenStatus || "pending",
           }));
         return {
@@ -713,8 +720,8 @@ export const hotelRouter = router({
       if (rows.length === 0) throw new Error("Item not found");
       const item = rows[0];
 
-      if (item.kitchenStatus && item.kitchenStatus !== "pending") {
-        throw new Error("Item is already being cooked or served and cannot be cancelled");
+      if (item.kitchenStatus === "served" || item.kitchenStatus === "cancelled") {
+        throw new Error("Item is already served or cancelled and cannot be cancelled");
       }
 
       // Mark this item as cancelled

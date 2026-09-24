@@ -350,11 +350,11 @@ export function useCustomerViewModel() {
     clearStoredSession();
   };
 
-  const handleAddToCart = (item: MenuItem | CartItem) => {
+  const handleAddToCart = (item: MenuItem | CartItem, addQty: number = 1) => {
     setCart((prev) => {
       const ex = prev.find((c) => c.id === item.id);
       if (ex) {
-        return prev.map((c) => (c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c));
+        return prev.map((c) => (c.id === item.id ? { ...c, quantity: c.quantity + addQty } : c));
       }
       return [
         ...prev,
@@ -362,7 +362,7 @@ export function useCustomerViewModel() {
           id: item.id,
           name: item.name,
           price: item.price,
-          quantity: 1,
+          quantity: addQty,
           description: item.description,
           imageUrl: item.imageUrl,
         },

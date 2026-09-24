@@ -127,74 +127,129 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ── I-Techi-Esim Monolithic Luxe Fintech / Hospitality Palette ── */
+  --color-brand-50: #FDF9F5;
+  --color-brand-100: #FBF4EC;
+  --color-brand-200: #F7E8D8;
+  --color-brand-300: #EFCFA9;
+  --color-brand-400: #E5AB68;
+  --color-brand-500: #D98A3C;
+  --color-brand-600: #C5772D;
+  --color-brand-700: #A25D1E;
+  --color-brand-800: #804719;
+  --color-brand-900: #683916;
+  --color-brand-950: #3D1E0A;
+  --color-brand-amber: #D98A3C;
+  --color-brand-amber-hover: #C5772D;
+  --color-brand-teal: #0D4846;
+  --color-brand-cream: #F7E8D8;
+  --color-brand-cream-warm: #FBF4EC;
+  --color-brand-espresso: #24180A;
+  --color-brand-espresso-dark: #342010;
+
+  --color-surface-light-canvas: #F8F3EC;
+  --color-surface-light-card: #FFFFFF;
+  --color-surface-light-card-hero: #FBF4EC;
+  --color-surface-light-input: #FFFFFF;
+  --color-surface-light-hover: #FDFBF8;
+  --color-surface-light-border: #E5E7EB;
+
+  --color-surface-dark-canvas: #0E131C;
+  --color-surface-dark-card: #121824;
+  --color-surface-dark-card-hero: #1C1814;
+  --color-surface-dark-input: #151C2A;
+  --color-surface-dark-hover: #1A2336;
+  --color-surface-dark-border: #222C3E;
+
+  --color-ink-DEFAULT: #0B0F17;
+  --color-ink-soft: #121824;
+  --color-ink-panel: #151C2A;
+  --color-ink-float: #1A2336;
+  --color-ink-line: #222C3E;
+
+  --color-badge-success-bg: #DCFCE7;
+  --color-badge-success-text: #15803D;
+  --color-badge-success-darkBg: #0D331E;
+  --color-badge-success-darkText: #4ADE80;
+
+  --color-badge-failed-bg: #FEE2E2;
+  --color-badge-failed-text: #DC2626;
+  --color-badge-failed-darkBg: #3B1A1E;
+  --color-badge-failed-darkText: #F87171;
+
+  --color-badge-pending-bg: #FEF3C7;
+  --color-badge-pending-text: #D97706;
+  --color-badge-pending-darkBg: #33230A;
+  --color-badge-pending-darkText: #FBBF24;
 }
 
 :root {
-  /* Material 3 Luxury Warm Culinary & Hospitality Palette */
-  --primary: #D97706;
+  /* I-Techi-Esim Monolithic Luxe Caramel Amber & Espresso Palette (Light Mode) */
+  --primary: #D98A3C;
   --primary-foreground: #FFFFFF;
-  --sidebar-primary: #F5EFE6;
-  --sidebar-primary-foreground: #1C1917;
-  --chart-1: #D97706;
-  --chart-2: #F59E0B;
-  --chart-3: #78716C;
-  --chart-4: #E7E5E4;
-  --chart-5: #A8A29E;
-  --radius: 0.75rem;
-  --background: #FAF8F5;
-  --foreground: #1C1917;
+  --sidebar-primary: #D98A3C;
+  --sidebar-primary-foreground: #FFFFFF;
+  --chart-1: #D98A3C;
+  --chart-2: #C5772D;
+  --chart-3: #804719;
+  --chart-4: #E5AB68;
+  --chart-5: #F7E8D8;
+  --radius: 0.875rem;
+  --background: #F8F3EC;
+  --foreground: #24180A;
   --card: #FFFFFF;
-  --card-foreground: #1C1917;
+  --card-foreground: #24180A;
   --popover: #FFFFFF;
-  --popover-foreground: #1C1917;
-  --secondary: #F3EFEA;
-  --secondary-foreground: #1C1917;
-  --muted: #EFECE6;
-  --muted-foreground: #78716C;
-  --accent: #D97706;
-  --accent-foreground: #FFFFFF;
+  --popover-foreground: #24180A;
+  --secondary: #FBF4EC;
+  --secondary-foreground: #24180A;
+  --muted: #F7E8D8;
+  --muted-foreground: #804719;
+  --accent: #D98A3C;
+  --accent-foreground: #24180A;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #E7E2DA;
-  --input: #F3EFEA;
-  --ring: #D97706;
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: #1C1917;
-  --sidebar-accent: #D97706;
+  --border: #E5E7EB;
+  --input: #FFFFFF;
+  --ring: #D98A3C;
+  --sidebar: #FBF4EC;
+  --sidebar-foreground: #24180A;
+  --sidebar-accent: #D98A3C;
   --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #E7E2DA;
-  --sidebar-ring: #D97706;
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: #D98A3C;
 }
 
 .dark {
-  --primary: #F59E0B;
-  --primary-foreground: #1C1917;
-  --sidebar-primary: #1C1917;
-  --sidebar-primary-foreground: #FAF8F5;
-  /* ── key text tokens ── */
-  --background: #121110;
-  --foreground: #FAF8F5;
-  --card: #1C1917;
-  --card-foreground: #FAF8F5;
-  --popover: #1C1917;
-  --popover-foreground: #FAF8F5;
-  --secondary: #292524;
-  --secondary-foreground: #F5F5F4;
-  --muted: #292524;
-  --muted-foreground: #A8A29E;
-  --accent: #F59E0B;
-  --accent-foreground: #121110;
+  /* I-Techi-Esim Monolithic Deep Slate & Caramel Amber Palette (Dark Mode) */
+  --primary: #D98A3C;
+  --primary-foreground: #0E131C;
+  --sidebar-primary: #D98A3C;
+  --sidebar-primary-foreground: #0E131C;
+  --background: #0E131C;
+  --foreground: #F8FAFC;
+  --card: #121824;
+  --card-foreground: #F8FAFC;
+  --popover: #121824;
+  --popover-foreground: #F8FAFC;
+  --secondary: #1C1814;
+  --secondary-foreground: #F8FAFC;
+  --muted: #1A2336;
+  --muted-foreground: #94A3B8;
+  --accent: #D98A3C;
+  --accent-foreground: #F8FAFC;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #292524;
-  --input: #1C1917;
-  --ring: #F59E0B;
-  --sidebar: #1C1917;
-  --sidebar-foreground: #FAF8F5;
-  --sidebar-accent: #F59E0B;
-  --sidebar-accent-foreground: #121110;
-  --sidebar-border: #292524;
-  --sidebar-ring: #F59E0B;
+  --border: #222C3E;
+  --input: #151C2A;
+  --ring: #D98A3C;
+  --sidebar: #121824;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-accent: #D98A3C;
+  --sidebar-accent-foreground: #0E131C;
+  --sidebar-border: #222C3E;
+  --sidebar-ring: #D98A3C;
 }
 
 @layer base {
@@ -204,6 +259,21 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Plus Jakarta Sans', 'Outfit', 'Noto Sans Arabic', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Subtle Warm Luxe Ambient Lighting from I-Techi-Esim */
+  body {
+    background-image:
+      radial-gradient(46rem 40rem at 85% -5%, rgba(217, 138, 60, 0.08), transparent 60%),
+      radial-gradient(42rem 42rem at -5% 15%, rgba(217, 138, 60, 0.04), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  html.dark body,
+  .dark body {
+    background-image:
+      radial-gradient(44rem 36rem at 85% -5%, rgba(217, 138, 60, 0.09), transparent 60%),
+      radial-gradient(38rem 38rem at -5% 15%, rgba(217, 138, 60, 0.04), transparent 55%);
   }
 
   /* ── Language-specific Font Rules ── */
@@ -335,7 +405,127 @@
   .container {
     @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
   }
+  .container-x {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
   .flex {
     @apply flex min-w-0 min-h-0;
+  }
+
+  /* Monolithic Floating Card System (Pure White / Dark Slate on Warm Ivory Canvas) */
+  .card-floating {
+    @apply rounded-[26px] bg-white dark:bg-[#121824] p-5 sm:p-6 transition-all duration-300;
+  }
+
+  .card-hero-floating {
+    @apply rounded-[28px] bg-[#FBF4EC] dark:bg-[#1C1814] p-6 transition-all duration-300;
+  }
+
+  .card-squircle {
+    @apply rounded-[26px] bg-white dark:bg-[#121824] p-5 sm:p-6 transition-all duration-300;
+  }
+
+  .card-hero-warm {
+    @apply rounded-[28px] bg-[#FBF4EC] dark:bg-[#1C1814] p-6 transition-all duration-300;
+  }
+
+  /* Signature Gradient Text (Caramel Amber Luxe) */
+  .gradient-text {
+    @apply bg-gradient-to-r from-brand-amber via-amber-600 to-yellow-600 bg-clip-text text-transparent dark:from-amber-400 dark:via-amber-300 dark:to-yellow-400;
+  }
+
+  /* Monolithic Button System */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none bg-brand-amber text-white shadow-xs shadow-amber-500/20 hover:bg-brand-amber-hover;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none bg-brand-cream text-brand-espresso hover:bg-amber-100 dark:bg-brand-cream dark:text-brand-espresso;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none bg-transparent text-stone-700 hover:text-brand-amber hover:bg-amber-50/50 dark:text-slate-200 dark:hover:text-brand-amber;
+  }
+
+  /* Unified Chip & Badge System */
+  .chip {
+    @apply inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-semibold text-stone-700 transition-colors hover:text-brand-amber dark:text-slate-300 dark:hover:text-white;
+  }
+
+  .badge-status {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider;
+  }
+
+  .badge-success {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-badge-success-bg text-badge-success-text dark:bg-badge-success-darkBg dark:text-badge-success-darkText;
+  }
+
+  .badge-failed {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-badge-failed-bg text-badge-failed-text dark:bg-badge-failed-darkBg dark:text-badge-failed-darkText;
+  }
+
+  .badge-pending {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-badge-pending-bg text-badge-pending-text dark:bg-badge-pending-darkBg dark:text-badge-pending-darkText;
+  }
+}
+
+@layer utilities {
+  .grid-bg {
+    background-size: 36px 36px;
+    background-image: linear-gradient(to right, rgba(120, 120, 120, 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(120, 120, 120, 0.08) 1px, transparent 1px);
+  }
+
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 65%, transparent);
+    mask-image: linear-gradient(to bottom, black 65%, transparent);
+  }
+
+  .mask-fade-x {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+  }
+
+  /* Custom Sleek Scrollbars */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(180, 180, 180, 0.35);
+    border-radius: 9999px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(217, 138, 60, 0.6);
+  }
+
+  html.dark .custom-scrollbar::-webkit-scrollbar-thumb,
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(217, 138, 60, 0.6);
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(180, 180, 180, 0.35) transparent;
+  }
+
+  html.dark .custom-scrollbar,
+  .dark .custom-scrollbar {
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   }
 }

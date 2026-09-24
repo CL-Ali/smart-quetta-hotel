@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Loader2, ChefHat, Check, Coffee, ChevronDown, ChevronUp, Store, LogOut, Utensils, Layers } from "lucide-react";
+import { Loader2, ChefHat, Check, Coffee, ChevronDown, ChevronUp, Store, LogOut, Utensils, Layers, Lock } from "lucide-react";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
 import { useLang } from "@/contexts/LangContext";
@@ -50,7 +50,8 @@ export function KitchenView() {
     if (n.includes("tea") || n.includes("chai")) return "(چائے و قہوہ)";
     if (n.includes("paratha") || n.includes("tandoor") || n.includes("food")) return "(پراٹھا و تندور)";
     if (n.includes("drink") || n.includes("lassi")) return "(مشروبات و لسی)";
-    if (n.includes("appetizer") || n.includes("snack")) return "(سنیکس و پکوڑے)";
+    if (n.includes("appetizer")) return "(ایپیٹائزر)";
+    if (n.includes("snack")) return "(سنیکس)";
     return `(${name})`;
   };
 
@@ -163,26 +164,26 @@ export function KitchenView() {
 
   return (
     <StaffAuthGuard allowedRoles={["admin", "cashier", "kitchen"]}>
-      <div className="min-h-screen bg-stone-50 text-stone-900">
-        {/* Top Navigation Header */}
-        <header className="bg-white/95 backdrop-blur-md border-b border-stone-200/80 px-4 sm:px-6 py-2.5 flex items-center justify-between shrink-0 shadow-xs gap-3 sticky top-0 z-30 w-full">
+      <div className="min-h-screen bg-[#F8F3EC] dark:bg-[#0B0F17] text-[#24180A] dark:text-[#F8FAFC]">
+        {/* Monolithic Floating Luxe Top Navigation Header */}
+        <header className="bg-white dark:bg-[#121824] rounded-[24px] sm:rounded-[28px] border-0 shadow-none px-4 sm:px-6 py-3.5 flex items-center justify-between shrink-0 gap-3 sticky top-3 z-30 mx-3 sm:mx-4 my-2">
           {/* Left: Brand + Context */}
           <div className="flex items-center gap-3 shrink-0 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center font-black shadow-md shadow-amber-500/20 shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-[#D98A3C] text-white flex items-center justify-center font-black shrink-0 shadow-none">
               <ChefHat className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-sm sm:text-base font-black text-stone-900 leading-none truncate">
+                <h1 className="text-sm sm:text-base font-black text-[#24180A] dark:text-white leading-none truncate">
                   {t.hotelName || "Smart Quetta Hotel"}
                 </h1>
                 {vm.activeOrders.length > 0 && (
-                  <span className="bg-amber-500 text-stone-950 text-[10px] font-black rounded-full px-2 py-0.5">
+                  <span className="bg-[#D98A3C] text-white text-[10px] font-bold rounded-full px-2 py-0.5">
                     {vm.activeOrders.length}
                   </span>
                 )}
               </div>
-              <p className="text-[10px] text-amber-600 font-extrabold uppercase tracking-widest mt-0.5 truncate">
+              <p className="text-[10px] text-[#D98A3C] font-extrabold uppercase tracking-widest mt-1 truncate">
                 Kitchen Live Display System (KDS)
               </p>
             </div>
@@ -190,22 +191,22 @@ export function KitchenView() {
 
           {/* Center: Counter Station Tabs Pill */}
           <div className="flex-1 flex justify-center items-center px-2 min-w-0">
-            <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200/60 overflow-x-auto no-scrollbar max-w-full">
+            <div className="flex items-center gap-1.5 bg-[#F4EFEA] dark:bg-[#1A2234] p-1.5 rounded-full overflow-x-auto no-scrollbar max-w-full border-0">
               <button
                 type="button"
                 onClick={() => {
                   playTapSound();
                   setSelectedCounter("all");
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer select-none shrink-0 border-0 ${
                   selectedCounter === "all"
-                    ? "bg-amber-500 text-stone-950 shadow-xs font-black"
-                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/60"
+                    ? "bg-[#D98A3C] text-white shadow-none font-black"
+                    : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
                 }`}
               >
                 <span>All Stations</span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  selectedCounter === "all" ? "bg-stone-950 text-amber-400" : "bg-stone-200 text-stone-700"
+                  selectedCounter === "all" ? "bg-white/20 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                 }`}>
                   {vm.activeOrders.length}
                 </span>
@@ -223,16 +224,16 @@ export function KitchenView() {
                       playTapSound();
                       setSelectedCounter(cnt);
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer select-none shrink-0 border-0 ${
                       selectedCounter === cnt
-                        ? "bg-amber-500 text-stone-950 shadow-xs font-black"
-                        : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/60"
+                        ? "bg-[#D98A3C] text-white shadow-none font-black"
+                        : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
                     }`}
                   >
                     <Store className="w-3.5 h-3.5" />
                     <span>{cnt}</span>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                      selectedCounter === cnt ? "bg-stone-950 text-amber-400" : "bg-stone-200 text-stone-700"
+                      selectedCounter === cnt ? "bg-white/20 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                     }`}>
                       {count}
                     </span>
@@ -248,10 +249,10 @@ export function KitchenView() {
             <StaffWorkspaceSwitcher current="kitchen" />
 
             {staff && (
-              <div className="hidden md:flex items-center gap-2 bg-stone-50 border border-stone-200 px-3 py-1.5 rounded-xl text-xs">
+              <div className="hidden md:flex items-center gap-2 bg-[#F4EFEA] dark:bg-[#1A2234] px-3.5 py-1.5 rounded-full text-xs border-0">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="font-bold text-stone-800">{staff.name}</span>
-                <span className="text-[10px] font-extrabold text-amber-800 uppercase bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/30">
+                <span className="font-bold text-[#24180A] dark:text-white">{staff.name}</span>
+                <span className="text-[10px] font-extrabold text-[#D98A3C] uppercase bg-amber-500/15 px-2 py-0.5 rounded-full">
                   Kitchen KDS
                 </span>
               </div>
@@ -262,7 +263,7 @@ export function KitchenView() {
             <button
               type="button"
               onClick={() => logout()}
-              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition cursor-pointer shrink-0"
+              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-full transition cursor-pointer shrink-0 border-0"
               title="Sign Out"
             >
               <LogOut className="w-4 h-4" />
@@ -273,7 +274,7 @@ export function KitchenView() {
         {/* Main Content Workspace */}
         <main className="max-w-4xl lg:max-w-5xl mx-auto px-4 sm:px-6 py-4 space-y-4 pb-20">
           {/* Dynamic Kitchen Department Header / Tabs */}
-          <div className="bg-white p-2.5 rounded-2xl border border-stone-200/80 shadow-2xs space-y-2">
+          <div className="bg-white dark:bg-[#121824] p-3 rounded-[24px] border-0 shadow-none space-y-2">
             <div className="flex items-center justify-between px-1">
               <span className="text-[11px] font-black text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
                 <ChefHat className="w-3.5 h-3.5 text-amber-600" />
@@ -281,7 +282,8 @@ export function KitchenView() {
               </span>
               {isStaffRestricted && (
                 <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <span>🔒 Strictly Locked Station</span>
+                  <Lock className="w-2.5 h-2.5 text-amber-800" />
+                  <span>Strictly Locked Station</span>
                 </span>
               )}
             </div>
@@ -401,20 +403,20 @@ export function KitchenView() {
             Object.entries(groupedOrders).map(([customerName, customerOrders]) => (
               <div
                 key={customerName}
-                className="rounded-2xl border border-stone-200/80 bg-white overflow-hidden shadow-xs"
+                className="rounded-[28px] bg-white dark:bg-[#121824] overflow-hidden border-0 shadow-none mb-3"
               >
                 {/* Customer header */}
-                <div className="bg-amber-50/60 border-b border-amber-100/80 px-4 py-2.5 flex items-center justify-between">
+                <div className="bg-[#F8F3EC] dark:bg-[#1A2232] px-4 py-3 flex items-center justify-between border-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-amber-800 uppercase tracking-wide">
+                    <span className="text-xs font-black text-[#D98A3C] uppercase tracking-wide">
                       Customer
                     </span>
-                    <span className="font-bold text-sm text-stone-900">{customerName}</span>
+                    <span className="font-bold text-sm text-[#24180A] dark:text-white">{customerName}</span>
                   </div>
 
                   {customerOrders[0]?.counterName && (
-                    <span className="bg-white text-stone-800 border border-stone-200 text-[11px] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-2xs">
-                      <Store className="w-3 h-3 text-amber-600" />
+                    <span className="bg-white dark:bg-[#121824] text-[#24180A] dark:text-zinc-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 border-0">
+                      <Store className="w-3 h-3 text-[#D98A3C]" />
                       <span>{customerOrders[0].counterName}</span>
                     </span>
                   )}
@@ -428,16 +430,16 @@ export function KitchenView() {
                   const allReady = activeItems.every((i: any) => i.kitchenStatus === "ready");
 
                   return (
-                    <div key={order.id} className="border-b border-stone-100 last:border-0">
+                    <div key={order.id} className="border-t border-[#F8F3EC] dark:border-white/5 first:border-0">
                       <button
                         type="button"
                         onClick={() => vm.toggleExpand(order.id)}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-stone-50 transition-colors text-left cursor-pointer"
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F8F3EC]/40 dark:hover:bg-[#1A2232]/40 transition-colors text-left cursor-pointer border-0"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-stone-500">#{order.id}</span>
+                          <span className="text-xs font-bold text-stone-400">#{order.id}</span>
                           {(order.seatingNo || order.tableNo) && (
-                            <span className="text-[11px] font-extrabold bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.2 rounded-md">
+                            <span className="text-[11px] font-bold bg-[#D98A3C]/15 text-[#D98A3C] px-2 py-0.5 rounded-full">
                               {order.seatingNo
                                 ? order.seatingType === "seat"
                                   ? `Seat ${order.seatingNo}`
@@ -446,12 +448,12 @@ export function KitchenView() {
                             </span>
                           )}
                           <span
-                            className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                            className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
                               order.status === "preparing"
-                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                                 : order.status === "ready"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : "bg-stone-100 text-stone-600"
+                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                : "bg-black/5 dark:bg-white/5 text-[#4A3E31] dark:text-zinc-300"
                             }`}
                           >
                             {order.status === "preparing"
@@ -463,7 +465,7 @@ export function KitchenView() {
                           <span className="text-xs text-stone-400">{fmtTime(order.createdAt)}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-stone-400">{activeItems.length} items</span>
+                          <span className="text-xs text-stone-400 font-bold">{activeItems.length} items</span>
                           {isExpanded ? (
                             <ChevronUp className="w-4 h-4 text-stone-400" />
                           ) : (
@@ -484,22 +486,28 @@ export function KitchenView() {
                             return (
                               <div
                                 key={item.id}
-                                className={`flex items-center justify-between p-3 rounded-xl border ${
+                                className={`flex items-center justify-between p-3 rounded-2xl border-0 ${
                                   isFullyServed
-                                    ? "bg-stone-50/50 border-stone-100 opacity-60"
-                                    : "bg-white border-stone-200/70 shadow-2xs"
+                                    ? "bg-[#F8F3EC]/30 dark:bg-[#1A2232]/30 opacity-60"
+                                    : "bg-[#F8F3EC] dark:bg-[#1A2232]"
                                 }`}
                               >
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
-                                    <span className="text-sm font-semibold text-stone-900">
+                                    <span className="text-sm font-bold text-[#24180A] dark:text-white">
                                       {item.name}
                                     </span>
-                                    <span className="text-xs font-bold text-stone-500">
+                                    <span className="text-xs font-bold text-[#D98A3C]">
                                       ×{item.quantity}
                                     </span>
                                     <span
-                                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${s.bg} ${s.text}`}
+                                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                        status === "preparing"
+                                          ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                          : status === "ready"
+                                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                          : "bg-black/5 dark:bg-white/5 text-stone-600 dark:text-stone-300"
+                                      }`}
                                     >
                                       {s.label}
                                     </span>
@@ -513,13 +521,14 @@ export function KitchenView() {
                                         type="button"
                                         onClick={() => vm.handleItemAction(item.id, status)}
                                         disabled={isItemLoading}
-                                        className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 transition text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1 shadow-2xs"
+                                        className="px-3 py-1.5 bg-[#D98A3C] hover:bg-[#C27930] active:scale-95 transition text-white text-xs font-bold rounded-full cursor-pointer flex items-center gap-1 border-0"
                                       >
                                         {isItemLoading ? (
                                           <Loader2 className="w-3 h-3 animate-spin" />
                                         ) : (
-                                          "Start Cook"
+                                          <ChefHat className="w-3 h-3" />
                                         )}
+                                        <span>Start Cook</span>
                                       </button>
                                     )}
 
@@ -528,7 +537,7 @@ export function KitchenView() {
                                         type="button"
                                         onClick={() => vm.handleItemAction(item.id, status)}
                                         disabled={isItemLoading}
-                                        className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1 shadow-2xs"
+                                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition text-white text-xs font-bold rounded-full cursor-pointer flex items-center gap-1 border-0"
                                       >
                                         {isItemLoading ? (
                                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -550,7 +559,7 @@ export function KitchenView() {
                             <button
                               type="button"
                               onClick={() => vm.handleMarkAllReady(activeItems)}
-                              className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5 mt-2"
+                              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-full border-0 transition cursor-pointer flex items-center justify-center gap-1.5 mt-2"
                             >
                               <Check className="w-4 h-4" />
                               <span>Mark All Items in #{order.id} Ready</span>

@@ -58,51 +58,54 @@ export function DashboardView() {
 
   return (
     <StaffAuthGuard allowedRoles={["admin", "cashier"]}>
-      <div className="h-screen w-full flex flex-col overflow-hidden bg-stone-50 text-stone-900">
-      {/* ── Compact Streamlined Header Navbar ───────────────────────── */}
-      <header className="bg-white/95 backdrop-blur-md border-b border-stone-200/80 px-4 sm:px-6 py-2.5 flex items-center justify-between shrink-0 shadow-xs gap-3 sticky top-0 z-30 w-full">
+      <div className="h-screen w-full flex flex-col overflow-hidden bg-[#F8F3EC] dark:bg-[#0B0F17] text-[#24180A] dark:text-[#F8FAFC]">
+      {/* ── Monolithic Floating Luxe Header Navbar ───────────────────────── */}
+      <header className="bg-white dark:bg-[#121824] rounded-[24px] sm:rounded-[28px] border-0 shadow-none px-4 sm:px-6 py-3.5 flex items-center justify-between shrink-0 gap-3 sticky top-3 z-30 mx-3 sm:mx-4 my-2">
         {/* Left: Brand + Context */}
         <div className="flex items-center gap-3 shrink-0 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center font-black shadow-md shadow-amber-500/20 shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-[#D98A3C] text-white flex items-center justify-center font-black shrink-0 shadow-none">
             <Hotel className="w-5 h-5" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-sm sm:text-base font-black text-stone-900 leading-none truncate">
+              <h1 className="text-sm sm:text-base font-black text-[#24180A] dark:text-white leading-none truncate">
                 {t.hotelName || "Smart Quetta Hotel"}
               </h1>
               {staff?.stationName && (
-                <span className="bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-1">
-                  <Store className="w-3 h-3 text-amber-600" />
+                <span className="bg-[#D98A3C]/15 text-[#D98A3C] text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
+                  <Store className="w-3 h-3 text-[#D98A3C]" />
                   <span>{staff.stationName}</span>
                 </span>
               )}
             </div>
-            <p className="text-[10px] text-amber-600 font-extrabold uppercase tracking-widest mt-0.5 truncate">
-              Cashier POS Terminal & Counter Billing
+            <p className="text-[10px] text-[#D98A3C] font-extrabold uppercase tracking-widest mt-1 truncate">
+              Cashier POS & Multi-Counter Billing
             </p>
           </div>
         </div>
 
-        {/* Center: Tab Switcher Pills */}
+        {/* Center: Centered Tab Navigation Pill */}
         <div className="flex-1 flex justify-center items-center px-2 min-w-0">
-          <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl overflow-x-auto no-scrollbar max-w-full border border-stone-200/60">
+          <div className="flex items-center gap-1.5 bg-[#F4EFEA] dark:bg-[#1A2234] p-1.5 rounded-full overflow-x-auto no-scrollbar max-w-full border-0">
             {TABS.map(({ key, label, icon: Icon, badge }) => (
               <button
                 key={key}
                 type="button"
-                onClick={() => vm.setTab(key as DashboardTab)}
-                className={`px-2.5 py-1.5 text-xs font-extrabold rounded-lg transition flex items-center gap-1.5 cursor-pointer select-none shrink-0 ${
+                onClick={() => {
+                  playTapSound();
+                  vm.setTab(key as DashboardTab);
+                }}
+                className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer select-none shrink-0 border-0 ${
                   vm.tab === key
-                    ? "bg-amber-500 text-stone-950 shadow-xs font-black"
-                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/60"
+                    ? "bg-[#D98A3C] text-white shadow-none font-black"
+                    : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{label}</span>
                 {typeof badge === "number" && badge > 0 && (
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
-                    vm.tab === key ? "bg-stone-950 text-amber-400" : "bg-red-500 text-white"
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                    vm.tab === key ? "bg-white/20 text-white" : "bg-red-500 text-white"
                   }`}>
                     {badge}
                   </span>
@@ -117,20 +120,22 @@ export function DashboardView() {
           {/* Quick Staff View Links */}
           <StaffWorkspaceSwitcher current="cashier" />
 
-          <div className="hidden md:flex items-center gap-2 bg-stone-50 border border-stone-200 px-3 py-1.5 rounded-xl text-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-bold text-stone-800">{staff?.name}</span>
-            <span className="text-[10px] font-extrabold text-amber-800 uppercase bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/30">
-              Cashier POS
-            </span>
-          </div>
+          {staff && (
+            <div className="hidden md:flex items-center gap-2 bg-[#F4EFEA] dark:bg-[#1A2234] px-3.5 py-1.5 rounded-full text-xs border-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-bold text-[#24180A] dark:text-white">{staff?.name}</span>
+              <span className="text-[10px] font-extrabold text-[#D98A3C] uppercase bg-amber-500/15 px-2 py-0.5 rounded-full">
+                Cashier POS
+              </span>
+            </div>
+          )}
 
           <LangSwitcher />
 
           <button
             type="button"
             onClick={() => logout()}
-            className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition cursor-pointer shrink-0"
+            className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-full transition cursor-pointer shrink-0 border-0"
             title="Sign Out"
           >
             <LogOut className="w-4 h-4" />

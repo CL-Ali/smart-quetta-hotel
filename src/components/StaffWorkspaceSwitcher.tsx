@@ -52,7 +52,7 @@ export function StaffWorkspaceSwitcher({ current }: Props) {
   }
 
   return (
-    <div className="hidden sm:flex items-center gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200/60">
+    <div className="hidden sm:flex items-center gap-1 bg-[#F4EFEA] dark:bg-[#1A2234] p-1.5 rounded-full border-0 shadow-none">
       {allowedWorkspaces.map((w) => {
         const isActive = current === w.key;
         const Icon = w.icon;
@@ -61,9 +61,9 @@ export function StaffWorkspaceSwitcher({ current }: Props) {
           return (
             <span
               key={w.key}
-              className="px-2.5 py-1 bg-white text-stone-950 shadow-2xs text-xs font-black rounded-lg flex items-center gap-1.5 cursor-default select-none border border-stone-200/60"
+              className="px-3.5 py-1.5 bg-white dark:bg-[#121824] text-[#24180A] dark:text-white shadow-none text-xs font-extrabold rounded-full flex items-center gap-1.5 cursor-default select-none border-0"
             >
-              <Icon className="w-3.5 h-3.5 text-amber-600" />
+              <Icon className="w-3.5 h-3.5 text-[#D98A3C]" />
               <span>{w.label}</span>
             </span>
           );
@@ -75,7 +75,7 @@ export function StaffWorkspaceSwitcher({ current }: Props) {
             href={w.href}
             prefetch={true}
             onClick={() => playTapSound()}
-            className="px-2.5 py-1 hover:bg-white text-xs font-extrabold text-stone-600 hover:text-stone-900 rounded-lg transition flex items-center gap-1.5"
+            className="px-3 py-1.5 hover:bg-white/60 dark:hover:bg-[#121824]/60 text-xs font-bold text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white rounded-full transition flex items-center gap-1.5 border-0"
             title={`Switch to ${w.label}`}
           >
             <Icon className="w-3.5 h-3.5 text-stone-400" />

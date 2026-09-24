@@ -67,12 +67,13 @@ export function listOrderItemsWithMenuForOrder(db: Db, orderId: number) {
       name: menuItems.name,
       price: menuItems.price,
       category: menuItems.category,
+      imageUrl: menuItems.imageUrl,
       departmentId: menuItems.departmentId,
       kitchenStatus: orderItems.kitchenStatus,
       servedQty: orderItems.servedQty,
     })
     .from(orderItems)
-    .innerJoin(menuItems, eq(orderItems.menuItemId, menuItems.id))
+    .leftJoin(menuItems, eq(orderItems.menuItemId, menuItems.id))
     .where(eq(orderItems.orderId, orderId))
     .all();
 }
