@@ -638,38 +638,38 @@ export function ActiveOrdersTab({
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden space-y-3">
-      {/* ── 1. Floating Queue Notice Banner ─────────────── */}
+    <div className="flex flex-col h-full overflow-hidden space-y-2">
+      {/* ── 1. Floating Queue Notice Banner (Compact) ─────────────── */}
       {activeNoticeInfo ? (
         <div
-          className={`rounded-[22px] p-3.5 flex items-center justify-between gap-3 shrink-0 border-0 shadow-none transition-all ${
+          className={`rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2.5 shrink-0 border-0 shadow-none transition-all ${
             activeNoticeInfo.isNext
               ? "bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200"
               : "bg-white dark:bg-[#121824] text-[#24180A] dark:text-white"
           }`}
         >
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             {activeNoticeInfo.isNext ? (
-              <div className="w-9 h-9 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                <FaWandMagicSparkles className="w-4 h-4 animate-pulse" />
+              <div className="w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <FaWandMagicSparkles className="w-3.5 h-3.5 animate-pulse" />
               </div>
             ) : (
-              <div className="w-9 h-9 rounded-full bg-amber-500/15 text-[#D98A3C] flex items-center justify-center shrink-0">
-                <FaClock className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-full bg-amber-500/15 text-[#D98A3C] flex items-center justify-center shrink-0">
+                <FaClock className="w-3.5 h-3.5" />
               </div>
             )}
 
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold truncate flex items-center gap-1.5 flex-wrap">
-                <span>{activeNoticeInfo.text}</span>
-                {activeNoticeInfo.ticketsText && (
-                  <span className="text-stone-400 dark:text-stone-500 font-mono text-[11px] font-normal">
-                    {activeNoticeInfo.ticketsText}
-                  </span>
-                )}
+              <div className="text-xs font-bold leading-snug">
+                {activeNoticeInfo.text}
               </div>
+              {activeNoticeInfo.ticketsText && (
+                <div className="text-stone-400 dark:text-stone-500 font-mono text-[10px] font-normal truncate">
+                  {activeNoticeInfo.ticketsText}
+                </div>
+              )}
               {activeNoticeInfo.subtext && (
-                <div className="text-[11px] text-stone-500 dark:text-stone-400 truncate">
+                <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">
                   {activeNoticeInfo.subtext}
                 </div>
               )}
@@ -682,16 +682,16 @@ export function ActiveOrdersTab({
               playTapSound();
               onOrderMore();
             }}
-            className="h-9 px-4 rounded-full bg-[#D98A3C] hover:bg-[#c27931] text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shrink-0 shadow-none active:scale-95"
+            className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-full bg-[#D98A3C] hover:bg-[#c27931] text-white font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0 shadow-none active:scale-95"
           >
-            <FaPlus className="w-2.5 h-2.5" />
+            <FaPlus className="w-2 h-2" />
             <span>
-              {t.orderMoreItems || (lang === "ur" ? "مزید اشیاء" : "Add Items")}
+              {t.orderMoreItems || (lang === "ur" ? "مزید اشیاء" : "Order More")}
             </span>
           </button>
         </div>
       ) : (
-        <div className="bg-white dark:bg-[#121824] rounded-[22px] p-3.5 border-0 shadow-none flex items-center justify-between gap-3 shrink-0">
+        <div className="bg-white dark:bg-[#121824] rounded-2xl p-2.5 sm:p-3 border-0 shadow-none flex items-center justify-between gap-2.5 shrink-0">
           <div className="text-xs font-bold text-[#24180A] dark:text-white">
             {t.fullKitchenQueue || "Kitchen Queue"}
           </div>
@@ -701,18 +701,18 @@ export function ActiveOrdersTab({
               playTapSound();
               onOrderMore();
             }}
-            className="h-9 px-4 rounded-full bg-[#D98A3C] hover:bg-[#c27931] text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shrink-0 shadow-none active:scale-95"
+            className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-full bg-[#D98A3C] hover:bg-[#c27931] text-white font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0 shadow-none active:scale-95"
           >
-            <FaPlus className="w-2.5 h-2.5" />
+            <FaPlus className="w-2 h-2" />
             <span>
-              {t.orderMoreItems || (lang === "ur" ? "مزید اشیاء" : "Add Items")}
+              {t.orderMoreItems || (lang === "ur" ? "مزید اشیاء" : "Order More")}
             </span>
           </button>
         </div>
       )}
 
-      {/* ── 2. Floating Pill Filter Chips ────────────────────────── */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 shrink-0">
+      {/* ── 2. Floating Pill Filter Chips (Compact) ────────────────── */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 shrink-0">
         {/* "All" Chip */}
         <button
           type="button"
@@ -720,7 +720,7 @@ export function ActiveOrdersTab({
             playTapSound();
             setSelectedFilter("all");
           }}
-          className={`px-4 py-2 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 border-0 shadow-none ${
+          className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 border-0 shadow-none ${
             selectedFilter === "all"
               ? "bg-[#D98A3C] text-white font-black"
               : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
@@ -728,7 +728,7 @@ export function ActiveOrdersTab({
         >
           <FaLayerGroup className="w-2.5 h-2.5 opacity-70" />
           <span>{t.fullKitchenQueue || "All Queue"}</span>
-          <span dir="ltr" className="text-[10px] font-mono opacity-80">
+          <span dir="ltr" className="text-[9.5px] font-mono opacity-80">
             {fullQueue.length}
           </span>
         </button>
@@ -741,7 +741,7 @@ export function ActiveOrdersTab({
               playTapSound();
               setSelectedFilter("my_orders");
             }}
-            className={`px-4 py-2 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 border-0 shadow-none ${
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 border-0 shadow-none ${
               selectedFilter === "my_orders"
                 ? "bg-[#D98A3C] text-white font-black"
                 : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
@@ -749,7 +749,7 @@ export function ActiveOrdersTab({
           >
             <FaStar className="w-2.5 h-2.5 text-amber-500" />
             <span>{t.onlyMyOrders || "My Orders"}</span>
-            <span dir="ltr" className="text-[10px] font-mono font-bold">
+            <span dir="ltr" className="text-[9.5px] font-mono font-bold">
               ({myActiveItems.length})
             </span>
           </button>
@@ -766,14 +766,14 @@ export function ActiveOrdersTab({
                 playTapSound();
                 setSelectedFilter(isSelected ? "all" : dept.deptKey);
               }}
-              className={`px-4 py-2 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 border-0 shadow-none ${
+              className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 border-0 shadow-none ${
                 isSelected
                   ? "bg-[#D98A3C] text-white font-black"
                   : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
               }`}
             >
-              <span className="truncate max-w-[140px]">{dept.label}</span>
-              <span dir="ltr" className="text-[10px] font-mono font-bold opacity-75">
+              <span className="truncate max-w-[120px]">{dept.label}</span>
+              <span dir="ltr" className="text-[9.5px] font-mono font-bold opacity-75">
                 ({dept.totalInQueue})
               </span>
             </button>
@@ -781,17 +781,16 @@ export function ActiveOrdersTab({
         })}
       </div>
 
-      {/* ── 3. Floating Active Orders Container (Pill-Shaped Rows) ─────────────── */}
-      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 pb-20 lg:pb-4 space-y-2.5">
+      {/* ── 3. Floating Active Orders Container (Compact Pill-Shaped Rows) ─────── */}
+      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 pb-20 lg:pb-4 space-y-1.5 p-0.5">
         {displayedItems.map((item, idx) => {
           const itemImg = getAccurateItemImageByName(item.name, item.imageUrl);
           const itemTicket =
             item.ticketNo || item.orderNo || `#${item.orderId}`;
           const isMine = item.isMyOrder;
           const isMyOrdersFilter = selectedFilter === "my_orders";
-          const isTopCooking = !isMyOrdersFilter && idx === 0;
           const isFirstMine = !isMyOrdersFilter && idx === firstMyItemIndex;
-          const isOtherQueued = !isMine && !isTopCooking;
+          const isOtherQueued = !isMine;
           const itemDisplayName = getItemDisplayName(item.name, lang);
           const isPending = item.kitchenStatus === "pending";
           const isCancelling = cancellingItemId === item.id;
@@ -801,18 +800,16 @@ export function ActiveOrdersTab({
             <div
               key={`${item.orderId}-${item.id}-${idx}`}
               ref={isFirstMine ? firstMyItemRef : undefined}
-              className={`px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl bg-white dark:bg-[#121824] transition-all flex items-center justify-between gap-2.5 sm:gap-3 border-0 shadow-none hover:bg-stone-50/80 dark:hover:bg-[#182030] ${
+              className={`px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl bg-white dark:bg-[#121824] transition-all flex items-center gap-2.5 shadow-none hover:bg-stone-50/80 dark:hover:bg-[#182030] ${
                 isFirstMine
-                  ? "ring-2 ring-[#D98A3C] shadow-lg shadow-amber-500/20 bg-amber-50/50 dark:bg-amber-950/25"
-                  : isTopCooking
-                  ? "ring-2 ring-inset ring-[#121824] dark:ring-white"
+                  ? "border-2 border-[#D98A3C] shadow-sm shadow-amber-500/10 bg-amber-50/40 dark:bg-amber-950/20"
                   : isMine
-                  ? "ring-2 ring-inset ring-[#D98A3C]"
-                  : ""
+                  ? "border-2 border-[#D98A3C]"
+                  : "border-2 border-transparent"
               } ${isOtherQueued ? "opacity-50 hover:opacity-90" : "opacity-100"}`}
             >
-              {/* Left: Product Thumbnail with Queue Badge */}
-              <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-[#F8F3EC] dark:bg-[#1A2232] shrink-0">
+              {/* Left: Product Thumbnail with Queue Number */}
+              <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-lg overflow-hidden bg-[#F8F3EC] dark:bg-[#1A2232] shrink-0">
                 <img
                   src={itemImg}
                   alt={itemDisplayName}
@@ -821,121 +818,111 @@ export function ActiveOrdersTab({
                 />
                 <span
                   dir="ltr"
-                  className={`absolute bottom-0 right-0 text-[8px] font-mono font-bold px-1 rounded-tl-md ${
-                    isTopCooking
-                      ? "bg-black text-amber-400 dark:bg-white dark:text-black font-black"
-                      : "bg-[#24180A]/90 text-white"
-                  }`}
+                  className="absolute bottom-0 right-0 text-[7.5px] font-mono font-bold px-1 rounded-tl-md bg-[#24180A]/90 text-white"
                 >
                   #{idx + 1}
                 </span>
               </div>
 
-              {/* Center: Dish Name + Ticket Badge on Line 1 | Qty + Time + Price on Line 2 */}
-              <div className="min-w-0 flex-1">
-                {/* Line 1 */}
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <h4 className="text-xs sm:text-sm font-extrabold text-[#24180A] dark:text-white truncate">
+              {/* Center + Right Stack */}
+              <div className="min-w-0 flex-1 flex flex-col justify-center gap-0.5">
+                {/* Row 1: Dish Full Name & Live Status Badge */}
+                <div className="flex items-center justify-between gap-1.5 min-w-0">
+                  <h4 className="text-xs sm:text-[13px] font-extrabold text-[#24180A] dark:text-white truncate">
                     {itemDisplayName}
                   </h4>
-
-                  <span
-                    dir="ltr"
-                    className={`font-mono text-[10px] px-2 py-0.2 rounded-full font-bold shrink-0 flex items-center gap-1 ${
-                      isFirstMine
-                        ? "bg-[#D98A3C] text-stone-950 font-black shadow-2xs"
-                        : isMine
-                        ? "bg-[#D98A3C]/15 text-[#D98A3C]"
-                        : "bg-[#F8F3EC] dark:bg-[#1A2232] text-stone-500 dark:text-zinc-400 font-medium"
-                    }`}
-                  >
-                    <span>{itemTicket}</span>
-                    {isMine && (
-                      <span className="text-[9px]">
-                        {isFirstMine
-                          ? lang === "ur"
-                            ? "(آپ کا اگلا)"
-                            : "(Your Next)"
-                          : lang === "ur"
-                          ? "(آپ)"
-                          : "(You)"}
-                      </span>
-                    )}
-                  </span>
+                  <div className="shrink-0">
+                    {renderLiveStatus(item.kitchenStatus)}
+                  </div>
                 </div>
 
-                {/* Line 2: Qty • Time • Price (Zero Seat No) */}
-                <div className="text-[11px] text-stone-500 dark:text-zinc-400 flex items-center gap-1.5 font-medium truncate mt-0.5">
-                  <span className="font-bold font-mono text-[#24180A] dark:text-zinc-200">
-                    ×{item.quantity}
-                  </span>
-                  <span>•</span>
-                  <span dir="ltr" className="font-mono text-stone-400">
-                    {fmtTime(item.createdAt)}
-                  </span>
-                  {item.unitPrice && isMine && (
-                    <>
-                      <span>•</span>
-                      <span className="font-bold font-mono text-[#E65100] dark:text-[#FB8C00]">
-                        Rs. {(item.unitPrice * item.quantity).toLocaleString()}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
+                {/* Row 2: Ticket Badge, Quantity, Time & Single-Item Cancel Action */}
+                <div className="flex items-center justify-between gap-1.5 min-w-0">
+                  {/* Meta Details: Ticket badge, Qty, Time (No Price in Queue) */}
+                  <div className="flex items-center gap-1.5 text-[10.5px] text-stone-500 dark:text-zinc-400 font-medium min-w-0 truncate">
+                    {/* Ticket Badge */}
+                    <span
+                      dir="ltr"
+                      className={`font-mono text-[8.5px] sm:text-[9.5px] px-1.5 py-0.2 rounded-md font-bold shrink-0 flex items-center gap-0.5 ${
+                        isFirstMine
+                          ? "bg-[#D98A3C] text-stone-950 font-black"
+                          : isMine
+                          ? "bg-[#D98A3C]/15 text-[#D98A3C]"
+                          : "bg-[#F8F3EC] dark:bg-[#1A2232] text-stone-500 dark:text-zinc-400 font-medium"
+                      }`}
+                    >
+                      <span>{itemTicket}</span>
+                      {isMine && (
+                        <span className="text-[8px]">
+                          {isFirstMine
+                            ? lang === "ur"
+                              ? "(اگلا)"
+                              : "(Next)"
+                            : lang === "ur"
+                            ? "(آپ)"
+                            : "(You)"}
+                        </span>
+                      )}
+                    </span>
 
-              {/* Right: Live Status Pill & Single-Item Cancel Action */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                {renderLiveStatus(item.kitchenStatus)}
+                    <span className="font-bold font-mono text-[#24180A] dark:text-zinc-200">
+                      ×{item.quantity}
+                    </span>
+                    <span>•</span>
+                    <span dir="ltr" className="font-mono text-stone-400 text-[9.5px]">
+                      {fmtTime(item.createdAt)}
+                    </span>
+                  </div>
 
-                {/* Single Product Cancel Button (Available until served) */}
-                {isMine && item.kitchenStatus !== "served" && item.kitchenStatus !== "cancelled" && onCancelItem && (
-                  <div>
-                    {isConfirmingCancel ? (
-                      <div className="flex items-center gap-1">
+                  {/* Single Product Cancel Button (Available until served) */}
+                  {isMine && item.kitchenStatus !== "served" && item.kitchenStatus !== "cancelled" && onCancelItem && (
+                    <div className="shrink-0">
+                      {isConfirmingCancel ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={isCancelling}
+                            onClick={async () => {
+                              setConfirmCancelId(null);
+                              await onCancelItem(item.id, item.orderId);
+                            }}
+                            className="h-5.5 px-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-full text-[9.5px] transition cursor-pointer flex items-center gap-1 shadow-none active:scale-95"
+                          >
+                            {isCancelling ? (
+                              <FaSpinner className="animate-spin w-2 h-2" />
+                            ) : (
+                              <FaCheck className="w-2 h-2" />
+                            )}
+                            <span>
+                              {lang === "ur" ? "ہاں" : "Yes"}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isCancelling}
+                            onClick={() => setConfirmCancelId(null)}
+                            className="h-5.5 px-1.5 bg-black/10 dark:bg-white/10 text-[#24180A] dark:text-zinc-300 rounded-full text-[9.5px] hover:bg-black/20 transition cursor-pointer"
+                          >
+                            <FaXmark className="w-2 h-2" />
+                          </button>
+                        </div>
+                      ) : (
                         <button
                           type="button"
                           disabled={isCancelling}
-                          onClick={async () => {
-                            setConfirmCancelId(null);
-                            await onCancelItem(item.id, item.orderId);
-                          }}
-                          className="h-7 px-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-full text-[10px] transition cursor-pointer flex items-center gap-1 shadow-none active:scale-95"
+                          onClick={() => setConfirmCancelId(item.id)}
+                          className="h-5.5 px-2 rounded-full bg-red-50 dark:bg-red-950/40 hover:bg-red-500 hover:text-white text-red-600 dark:text-red-400 text-[9.5px] font-bold border-0 transition cursor-pointer flex items-center gap-0.5 active:scale-95"
+                          title="Cancel item"
                         >
-                          {isCancelling ? (
-                            <FaSpinner className="animate-spin w-2.5 h-2.5" />
-                          ) : (
-                            <FaCheck className="w-2.5 h-2.5" />
-                          )}
+                          <FaXmark className="w-2 h-2" />
                           <span>
-                            {lang === "ur" ? "ہاں" : "Yes"}
+                            {t.cancel || (lang === "ur" ? "منسوخ" : "Cancel")}
                           </span>
                         </button>
-                        <button
-                          type="button"
-                          disabled={isCancelling}
-                          onClick={() => setConfirmCancelId(null)}
-                          className="h-7 px-1.5 bg-black/10 dark:bg-white/10 text-[#24180A] dark:text-zinc-300 rounded-full text-[10px] hover:bg-black/20 transition cursor-pointer"
-                        >
-                          <FaXmark className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={isCancelling}
-                        onClick={() => setConfirmCancelId(item.id)}
-                        className="h-7 px-2.5 rounded-full bg-red-50 dark:bg-red-950/40 hover:bg-red-500 hover:text-white text-red-600 dark:text-red-400 text-[11px] font-bold border-0 transition cursor-pointer flex items-center gap-1 active:scale-95"
-                        title="Cancel item before cooking"
-                      >
-                        <FaXmark className="w-2.5 h-2.5" />
-                        <span>
-                          {t.cancel || (lang === "ur" ? "منسوخ" : "Cancel")}
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );
