@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useSocket } from "@/hooks/useSocket";
-import { getDashboardPin } from "@/lib/dashboardAuth";
 import { useWaiterService } from "../services/waiterService";
 
 /**
@@ -14,17 +13,9 @@ export function useWaiterViewModel() {
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
   const [serving, setServing] = useState<Set<number>>(new Set());
-  const [pinUnlocked, setPinUnlocked] = useState(() => !!getDashboardPin());
-  const pinErrorRef = useRef<((msg: string) => void) | null>(null);
 
   // ── Service Layer Hook ───────────────────────────────────────────────────
-  const service = useWaiterService({
-    pinUnlocked,
-    onAuthError: () => {
-      setPinUnlocked(false);
-      pinErrorRef.current?.("Incorrect PIN — try again");
-    },
-  });
+  const service = useWaiterService();
 
   // Realtime Socket Sync
   const socket = useSocket();
@@ -57,7 +48,7 @@ export function useWaiterViewModel() {
         serveQty: qty,
       });
       service.refetch();
-      toast.success("Item served ✓");
+      toast.success("Item served");
     } catch {
       toast.error("Failed");
     } finally {
@@ -74,11 +65,6 @@ export function useWaiterViewModel() {
     for (const item of readyItems) {
       await handleServeItem(item.id, item.quantity - (item.servedQty ?? 0));
     }
-  };
-
-  const handleUnlockPin = (onErr: (msg: string) => void) => {
-    pinErrorRef.current = onErr;
-    setPinUnlocked(true);
   };
 
   // Orders with at least one ready item
@@ -100,7 +86,6 @@ export function useWaiterViewModel() {
   }, {});
 
   return {
-    pinUnlocked,
     isLoading: service.isLoading,
     withReady,
     recentServed,
@@ -109,7 +94,6 @@ export function useWaiterViewModel() {
     serving,
     showNewOrder,
     setShowNewOrder,
-    handleUnlockPin,
     toggleExpand,
     handleServeItem,
     handleServeAll,

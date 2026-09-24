@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
 import * as schema from "./schema";
-import type { InsertUser, User } from "./schema";
+import { hashPassword } from "../lib/auth";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Allow overriding via env (used in Docker so the DB lives on a named volume)
@@ -47,11 +47,16 @@ function initSchema(sqlite: Database.Database) {
     CREATE TABLE IF NOT EXISTS staff (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      email TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password TEXT,
       passwordHash TEXT NOT NULL,
       role TEXT NOT NULL,
+      allowedIp TEXT,
+      currentIp TEXT,
       isActive INTEGER NOT NULL DEFAULT 1,
-      lastLoginAt TEXT
+      lastLoginAt TEXT,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS guests (
@@ -279,6 +284,9 @@ function initSchema(sqlite: Database.Database) {
     "visitId INTEGER REFERENCES visits(id)"
   );
   addColumnIfMissing("orders", "orderNo", "orderNo TEXT");
+  addColumnIfMissing("orders", "cashierId", "cashierId INTEGER REFERENCES staff(id)");
+  addColumnIfMissing("orders", "cashierName", "cashierName TEXT");
+  addColumnIfMissing("orders", "counterName", "counterName TEXT");
   addColumnIfMissing("orders", "subtotal", "subtotal REAL DEFAULT 0");
   addColumnIfMissing("orders", "discount", "discount REAL DEFAULT 0");
   addColumnIfMissing("orders", "total", "total REAL DEFAULT 0");
@@ -328,6 +336,12 @@ function initSchema(sqlite: Database.Database) {
     // SQLite ALTER TABLE does not support datetime() as a column default.
     // Nullable is safe — new rows set this explicitly in code.
     "receivedAt TEXT"
+  );
+
+  addColumnIfMissing(
+    "seating_areas",
+    "capacity",
+    "capacity INTEGER DEFAULT 4"
   );
 
   // Seed default departments if none exist
@@ -386,16 +400,21 @@ function initSchema(sqlite: Database.Database) {
     `);
   }
 
-  // Existing seating areas insertion
+  // Ensure comprehensive seating areas with capacities exist
   const seatingCount = sqlite
     .prepare("SELECT COUNT(*) as c FROM seating_areas")
     .get() as { c: number };
   if (seatingCount.c === 0) {
-    sqlite.exec(`INSERT INTO seating_areas (name, type) VALUES
-      ('Table 1', 'indoor'),
-      ('Table 2', 'indoor'),
-      ('Table 3', 'outdoor'),
-      ('Counter', 'counter');`);
+    sqlite.exec(`INSERT INTO seating_areas (name, type, capacity) VALUES
+      ('Table 1', 'indoor', 4),
+      ('Table 2', 'indoor', 4),
+      ('Table 3', 'indoor', 6),
+      ('Table 4', 'indoor', 2),
+      ('Family 1', 'family', 6),
+      ('Family 2', 'family', 8),
+      ('Rooftop 1', 'rooftop', 4),
+      ('Rooftop 2', 'rooftop', 4),
+      ('Takeaway Desk', 'takeaway', 1);`);
   }
 
     const inventoryCount = sqlite
@@ -418,15 +437,93 @@ function initSchema(sqlite: Database.Database) {
           ('Spoons',  40,  8, 3, 29);
       `);
     }
+
+    // Auto-migrate any missing columns for staff table on existing databases
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN name TEXT;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN email TEXT;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN username TEXT;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN password TEXT;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN stationName TEXT;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN assignedCashierId INTEGER;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN permissions TEXT;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN allowedIp TEXT;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN currentIp TEXT;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN isActive INTEGER DEFAULT 1;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN lastLoginAt TEXT;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN createdAt TEXT;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN updatedAt TEXT;"); } catch (_) {}
+
+    // System / Hotel Settings table
+    try {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS system_settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+      const existingMode = sqlite.prepare("SELECT value FROM system_settings WHERE key = 'operationMode'").get();
+      if (!existingMode) {
+        sqlite.prepare("INSERT INTO system_settings (key, value) VALUES ('operationMode', 'unified')").run();
+      }
+    } catch (_) {}
+
+    try {
+      sqlite.exec("UPDATE staff SET name = username WHERE (name IS NULL OR name = '') AND username IS NOT NULL;");
+      sqlite.exec("UPDATE staff SET email = username WHERE (email IS NULL OR email = '') AND username IS NOT NULL;");
+      sqlite.exec("UPDATE staff SET username = email WHERE (username IS NULL OR username = '') AND email IS NOT NULL;");
+      sqlite.exec("UPDATE staff SET createdAt = datetime('now') WHERE createdAt IS NULL;");
+      sqlite.exec("UPDATE staff SET updatedAt = datetime('now') WHERE updatedAt IS NULL;");
+      sqlite.exec("UPDATE staff SET isActive = 1 WHERE isActive IS NULL;");
+    } catch (_) {}
+
+    // Ensure standard default staff accounts exist with valid password hashes
+    const adminHash = hashPassword("admin123");
+    const defaultPassHash = hashPassword("1234");
+    const tableCols = (sqlite.prepare("PRAGMA table_info(staff)").all() as any[]).map((c) => c.name);
+    const hasUsername = tableCols.includes("username");
+
+    const insertDefaultStaff = (name: string, email: string, pass: string, hash: string, role: string, ip: string | null) => {
+      if (hasUsername) {
+        sqlite.prepare(`
+          INSERT INTO staff (name, email, username, password, passwordHash, role, allowedIp, isActive)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        `).run(name, email, email, pass, hash, role, ip);
+      } else {
+        sqlite.prepare(`
+          INSERT INTO staff (name, email, password, passwordHash, role, allowedIp, isActive)
+          VALUES (?, ?, ?, ?, ?, ?, 1)
+        `).run(name, email, pass, hash, role, ip);
+      }
+    };
+
+    const existingAdmin = sqlite.prepare("SELECT id FROM staff WHERE email = 'admin' OR (SELECT 1 FROM pragma_table_info('staff') WHERE name='username') AND username = 'admin'").get();
+    if (!existingAdmin) {
+      insertDefaultStaff("Master Admin", "admin", "admin123", adminHash, "admin", null);
+    } else {
+      sqlite.prepare("UPDATE staff SET name = 'Master Admin', email = 'admin', password = 'admin123', passwordHash = ?, role = 'admin', stationName = NULL, isActive = 1 WHERE email = 'admin'").run(adminHash);
+    }
+
+    const existingCashier = sqlite.prepare("SELECT id FROM staff WHERE email = 'cashier1'").get();
+    if (!existingCashier) {
+      insertDefaultStaff("Cashier Counter 1", "cashier1", "1234", defaultPassHash, "cashier", "127.0.0.1");
+      sqlite.prepare("UPDATE staff SET stationName = 'Counter 1' WHERE email = 'cashier1'").run();
+    } else {
+      sqlite.prepare("UPDATE staff SET name = 'Cashier Counter 1', email = 'cashier1', password = '1234', passwordHash = ?, role = 'cashier', stationName = COALESCE(stationName, 'Counter 1'), isActive = 1 WHERE email = 'cashier1'").run(defaultPassHash);
+    }
+
+    const existingKitchen = sqlite.prepare("SELECT id FROM staff WHERE email = 'kitchen1' OR email = 'kitchen'").get();
+    if (!existingKitchen) {
+      insertDefaultStaff("Kitchen Display", "kitchen1", "1234", defaultPassHash, "kitchen", "127.0.0.1");
+    } else {
+      sqlite.prepare("UPDATE staff SET name = 'Kitchen Display', email = 'kitchen1', password = '1234', passwordHash = ?, role = 'kitchen', isActive = 1 WHERE email = 'kitchen1' OR email = 'kitchen'").run(defaultPassHash);
+    }
+
+    const existingWaiter = sqlite.prepare("SELECT id FROM staff WHERE email = 'waiter1' OR email = 'waiter'").get();
+    if (!existingWaiter) {
+      insertDefaultStaff("Floor Waiter 1", "waiter1", "1234", defaultPassHash, "waiter", "127.0.0.1");
+    } else {
+      sqlite.prepare("UPDATE staff SET name = 'Floor Waiter 1', email = 'waiter1', password = '1234', passwordHash = ?, role = 'waiter', isActive = 1 WHERE email = 'waiter1' OR email = 'waiter'").run(defaultPassHash);
+    }
   }
 
-// Auth stubs (no real users in SQLite mode)
-export async function upsertUser(_user: InsertUser): Promise<void> {
-  // No-op in local SQLite mode
-}
-
-export async function getUserByOpenId(
-  _openId: string
-): Promise<User | undefined> {
-  return undefined;
-}

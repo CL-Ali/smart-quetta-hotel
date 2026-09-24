@@ -86,8 +86,8 @@ const T = {
     pos:               "POS Terminal",
     currentSale:       "Current Sale",
     clearSale:         "Clear",
-    dineInTables:      "🪑 Dine-in Tables",
-    marketShopkeepers: "🏪 Market Shopkeepers (Khata)",
+    dineInTables:      "Dine-in Tables",
+    marketShopkeepers: "Market Shopkeepers (Khata)",
     searchPlaceholder: "Search products...",
     customerNameLabel: "Customer / Account Name",
     enterCustomerName: "Customer name or table #...",
@@ -97,7 +97,7 @@ const T = {
     ownerNameLabel:    "Owner / Contact Name",
     shopNumberLabel:   "Shop #",
     phoneLabel:        "Phone Number",
-    saveAccount:       "Save Account ✓",
+    saveAccount:       "Save Account",
     confirmOrderTitle: "Confirm Order",
     selectedAccount:   "Selected Account / Customer",
     totalBill:         "Total Due",
@@ -250,8 +250,8 @@ const T = {
     pos:               "پوائنٹ آف سیل (POS)",
     currentSale:       "موجودہ سیل",
     clearSale:         "صاف کریں",
-    dineInTables:      "🪑 عام ٹیبلز (Dine-in)",
-    marketShopkeepers: "🏪 مارکیٹ دکاندار (کھاتہ)",
+    dineInTables:      "عام ٹیبلز (Dine-in)",
+    marketShopkeepers: "مارکیٹ دکاندار (کھاتہ)",
     searchPlaceholder: "اشیاء تلاش کریں...",
     customerNameLabel: "گاہک / اکاؤنٹ کا نام",
     enterCustomerName: "گاہک کا نام یا ٹیبل نمبر...",
@@ -261,7 +261,7 @@ const T = {
     ownerNameLabel:    "مالک / رابطہ کار کا نام",
     shopNumberLabel:   "دکان نمبر",
     phoneLabel:        "فون نمبر",
-    saveAccount:       "کھاتہ محفوظ کریں ✓",
+    saveAccount:       "کھاتہ محفوظ کریں",
     confirmOrderTitle: "آرڈر کی تصدیق",
     selectedAccount:   "منتخب اکاؤنٹ / گاہک",
     totalBill:         "کل رقم",
@@ -414,8 +414,8 @@ const T = {
     pos:               "د پلور ترمینل (POS)",
     currentSale:       "اوسنی پلور",
     clearSale:         "پاک کړئ",
-    dineInTables:      "🪑 د هوټل میزونه (Dine-in)",
-    marketShopkeepers: "🏪 د بازار دکانداران (خاطه)",
+    dineInTables:      "د هوټل میزونه (Dine-in)",
+    marketShopkeepers: "د بازار دکانداران (خاطه)",
     searchPlaceholder: "توکي وپلټئ...",
     customerNameLabel: "د پیرودونکي / حساب نوم",
     enterCustomerName: "د پیرودونکي نوم یا د میز نمبر داخل کړئ...",
@@ -425,7 +425,7 @@ const T = {
     ownerNameLabel:    "د مالک / اړیکې نوم",
     shopNumberLabel:   "د دوکان نمبر",
     phoneLabel:        "د ټلیفون شمیره",
-    saveAccount:       "حساب خوندي کړئ ✓",
+    saveAccount:       "حساب خوندي کړئ",
     confirmOrderTitle: "د آرډر تایید",
     selectedAccount:   "غوره شوی حساب / پیرودونکی",
     totalBill:         "ټول بل",
@@ -570,8 +570,8 @@ const T = {
     pos:               "پوائنٹ آف سیل (POS)",
     currentSale:       "ھنوگیں سودا",
     clearSale:         "پاک کنگ",
-    dineInTables:      "🪑 ھوٹل ءِ میز (Dine-in)",
-    marketShopkeepers: "🏪 بازار ءِ دکاندار (کھاتہ)",
+    dineInTables:      "ھوٹل ءِ میز (Dine-in)",
+    marketShopkeepers: "بازار ءِ دکاندار (کھاتہ)",
     searchPlaceholder: "چیزاں پٹ ات...",
     customerNameLabel: "کسٹمر / اڪاؤنٹ ءِ نام",
     enterCustomerName: "کسٹمر ءِ نام یا میز نمبر بنویس ات...",
@@ -726,8 +726,8 @@ const T = {
     pos:               "پوائنٹ آف سیل (POS)",
     currentSale:       "دا وخت نا سودا",
     clearSale:         "صاف کن",
-    dineInTables:      "🪑 ہوٹل نا میز (Dine-in)",
-    marketShopkeepers: "🏪 بازار نا دوکاندار (کھاتہ)",
+    dineInTables:      "ہوٹل نا میز (Dine-in)",
+    marketShopkeepers: "بازار نا دوکاندار (کھاتہ)",
     searchPlaceholder: "چیز آتے پٹبو...",
     customerNameLabel: "گاہک / کھاتہ نا پن",
     enterCustomerName: "گاہک نا پن یا میز نمبر نوشتہ کبو...",
@@ -737,7 +737,7 @@ const T = {
     ownerNameLabel:    "مالک نا پن",
     shopNumberLabel:   "دوکان نمبر",
     phoneLabel:        "فون نمبر",
-    saveAccount:       "کھاتہ محفوظ کن ✓",
+    saveAccount:       "کھاتہ محفوظ کن",
     confirmOrderTitle: "آرڈر نا تصدیق",
     selectedAccount:   "گچین مروک کھاتہ",
     totalBill:         "کل بل",
@@ -882,8 +882,8 @@ const T = {
     pos:               "ترمینال فروش (POS)",
     currentSale:       "فروش فعلی",
     clearSale:         "پاک کردن",
-    dineInTables:      "🪑 میزهای سالن (Dine-in)",
-    marketShopkeepers: "🏪 کسبه و دکانداران بازار (حساب دفتری)",
+    dineInTables:      "میزهای سالن (Dine-in)",
+    marketShopkeepers: "کسبه و دکانداران بازار (حساب دفتری)",
     searchPlaceholder: "جستجوی اقلام...",
     customerNameLabel: "نام مشتری / حساب",
     enterCustomerName: "نام مشتری یا شماره میز را وارد کنید...",
@@ -893,7 +893,7 @@ const T = {
     ownerNameLabel:    "نام مالک / مسئول",
     shopNumberLabel:   "شماره دکان / پلاک",
     phoneLabel:        "شماره تماس",
-    saveAccount:       "ثبت حساب ✓",
+    saveAccount:       "ثبت حساب",
     confirmOrderTitle: "تایید سفارش",
     selectedAccount:   "حساب / مشتری انتخاب شده",
     totalBill:         "مبلغ کل قابل پرداخت",
@@ -1038,8 +1038,8 @@ const T = {
     pos:               "پی او ایس (POS)",
     currentSale:       "موجودہ سیل",
     clearSale:         "صاف کرو",
-    dineInTables:      "🪑 ڈائن اِن ٹیبلز (Dine-in)",
-    marketShopkeepers: "🏪 مارکیٹ دکاندار (کھاتہ)",
+    dineInTables:      "ڈائن اِن ٹیبلز (Dine-in)",
+    marketShopkeepers: "مارکیٹ دکاندار (کھاتہ)",
     searchPlaceholder: "چیزاں تلاش کرو...",
     customerNameLabel: "گاہک / کھاتے دا ناں",
     enterCustomerName: "گاہک دا ناں یا ٹیبل نمبر لکھو...",
@@ -1049,7 +1049,7 @@ const T = {
     ownerNameLabel:    "مالک دا ناں",
     shopNumberLabel:   "دکان نمبر",
     phoneLabel:        "فون نمبر",
-    saveAccount:       "کھاتہ سانبھو ✓",
+    saveAccount:       "کھاتہ سانبھو",
     confirmOrderTitle: "آرڈر دی تصدیق",
     selectedAccount:   "چُنیا گیا اکاؤنٹ",
     totalBill:         "کل بل",
@@ -1194,8 +1194,8 @@ const T = {
     pos:               "پوائنٽ آف سيل (POS)",
     currentSale:       "هاڻوڪي وڪرو",
     clearSale:         "صاف ڪريو",
-    dineInTables:      "🪑 ڊائن اِن ٽيبلز (Dine-in)",
-    marketShopkeepers: "🏪 مارڪيٽ دڪاندار (کاتو)",
+    dineInTables:      "ڊائن اِن ٽيبلز (Dine-in)",
+    marketShopkeepers: "مارڪيٽ دڪاندار (کاتو)",
     searchPlaceholder: "شيون ڳوليو...",
     customerNameLabel: "گراهڪ / کاتي جو نالو",
     enterCustomerName: "گراهڪ جو نالو يا ٽيبل نمبر لکو...",
@@ -1205,7 +1205,7 @@ const T = {
     ownerNameLabel:    "مالڪ جو نالو",
     shopNumberLabel:   "دڪان نمبر",
     phoneLabel:        "فون نمبر",
-    saveAccount:       "کاتو محفوظ ڪريو ✓",
+    saveAccount:       "کاتو محفوظ ڪريو",
     confirmOrderTitle: "آرڊر جي تصديق",
     selectedAccount:   "چونڊيل کاتو / گراهڪ",
     totalBill:         "ڪل رقم",
@@ -1307,7 +1307,18 @@ export function LangProvider({ children }: { children: ReactNode }) {
   const setLang = (l: Lang) => {
     setLangState(l);
     setLangSelectedState(true);
-    localStorage.setItem("qh_lang", l);
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("qh_lang", l);
+      }
+    } catch {
+      // ignore storage quota issues
+    }
+    const isRtl = l !== "en";
+    if (typeof document !== "undefined") {
+      document.documentElement.dir = isRtl ? "rtl" : "ltr";
+      document.documentElement.lang = l;
+    }
   };
 
   useEffect(() => {
@@ -1329,13 +1340,22 @@ export function useLang() {
   return useContext(LangContext);
 }
 
-export const LANG_OPTIONS: { value: Lang; label: string; flag: string }[] = [
-  { value: "en",  label: "English",   flag: "🇬🇧" },
-  { value: "ur",  label: "اردو",      flag: "🇵🇰" },
-  { value: "ps",  label: "پښتو",      flag: "🏔️" },
-  { value: "bal", label: "بلوچی",     flag: "🌴" },
-  { value: "brh", label: "براہوئی",   flag: "🏺" },
-  { value: "fa",  label: "فارسی",     flag: "🕌" },
-  { value: "pa",  label: "پنجابی",    flag: "🌾" },
-  { value: "sd",  label: "سنڌي",      flag: "🌊" },
+export interface LangOption {
+  value: Lang;
+  label: string;
+  nativeName: string;
+  englishName: string;
+  dir: "ltr" | "rtl";
+  shortCode: string;
+}
+
+export const LANG_OPTIONS: LangOption[] = [
+  { value: "ur",  label: "اردو",     nativeName: "اردو",     englishName: "Urdu",    dir: "rtl", shortCode: "UR" },
+  { value: "en",  label: "English",  nativeName: "English",  englishName: "English", dir: "ltr", shortCode: "EN" },
+  { value: "ps",  label: "پښتو",     nativeName: "پښتو",     englishName: "Pashto",  dir: "rtl", shortCode: "PS" },
+  { value: "bal", label: "بلوچی",    nativeName: "بلوچی",    englishName: "Balochi", dir: "rtl", shortCode: "BAL" },
+  { value: "brh", label: "براہوئی",  nativeName: "براہوئی",  englishName: "Brahui",  dir: "rtl", shortCode: "BRH" },
+  { value: "sd",  label: "سنڌي",     nativeName: "سنڌي",     englishName: "Sindhi",  dir: "rtl", shortCode: "SD" },
+  { value: "pa",  label: "پنجابی",   nativeName: "پنجابی",   englishName: "Punjabi", dir: "rtl", shortCode: "PA" },
+  { value: "fa",  label: "فارسی",    nativeName: "فارسی",    englishName: "Farsi",   dir: "rtl", shortCode: "FA" },
 ];

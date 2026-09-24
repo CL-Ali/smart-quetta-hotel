@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, desc } from "drizzle-orm";
 import { publicProcedure, dashboardProcedure, router } from "../lib/trpc";
 import { getDb } from "../db";
-import { guests, orders, visits } from "../db/schema";
+import { guests, orders, visits, systemSettings, staff } from "../db/schema";
 import {
   createDomainEvent,
   createGuestUuid,
@@ -125,11 +125,69 @@ export const guestRouter = router({
 
   /**
    * Guest directory for Dashboard CRM tab.
-   * Protected by dashboardProcedure — requires X-Dashboard-Pin header.
-   * TODO Phase 6: replace with protectedProcedure (per-staff OAuth).
+   * Supports Counter-Segregation pod filtering when enabled.
    */
-  getGuests: dashboardProcedure.query(async () => {
+  getGuests: dashboardProcedure.query(async ({ ctx }) => {
     const db = getDb();
+
+    // Check operation mode
+    const modeRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "operationMode"))
+      .all()[0];
+    const operationMode = modeRow?.value || "unified";
+
+    let allOrders = db
+      .select({
+        id: orders.id,
+        visitId: orders.visitId,
+        customerId: orders.customerId,
+        customerName: orders.customerName,
+        counterName: orders.counterName,
+        cashierId: orders.cashierId,
+        totalAmount: orders.totalAmount,
+        total: orders.total,
+        paymentStatus: orders.paymentStatus,
+      })
+      .from(orders)
+      .all();
+
+    if (operationMode === "segregated") {
+      if (ctx.staff?.role === "cashier") {
+        const station = (ctx.staff.stationName || (ctx.staff.name?.toLowerCase().includes("counter") ? ctx.staff.name : "")).trim().toLowerCase();
+        const cashierId = ctx.staff.staffId;
+        allOrders = allOrders.filter((o) => {
+          const rawCounter = (o.counterName === "Main Cashier Counter" ? "Counter 1" : o.counterName || "Counter 1").trim().toLowerCase();
+          if (station && (rawCounter === station || station.includes(rawCounter) || rawCounter.includes(station))) return true;
+          if (cashierId && o.cashierId === cashierId) return true;
+          return false;
+        });
+      } else if (ctx.staff?.role === "waiter") {
+        if (ctx.staff.assignedCashierId) {
+          const assignedCashier = db
+            .select()
+            .from(staff)
+            .where(eq(staff.id, ctx.staff.assignedCashierId))
+            .all()[0];
+
+          allOrders = allOrders.filter((o) => {
+            if (o.cashierId === ctx.staff?.assignedCashierId) return true;
+            const rawCounter = (o.counterName === "Main Cashier Counter" ? "Counter 1" : o.counterName || "Counter 1").trim().toLowerCase();
+            const cashierStation = (assignedCashier?.stationName || assignedCashier?.name || "Counter 1").trim().toLowerCase();
+            if (rawCounter === cashierStation || cashierStation.includes(rawCounter) || rawCounter.includes(cashierStation)) return true;
+            return false;
+          });
+        }
+      }
+    }
+
+    const segregatedVisitIds = new Set(
+      allOrders.filter((o) => o.visitId !== null).map((o) => o.visitId as number)
+    );
+    const segregatedCustomerNames = new Set(
+      allOrders.filter((o) => Boolean(o.customerName?.trim())).map((o) => o.customerName!.trim().toLowerCase())
+    );
 
     const allGuests = db
       .select()
@@ -139,8 +197,6 @@ export const guestRouter = router({
 
     if (allGuests.length === 0) return [];
 
-    const guestIds = allGuests.map(g => g.id);
-
     const allVisits = db
       .select({
         id: visits.id,
@@ -148,33 +204,30 @@ export const guestRouter = router({
         createdAt: visits.createdAt,
       })
       .from(visits)
-      .all()
-      .filter(v => guestIds.includes(v.guestId));
+      .all();
 
-    const visitIds = allVisits.map(v => v.id);
+    let filteredGuests = allGuests;
+    if (operationMode === "segregated" && ctx.staff?.role === "cashier") {
+      filteredGuests = allGuests.filter((g) => {
+        const guestVisits = allVisits.filter((v) => v.guestId === g.id);
+        const hasMatchingVisit = guestVisits.some((v) => segregatedVisitIds.has(v.id));
+        if (hasMatchingVisit) return true;
+        if (segregatedCustomerNames.has((g.name || "").trim().toLowerCase())) return true;
+        return false;
+      });
+    }
 
-    const allOrders = visitIds.length > 0
-      ? db
-          .select({
-            visitId: orders.visitId,
-            totalAmount: orders.totalAmount,
-            paymentStatus: orders.paymentStatus,
-          })
-          .from(orders)
-          .all()
-          .filter(o => o.visitId !== null && visitIds.includes(o.visitId!))
-      : [];
-
-    return allGuests
+    return filteredGuests
       .map(guest => {
-        const guestVisits  = allVisits.filter(v => v.guestId === guest.id);
-        const guestVisitIds = guestVisits.map(v => v.id);
-        const guestOrders  = allOrders.filter(
-          o => o.visitId !== null && guestVisitIds.includes(o.visitId!)
+        const guestVisits = allVisits.filter(v => v.guestId === guest.id);
+        const guestVisitIds = new Set(guestVisits.map(v => v.id));
+        const guestOrders = allOrders.filter(
+          o => (o.visitId !== null && guestVisitIds.has(o.visitId!)) ||
+               (o.customerName && o.customerName.trim().toLowerCase() === (guest.name || "").trim().toLowerCase())
         );
 
         const totalSpend = guestOrders.reduce(
-          (sum, o) => sum + (o.totalAmount ?? 0),
+          (sum, o) => sum + (Number(o.totalAmount || o.total) || 0),
           0
         );
 

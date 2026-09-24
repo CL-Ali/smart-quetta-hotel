@@ -11,6 +11,7 @@ import {
   Banknote,
   Ban,
   Wallet,
+  Store,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { fmtTime } from "@/lib/time";
@@ -190,8 +191,13 @@ export function OrdersTab({
                   <p className="font-bold text-base text-gray-900">{order.customerName}</p>
                   {(order.seatingNo || (order as any).tableNo) && (
                     <span className="text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-md flex items-center gap-1">
-                      <span>{order.peopleCount === 1 ? "🪑" : "🍽️"}</span>
                       <span>{order.seatingNo ? `${order.seatingType === "seat" ? "Seat" : "Table"} ${order.seatingNo}` : (order as any).tableNo}</span>
+                    </span>
+                  )}
+                  {order.counterName && (
+                    <span className="text-[10px] font-extrabold bg-stone-100 text-stone-700 border border-stone-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <Store className="w-3 h-3 text-amber-600" />
+                      <span>{order.counterName}</span>
                     </span>
                   )}
                 </div>

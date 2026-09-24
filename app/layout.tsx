@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
-import { StaffNavBar } from "./StaffNavBar";
 
 export const metadata: Metadata = {
   title: "Smart Quetta Hotel",
@@ -38,7 +37,6 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground" suppressHydrationWarning>
         <Providers>
-          <StaffNavBar />
           <main className="min-h-screen">{children}</main>
         </Providers>
       </body>

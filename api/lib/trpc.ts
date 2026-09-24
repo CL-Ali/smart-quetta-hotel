@@ -2,7 +2,7 @@ import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from "@shared/const";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
-import { ENV } from "./env";
+
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
 });
@@ -10,51 +10,87 @@ const t = initTRPC.context<TrpcContext>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
-const requireUser = t.middleware(async opts => {
-  const { ctx, next } = opts;
-
-  if (!ctx.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
-  }
-
-  return next({ ctx: { ...ctx, user: ctx.user } });
-});
-
-export const protectedProcedure = t.procedure.use(requireUser);
-
-export const adminProcedure = t.procedure.use(
-  t.middleware(async opts => {
+// Requires any logged in staff member
+export const staffProcedure = t.procedure.use(
+  t.middleware(async (opts) => {
     const { ctx, next } = opts;
 
-    if (!ctx.user || ctx.user.role !== "admin") {
-      throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
+    if (ctx.staff) {
+      return next({ ctx: { ...ctx, staff: ctx.staff } });
     }
 
-    return next({ ctx: { ...ctx, user: ctx.user } });
-  }),
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Staff authentication required. Please login.",
+    });
+  })
 );
 
-/**
- * Interim dashboard procedure — checks X-Dashboard-Pin header against
- * DASHBOARD_PIN env var (raw string comparison).
- *
- * Frontend stores a base64-encoded PIN in localStorage (not plaintext),
- * decodes it before sending in the header, so the wire value is the raw PIN.
- *
- * Phase 6: replace with protectedProcedure + per-staff OAuth tokens.
- */
-export const dashboardProcedure = t.procedure.use(
-  t.middleware(async opts => {
+// Admin-only procedure (Master Accounts, Staff Management, Financials)
+export const adminProcedure = t.procedure.use(
+  t.middleware(async (opts) => {
     const { ctx, next } = opts;
-    const incoming = (ctx.req.headers["x-dashboard-pin"] as string | undefined)?.trim() ?? "";
 
-    if (!incoming || incoming !== ENV.dashboardPin) {
-      throw new TRPCError({
-        code: "UNAUTHORIZED",
-        message: "Dashboard PIN required",
-      });
+    if (ctx.staff && ctx.staff.role === "admin") {
+      return next({ ctx: { ...ctx, staff: ctx.staff } });
     }
 
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Admin permission required (10002).",
+    });
+  })
+);
+
+// Cashier procedure: Accessible by Admin and Cashier
+export const cashierProcedure = t.procedure.use(
+  t.middleware(async (opts) => {
+    const { ctx, next } = opts;
+
+    if (ctx.staff && (ctx.staff.role === "admin" || ctx.staff.role === "cashier")) {
+      return next({ ctx: { ...ctx, staff: ctx.staff } });
+    }
+
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Cashier or Admin access required.",
+    });
+  })
+);
+
+// Kitchen procedure: Accessible by Admin, Cashier, and Kitchen
+export const kitchenProcedure = t.procedure.use(
+  t.middleware(async (opts) => {
+    const { ctx, next } = opts;
+
+    if (
+      ctx.staff &&
+      (ctx.staff.role === "admin" ||
+        ctx.staff.role === "cashier" ||
+        ctx.staff.role === "kitchen")
+    ) {
+      return next({ ctx: { ...ctx, staff: ctx.staff } });
+    }
+
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Kitchen access required.",
+    });
+  })
+);
+
+// Waiter procedure: Accessible by Admin, Cashier, Kitchen, and Waiter (All Staff)
+export const waiterProcedure = staffProcedure;
+
+// Dashboard procedure: Accessible by Cashier and Admin
+export const dashboardProcedure = cashierProcedure;
+
+export const protectedProcedure = t.procedure.use(
+  t.middleware(async (opts) => {
+    const { ctx, next } = opts;
+    if (!ctx.staff) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    }
     return next({ ctx });
-  }),
+  })
 );

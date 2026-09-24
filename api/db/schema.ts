@@ -42,10 +42,19 @@ export const staff = sqliteTable("staff", {
   id: int("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   email: text("email").notNull(),
+  username: text("username"),
+  password: text("password"),
   passwordHash: text("passwordHash").notNull(),
-  role: text("role").notNull(),
+  role: text("role").notNull(), // 'admin' | 'cashier' | 'waiter' | 'kitchen'
+  stationName: text("stationName"), // e.g. "Counter 1", "Counter 2", "Takeaway Desk", "Floor Section"
+  assignedCashierId: int("assignedCashierId"), // For waiters assigned to a specific cashier/counter
+  permissions: text("permissions"), // JSON string of granted permission codes
+  allowedIp: text("allowedIp"),
+  currentIp: text("currentIp"),
   isActive: int("isActive", { mode: "boolean" }).default(true).notNull(),
   lastLoginAt: text("lastLoginAt"),
+  createdAt: text("createdAt").default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text("updatedAt").default(sql`(datetime('now'))`).notNull(),
 });
 
 export type Staff = typeof staff.$inferSelect;
@@ -171,6 +180,7 @@ export const seatingAreas = sqliteTable("seating_areas", {
   name: text("name").notNull(),
   type: text("type"),
   qrCodeIdentifier: text("qrCodeIdentifier").unique(),
+  capacity: int("capacity").default(4),
   createdAt: text("createdAt")
     .default(sql`(datetime('now'))`)
     .notNull(),
@@ -229,6 +239,9 @@ export const orders = sqliteTable("orders", {
   seatingType: text("seatingType").default("seat"),
   visitId: int("visitId").references(() => visits.id),
   orderNo: text("orderNo"),
+  cashierId: int("cashierId").references(() => staff.id),
+  cashierName: text("cashierName"),
+  counterName: text("counterName"), // e.g. "Counter 1", "Counter 2", "Takeaway Desk"
   subtotal: real("subtotal").default(0),
   discount: real("discount").default(0),
   total: real("total").default(0),
@@ -250,6 +263,20 @@ export const orders = sqliteTable("orders", {
 
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = typeof orders.$inferInsert;
+
+/**
+ * System / Hotel Settings
+ */
+export const systemSettings = sqliteTable("system_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: text("updatedAt")
+    .default(sql`(datetime('now'))`)
+    .notNull(),
+});
+
+export type SystemSetting = typeof systemSettings.$inferSelect;
+export type InsertSystemSetting = typeof systemSettings.$inferInsert;
 
 /**
  * Order Items

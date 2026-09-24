@@ -44,7 +44,7 @@ interface PosTerminalTabProps {
   onOrderCreated: (order: any) => void;
 }
 
-const COMMON_TABLES = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "Takeaway 🛍️"];
+const COMMON_TABLES = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "Takeaway"];
 
 export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
   const { t, lang } = useLang();
@@ -59,6 +59,12 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [isPlacing, setIsPlacing] = useState(false);
 
+  // Seating & Area Selection State
+  const [selectedArea, setSelectedArea] = useState<string>("all");
+  const [selectedSeatingType, setSelectedSeatingType] = useState<"table" | "seat" | "takeaway">("table");
+  const [selectedSeatingAreaId, setSelectedSeatingAreaId] = useState<number | null>(null);
+  const [peopleCount, setPeopleCount] = useState<number>(4);
+
   // Modals state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showAddShopModal, setShowAddShopModal] = useState(false);
@@ -71,6 +77,8 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
   // Queries
   const { data: menu = [], isLoading: menuLoading } =
     trpc.hotel.getMenu.useQuery();
+  const { data: seatingTables = [] } =
+    trpc.hotel.getSeatingTables.useQuery(undefined, { refetchInterval: 6000 });
   const { data: shopkeepersList = [], refetch: refetchShopkeepers } =
     trpc.hotel.getShopkeepers.useQuery();
   const createShopkeeperMutation = trpc.hotel.createShopkeeper.useMutation();
@@ -91,7 +99,7 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
         shopNumber: newShopNumber.trim() || undefined,
         phone: newPhone.trim() || undefined,
       });
-      toast.success(`دکاندار "${created.shopName}" شامل کر دیا گیا ✓`);
+      toast.success(`دکاندار "${created.shopName}" شامل کر دیا گیا`);
       await refetchShopkeepers();
       setCustomerName(`${created.shopName}${created.shopNumber ? ` (${created.shopNumber})` : ""}`);
       if (created.phone) setCustomerPhone(created.phone);
@@ -217,6 +225,10 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
       const result = await placeOrder.mutateAsync({
         customerName: cName,
         customerId: customer.id,
+        seatingAreaId: selectedSeatingAreaId || undefined,
+        seatingNo: cName,
+        peopleCount: peopleCount,
+        seatingType: selectedSeatingType,
         items: cart.map((i) => ({
           menuItemId: i.id,
           quantity: i.quantity,
@@ -225,7 +237,7 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
       });
 
       playOrderSuccessSound();
-      toast.success(`Order #${result.orderId} placed for "${cName}" ✓`);
+      toast.success(`Order #${result.orderId} placed for "${cName}"`);
 
       setShowConfirmModal(false);
       clearCart();
@@ -278,21 +290,7 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  <span>
-                    {cat === "all"
-                      ? "🌟 " + (t.all || "All")
-                      : cat.toLowerCase().includes("chai") || cat.toLowerCase().includes("tea")
-                      ? "☕ " + cat
-                      : cat.toLowerCase().includes("paratha") || cat.toLowerCase().includes("roti")
-                      ? "🫓 " + cat
-                      : cat.toLowerCase().includes("nashta") || cat.toLowerCase().includes("breakfast")
-                      ? "🍳 " + cat
-                      : cat.toLowerCase().includes("karahi") || cat.toLowerCase().includes("chicken")
-                      ? "🍗 " + cat
-                      : cat.toLowerCase().includes("drink") || cat.toLowerCase().includes("lassi")
-                      ? "🥤 " + cat
-                      : "🍽️ " + cat}
-                  </span>
+                  <span>{cat === "all" ? (t.all || "All") : cat}</span>
                 </button>
               );
             })}
@@ -342,8 +340,8 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-blue-50 text-blue-500 font-bold text-lg">
-                            ☕
+                          <div className="w-full h-full flex items-center justify-center bg-blue-50 text-blue-500 font-bold text-xs">
+                            Food
                           </div>
                         )}
                         {isSelected && (
@@ -500,7 +498,7 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
                 accountType === "tables" ? "bg-white text-gray-900 shadow-2xs" : "text-gray-600"
               }`}
             >
-              {t.dineInTables || "🪑 Dine-in Tables"}
+              {t.dineInTables || "Dine-in Tables"}
             </button>
             <button
               type="button"
@@ -509,68 +507,189 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
                 accountType === "shopkeepers" ? "bg-white text-blue-800 shadow-2xs" : "text-gray-600"
               }`}
             >
-              {t.marketShopkeepers || "🏪 Market Shopkeepers (Khata)"}
+              {t.marketShopkeepers || "Market Shopkeepers (Khata)"}
             </button>
           </div>
 
-          {/* If Tables Mode: Quick Table Chips + Walk-in Button + Custom Name & Phone */}
+          {/* If Tables Mode: Seating Area Filters + Table/Chair Suggestions & Capacity */}
           {accountType === "tables" && (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
+              {/* Area Tabs */}
               <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
+                {[
+                  { id: "all", label: "All Areas (تمام)", icon: "🏛️" },
+                  { id: "indoor", label: "Main Hall (اندرونی)", icon: "🏢" },
+                  { id: "family", label: "Family (فیملی)", icon: "👨‍👩‍👧" },
+                  { id: "rooftop", label: "Rooftop (چھت)", icon: "🌿" },
+                  { id: "takeaway", label: "Takeaway (پارسل)", icon: "📦" },
+                ].map((area) => {
+                  const isSelected = selectedArea === area.id;
+                  return (
+                    <button
+                      key={area.id}
+                      type="button"
+                      onClick={() => {
+                        playTapSound();
+                        setSelectedArea(area.id);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 transition flex items-center gap-1 cursor-pointer ${
+                        isSelected
+                          ? "bg-stone-900 text-white shadow-2xs"
+                          : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-100"
+                      }`}
+                    >
+                      <span>{area.icon}</span>
+                      <span>{area.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Seating Type Switcher & Chair Count Quick Selector */}
+              <div className="flex items-center justify-between gap-1.5 bg-stone-100/80 p-1 rounded-xl">
+                <div className="flex items-center gap-1">
+                  {(["table", "seat", "takeaway"] as const).map((sType) => (
+                    <button
+                      key={sType}
+                      type="button"
+                      onClick={() => {
+                        playTapSound();
+                        setSelectedSeatingType(sType);
+                        if (sType === "takeaway") {
+                          setCustomerName("Takeaway / Parcel");
+                          setPeopleCount(1);
+                        }
+                      }}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-black capitalize transition cursor-pointer ${
+                        selectedSeatingType === sType
+                          ? "bg-amber-500 text-stone-950 font-black shadow-2xs"
+                          : "text-stone-600 hover:text-stone-900"
+                      }`}
+                    >
+                      {sType === "table" ? "Table (ٹیبل)" : sType === "seat" ? "Seat (کرسی)" : "Parcel (پارسل)"}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Chairs / People Count */}
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-stone-500 font-bold">Chairs:</span>
+                  {[1, 2, 4, 6, 8].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => {
+                        playTapSound();
+                        setPeopleCount(num);
+                        if (num === 1) setSelectedSeatingType("seat");
+                        else setSelectedSeatingType("table");
+                      }}
+                      className={`w-5 h-5 rounded-md text-[10px] font-bold flex items-center justify-center transition cursor-pointer ${
+                        peopleCount === num
+                          ? "bg-stone-900 text-white font-black"
+                          : "bg-white border border-stone-200 text-stone-700 hover:bg-stone-50"
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Live Interactive Table / Chair Chips with Live Occupancy & Capacity */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
                 <button
                   type="button"
                   onClick={() => {
                     playTapSound();
                     setCustomerName(t.walkInCustomer || "Walk-in Guest");
+                    setSelectedSeatingAreaId(null);
                   }}
-                  className={`px-2 py-0.5 rounded-lg text-[11px] font-black shrink-0 transition cursor-pointer flex items-center gap-1 ${
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-black shrink-0 transition cursor-pointer flex items-center gap-1 border ${
                     customerName === (t.walkInCustomer || "Walk-in Guest")
-                      ? "bg-blue-600 text-white shadow-2xs"
-                      : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
+                      ? "bg-amber-500 text-stone-950 border-amber-600 shadow-2xs"
+                      : "bg-white border-stone-200 text-stone-700 hover:bg-stone-100"
                   }`}
                 >
-                  <span>👤</span>
+                  <User className="w-3 h-3" />
                   <span>{t.walkInCustomer || "Walk-in"}</span>
                 </button>
-                {COMMON_TABLES.map((tName) => (
-                  <button
-                    key={tName}
-                    type="button"
-                    onClick={() => {
-                      playTapSound();
-                      setCustomerName(tName);
-                    }}
-                    className={`px-2 py-0.5 rounded-lg text-[11px] font-extrabold shrink-0 transition cursor-pointer ${
-                      customerName === tName
-                        ? "bg-blue-600 text-white shadow-2xs"
-                        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    {tName}
-                  </button>
-                ))}
+
+                {(selectedArea === "all"
+                  ? seatingTables
+                  : seatingTables.filter(
+                      (t) => (t.type || "indoor").toLowerCase() === selectedArea.toLowerCase()
+                    )
+                ).map((table) => {
+                  const isSelected =
+                    customerName === table.name || selectedSeatingAreaId === table.id;
+                  return (
+                    <button
+                      key={table.id}
+                      type="button"
+                      onClick={() => {
+                        playTapSound();
+                        setCustomerName(table.name);
+                        setSelectedSeatingAreaId(table.id);
+                        setPeopleCount(table.capacity || 4);
+                        if (table.type === "takeaway") {
+                          setSelectedSeatingType("takeaway");
+                        } else {
+                          setSelectedSeatingType(table.capacity === 1 ? "seat" : "table");
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-extrabold shrink-0 transition flex items-center gap-1.5 cursor-pointer border ${
+                        isSelected
+                          ? "bg-amber-500 text-stone-950 border-amber-600 shadow-2xs font-black"
+                          : table.isOccupied
+                          ? "bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100"
+                          : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50"
+                      }`}
+                      title={
+                        table.isOccupied
+                          ? `Occupied: ${table.activeOrder?.customerName} (Rs. ${table.activeOrder?.totalAmount})`
+                          : `Available (${table.capacity || 4} Chairs)`
+                      }
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          table.isOccupied ? "bg-amber-600 animate-pulse" : "bg-emerald-500"
+                        }`}
+                      />
+                      <span>{table.name}</span>
+                      <span className="text-[10px] opacity-80 font-mono">
+                        ({table.capacity || 4}🪑)
+                      </span>
+                      {table.isOccupied && (
+                        <span className="text-[9px] bg-amber-200/80 text-amber-900 px-1 py-0.2 rounded font-bold">
+                          Busy
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Dual Input: Name & Phone Number (Just like captive portal) */}
+              {/* Dual Input: Name & Phone Number */}
               <div className="grid grid-cols-2 gap-1.5">
                 <div className="relative">
-                  <User className="w-3.5 h-3.5 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                  <User className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder={t.enterCustomerName || "Name / Table"}
-                    className="w-full pl-7 pr-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full pl-8 pr-2 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:border-amber-500"
                   />
                 </div>
                 <div className="relative">
-                  <Phone className="w-3.5 h-3.5 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                  <Phone className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="tel"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
                     placeholder={t.phoneLabel || "Phone #"}
-                    className="w-full pl-7 pr-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full pl-8 pr-2 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
@@ -807,7 +926,7 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-black text-blue-950 flex items-center gap-1 mb-1">
-                    <span>👤</span>
+                    <User className="w-3 h-3" />
                     <span>{t.customerNameLabel || "Customer / Table"}</span>
                   </label>
                   <input
@@ -820,7 +939,7 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-blue-950 flex items-center gap-1 mb-1">
-                    <span>📱</span>
+                    <Phone className="w-3 h-3" />
                     <span>{t.phoneLabel || "Phone #"}</span>
                   </label>
                   <input
@@ -999,7 +1118,7 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
                   disabled={createShopkeeperMutation.isPending}
                   className="flex-2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer disabled:opacity-50"
                 >
-                  {createShopkeeperMutation.isPending ? (t.sendingToKitchen || "Saving...") : (t.saveAccount || "Save Account ✓")}
+                  {createShopkeeperMutation.isPending ? (t.sendingToKitchen || "Saving...") : (t.saveAccount || "Save Account")}
                 </button>
               </div>
             </form>

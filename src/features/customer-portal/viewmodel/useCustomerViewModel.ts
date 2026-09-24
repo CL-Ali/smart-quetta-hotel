@@ -81,7 +81,7 @@ export type CustomerPortalStep = "lang" | "name" | "seating" | "menu";
  * Orchestrates CustomerService, local UI state, party size / seating, cart calculations, and socket events.
  */
 export function useCustomerViewModel() {
-  const { t, langSelected } = useLang();
+  const { t, lang, langSelected } = useLang();
   const [confirmPlace, setConfirmPlace] = useState(false);
 
   // Session state from storage
@@ -327,7 +327,7 @@ export function useCustomerViewModel() {
 
       setVisitId(newVId);
       setTicketNo(ticket);
-      toast.success(`${formattedSeatingLabel} ✓`);
+      toast.success(formattedSeatingLabel);
       setStep("menu");
     } catch {
       toast.error("Failed to confirm seating");
@@ -409,7 +409,7 @@ export function useCustomerViewModel() {
       setLastOrderTotal(placedTotal);
       setShowSuccessModal(true);
       setConfirmPlace(false);
-      toast.success(`${t.orderPlaced} (${orderTicket}) 🎉`);
+      toast.success(`${t.orderPlaced} (${orderTicket})`);
       setCart([]);
       service.refetchOrders();
     } catch {
@@ -445,7 +445,7 @@ export function useCustomerViewModel() {
     return Array.from(tickets).sort((a, b) => {
       const numA = parseInt(a.replace(/\D/g, "") || "0", 10);
       const numB = parseInt(b.replace(/\D/g, "") || "0", 10);
-      if (numA && numB) return numA - numB;
+      return numA - numB;
     });
   }, [service.myOrders, ticketNo]);
 

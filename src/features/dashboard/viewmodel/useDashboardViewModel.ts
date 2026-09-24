@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useSocket } from "@/hooks/useSocket";
-import { getDashboardPin } from "@/lib/dashboardAuth";
 import { useDashboardService } from "../services/dashboardService";
 
 export type DashboardTab = "pos" | "orders" | "stock" | "guests" | "products" | "department";
 
 /**
- * ViewModel for Cashier & Admin Dashboard (MVVM)
+ * ViewModel for Cashier & POS Terminal Dashboard (MVVM)
  * Orchestrates DashboardService, realtime socket sync, and UI states.
  */
 export function useDashboardViewModel() {
@@ -18,18 +17,8 @@ export function useDashboardViewModel() {
   const [cancelOrderId, setCancelOrderId] = useState<number | null>(null);
   const [showNewOrder, setShowNewOrder] = useState(false);
 
-  // PIN Lock Security
-  const [pinUnlocked, setPinUnlocked] = useState(() => !!getDashboardPin());
-  const pinErrorRef = useRef<((msg: string) => void) | null>(null);
-
   // ── Service Layer Hook ───────────────────────────────────────────────────
-  const service = useDashboardService({
-    pinUnlocked,
-    onAuthError: () => {
-      setPinUnlocked(false);
-      pinErrorRef.current?.("Incorrect PIN — try again");
-    },
-  });
+  const service = useDashboardService();
 
   // Realtime Socket Sync
   const socket = useSocket();
@@ -84,16 +73,11 @@ export function useDashboardViewModel() {
         inUse: values.inUse,
         broken: values.broken,
       });
-      toast.success("Stock updated ✓");
+      toast.success("Stock updated");
       service.refetchStock();
     } catch {
       toast.error("Failed to update stock");
     }
-  };
-
-  const handleUnlockPin = (onErr: (msg: string) => void) => {
-    pinErrorRef.current = onErr;
-    setPinUnlocked(true);
   };
 
   return {
@@ -102,7 +86,6 @@ export function useDashboardViewModel() {
     payOrder,
     cancelOrderId,
     showNewOrder,
-    pinUnlocked,
     ordersLoading: service.ordersLoading,
     orders: service.orders ?? [],
     stockData: service.stockData ?? [],
@@ -120,7 +103,6 @@ export function useDashboardViewModel() {
     setPayOrder,
     setCancelOrderId,
     setShowNewOrder,
-    handleUnlockPin,
     handleConfirmCancel,
     handleSaveStock,
     refetchOrders: service.refetchOrders,

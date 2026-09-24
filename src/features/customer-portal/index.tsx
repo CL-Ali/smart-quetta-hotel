@@ -28,7 +28,7 @@ import { OrdersOverviewBanner } from "./components/OrdersOverviewBanner";
  * Minimalist, ultra-clean POS & customer ordering experience
  */
 export function CustomerPortalView() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const vm = useCustomerViewModel();
 
   const [historyFilter, setHistoryFilter] = useState<string>("active");
@@ -70,7 +70,7 @@ export function CustomerPortalView() {
     if (historyFilter.startsWith("ticket:")) {
       const tkt = historyFilter.replace("ticket:", "").trim().toUpperCase();
       return vm.myOrders.filter((o) => {
-        const orderTkt = (o.ticketNo || o.orderNo || `TKT-${o.id}`).trim().toUpperCase();
+        const orderTkt = ((o as any).ticketNo || o.orderNo || `TKT-${o.id}`).trim().toUpperCase();
         return orderTkt === tkt;
       });
     }

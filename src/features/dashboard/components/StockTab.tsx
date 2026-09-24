@@ -40,7 +40,7 @@ export function StockTab({ stockData, isUpdating, onSaveStock }: StockTabProps) 
         return (
           <div key={item.id} className="bg-white rounded-2xl p-4 border-2 border-gray-100 shadow-2xs">
             <div className="flex justify-between items-center mb-3">
-              <p className="font-semibold">🍽️ {item.name}</p>
+              <p className="font-semibold">{item.name}</p>
               <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full">
                 {avail} available
               </span>

@@ -1,6 +1,7 @@
 import { publicProcedure, dashboardProcedure, router } from "../lib/trpc";
 import { getDb } from "../db";
 import {
+  departments,
   menuItems,
   seatingAreas,
   orders,
@@ -12,6 +13,8 @@ import {
   shopkeepers,
   tickets,
   visits,
+  staff,
+  systemSettings,
 } from "../db/schema";
 import { eq, desc, asc, ne } from "drizzle-orm";
 import { z } from "zod";
@@ -24,6 +27,12 @@ import {
 import { getIo, SOCKET_EVENT } from "../lib/socket";
 
 export const hotelRouter = router({
+  // ── Departments Query ──────────────────────────────────────────────────────
+  getDepartments: publicProcedure.query(async () => {
+    const db = getDb();
+    return db.select().from(departments).orderBy(asc(departments.id)).all();
+  }),
+
   // ── Tickets Query (Multi-Ticket per Guest / Visit) ──────────────────────────
   getTickets: publicProcedure
     .input(
@@ -97,6 +106,45 @@ export const hotelRouter = router({
   getSeatingAreas: publicProcedure.query(async () => {
     const db = getDb();
     return db.select().from(seatingAreas).all();
+  }),
+
+  getSeatingTables: publicProcedure.query(async () => {
+    const db = getDb();
+    const areas = db.select().from(seatingAreas).all();
+    const activeOrders = db
+      .select({
+        id: orders.id,
+        orderNo: orders.orderNo,
+        customerName: orders.customerName,
+        seatingNo: orders.seatingNo,
+        seatingAreaId: orders.seatingAreaId,
+        seatingType: orders.seatingType,
+        totalAmount: orders.totalAmount,
+        paidAmount: orders.paidAmount,
+        status: orders.status,
+        paymentStatus: orders.paymentStatus,
+      })
+      .from(orders)
+      .where(ne(orders.status, "paid"))
+      .all()
+      .filter((o) => o.status !== "cancelled");
+
+    return areas.map((area) => {
+      const activeOrder = activeOrders.find(
+        (o) =>
+          o.seatingAreaId === area.id ||
+          (o.seatingNo && o.seatingNo.trim().toLowerCase() === area.name.trim().toLowerCase())
+      );
+      return {
+        id: area.id,
+        name: area.name,
+        type: area.type || "indoor",
+        capacity: area.capacity ?? 4,
+        qrCodeIdentifier: area.qrCodeIdentifier,
+        isOccupied: Boolean(activeOrder),
+        activeOrder: activeOrder || null,
+      };
+    });
   }),
 
   // ── Customers ───────────────────────────────────────────────────────────────
@@ -242,6 +290,7 @@ export const hotelRouter = router({
         seatingNo: z.string().optional(),
         peopleCount: z.number().optional(),
         seatingType: z.string().optional(),
+        counterName: z.string().optional(),
         items: z.array(
           z.object({
             menuItemId: z.number(),
@@ -251,7 +300,7 @@ export const hotelRouter = router({
         ),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const db = getDb();
       const totalAmount = calculateSubtotal(input.items);
 
@@ -259,6 +308,12 @@ export const hotelRouter = router({
       let resolvedPeopleCount = input.peopleCount ?? 1;
       let resolvedSeatingType = input.seatingType ?? (resolvedPeopleCount > 1 ? "table" : "seat");
       let resolvedGuestId = 1;
+
+      const cashierId = ctx.staff?.staffId ?? null;
+      const cashierName = ctx.staff?.name ?? null;
+      let counterName =
+        input.counterName?.trim() || ctx.staff?.stationName?.trim() || "Counter 1";
+      if (counterName === "Main Cashier Counter") counterName = "Counter 1";
 
       if (input.visitId) {
         const v = db
@@ -299,6 +354,9 @@ export const hotelRouter = router({
           peopleCount: resolvedPeopleCount,
           seatingType: resolvedSeatingType,
           visitId: input.visitId ?? null,
+          cashierId,
+          cashierName,
+          counterName,
           totalAmount,
           status: "pending",
           paymentStatus: "unpaid",
@@ -352,21 +410,115 @@ export const hotelRouter = router({
         peopleCount: resolvedPeopleCount,
         seatingType: resolvedSeatingType,
         visitId: input.visitId ?? null,
+        counterName,
+        cashierName,
+        cashierId,
       });
-      return { success: true, orderId, orderNo: ticketNo, ticketNo };
+      return { success: true, orderId, orderNo: ticketNo, ticketNo, counterName };
     }),
 
   // ── All orders (kitchen / waiter / dashboard) ────────────────────────────────
-  getOrders: dashboardProcedure.query(async () => {
+  getOrders: dashboardProcedure.query(async ({ ctx }) => {
     const db = getDb();
-    const allOrders = db
+    let allOrders = db
       .select()
       .from(orders)
       .orderBy(desc(orders.createdAt))
       .all();
 
-    return allOrders.map(order => {
-      const items = listOrderItemsWithMenuForOrder(db, order.id);
+    // Check operation mode
+    const modeRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "operationMode"))
+      .all()[0];
+    const operationMode = modeRow?.value || "unified";
+
+    // Strict Segregation Mode Filter
+    if (operationMode === "segregated") {
+      if (ctx.staff?.role === "cashier") {
+        const station = (ctx.staff.stationName || (ctx.staff.name?.toLowerCase().includes("counter") ? ctx.staff.name : "")).trim().toLowerCase();
+        const cashierId = ctx.staff.staffId;
+        allOrders = allOrders.filter((o) => {
+          const rawCounter = (o.counterName === "Main Cashier Counter" ? "Counter 1" : o.counterName || "Counter 1").trim().toLowerCase();
+          if (station && (rawCounter === station || station.includes(rawCounter) || rawCounter.includes(station))) return true;
+          if (cashierId && o.cashierId === cashierId) return true;
+          return false;
+        });
+      } else if (ctx.staff?.role === "waiter") {
+        if (ctx.staff.assignedCashierId) {
+          const assignedCashier = db
+            .select()
+            .from(staff)
+            .where(eq(staff.id, ctx.staff.assignedCashierId))
+            .all()[0];
+
+          allOrders = allOrders.filter((o) => {
+            if (o.cashierId === ctx.staff?.assignedCashierId) return true;
+            const rawCounter = (o.counterName === "Main Cashier Counter" ? "Counter 1" : o.counterName || "Counter 1").trim().toLowerCase();
+            const cashierStation = (assignedCashier?.stationName || assignedCashier?.name || "Counter 1").trim().toLowerCase();
+            if (rawCounter === cashierStation || cashierStation.includes(rawCounter) || rawCounter.includes(cashierStation)) return true;
+            return false;
+          });
+        } else if (ctx.staff.stationName) {
+          const waiterStation = ctx.staff.stationName.trim().toLowerCase();
+          allOrders = allOrders.filter((o) => {
+            const rawCounter = (o.counterName === "Main Cashier Counter" ? "Counter 1" : o.counterName || "Counter 1").trim().toLowerCase();
+            return rawCounter === waiterStation || waiterStation.includes(rawCounter) || rawCounter.includes(waiterStation);
+          });
+        }
+      }
+    }
+
+    // Kitchen Department Strict Segregation (Chai section gets only chai, Paratha section gets only parathas)
+    const isKitchenDeptRestricted =
+      ctx.staff?.role === "kitchen" &&
+      Boolean(ctx.staff.stationName) &&
+      !ctx.staff.stationName?.includes("All Departments") &&
+      !ctx.staff.stationName?.includes("Main Kitchen") &&
+      !ctx.staff.stationName?.includes("127.0.0.1");
+
+    let targetKitchenDept = isKitchenDeptRestricted
+      ? (ctx.staff?.stationName || "").trim().toLowerCase()
+      : null;
+
+    return allOrders
+      .map(order => {
+        let items = listOrderItemsWithMenuForOrder(db, order.id);
+
+        if (targetKitchenDept) {
+          const allDepts = db.select().from(departments).all();
+          const targetDeptObj = allDepts.find(
+            (d) =>
+              d.name.toLowerCase() === targetKitchenDept ||
+              targetKitchenDept!.includes(d.name.toLowerCase()) ||
+              d.name.toLowerCase().includes(targetKitchenDept!)
+          );
+
+          items = items.filter((item) => {
+            if (targetDeptObj && item.departmentId === targetDeptObj.id) return true;
+            if (item.category && (item.category.toLowerCase() === targetKitchenDept || targetKitchenDept!.includes(item.category.toLowerCase()) || item.category.toLowerCase().includes(targetKitchenDept!))) return true;
+            const lowerName = (item.name || "").toLowerCase();
+            if (targetKitchenDept!.includes("tea") || targetKitchenDept!.includes("chai")) {
+              return lowerName.includes("chai") || lowerName.includes("tea") || item.category === "Tea" || (item.category === "Drinks" && !lowerName.includes("lassi"));
+            }
+            if (targetKitchenDept!.includes("paratha") || targetKitchenDept!.includes("tandoor") || targetKitchenDept!.includes("food")) {
+              return lowerName.includes("paratha") || lowerName.includes("puri") || lowerName.includes("anda") || item.category === "Food" || item.category === "Parathas";
+            }
+            if (targetKitchenDept!.includes("drink") || targetKitchenDept!.includes("lassi")) {
+              return lowerName.includes("lassi") || item.category === "Drinks";
+            }
+            if (targetKitchenDept!.includes("appetizer") || targetKitchenDept!.includes("snack")) {
+              return lowerName.includes("samosa") || lowerName.includes("pakora") || item.category === "Snacks" || item.category === "Appetizer";
+            }
+            return false;
+          });
+        }
+
+        return { order, items };
+      })
+      .filter(({ items }) => !targetKitchenDept || items.length > 0)
+      .map(({ order, items }) => {
 
       let seatingNo = order.seatingNo;
       let peopleCount = order.peopleCount ?? 1;
@@ -405,7 +557,23 @@ export const hotelRouter = router({
         .all()
         .filter(p => (p as any).status !== "failed");
 
-      return { ...order, seatingNo, peopleCount, seatingType, items, servedAmount, paymentHistory };
+      const resolvedCounter =
+        order.counterName === "Main Cashier Counter" || !order.counterName
+          ? "Counter 1"
+          : order.counterName;
+
+      return {
+        ...order,
+        counterName: resolvedCounter,
+        cashierName: order.cashierName || "Cashier",
+        cashierId: order.cashierId,
+        seatingNo,
+        peopleCount,
+        seatingType,
+        items,
+        servedAmount,
+        paymentHistory,
+      };
     });
   }),
 
@@ -594,7 +762,7 @@ export const hotelRouter = router({
         orderId: input.orderId,
         kitchenStatus: "cancelled",
       });
-      getIo()?.emit(SOCKET_EVENT.OrderCancelled, {
+      getIo()?.emit("order.updated", {
         orderId: input.orderId,
         itemId: input.itemId,
       });
@@ -760,20 +928,43 @@ export const hotelRouter = router({
     }),
 
   // ── Reports ──────────────────────────────────────────────────────────────────
-  getCashReport: dashboardProcedure.query(async () => {
+  getCashReport: dashboardProcedure.query(async ({ ctx }) => {
     const db = getDb();
-    const paidOrders = db
+    const modeRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "operationMode"))
+      .all()[0];
+    const operationMode = modeRow?.value || "unified";
+
+    let paidOrders = db
       .select()
       .from(orders)
       .where(eq(orders.paymentStatus, "paid"))
       .all();
-    const totalCash = paidOrders.reduce((s, o) => s + (o.totalAmount ?? 0), 0);
 
-    const allPayments = db
+    let allPayments = db
       .select()
       .from(payments)
       .where(eq(payments.status, "completed"))
       .all();
+
+    if (operationMode === "segregated" && ctx.staff?.role === "cashier") {
+      const station = (ctx.staff.stationName || (ctx.staff.name?.toLowerCase().includes("counter") ? ctx.staff.name : "")).trim().toLowerCase();
+      const cashierId = ctx.staff.staffId;
+
+      paidOrders = paidOrders.filter((o) => {
+        const rawCounter = (o.counterName === "Main Cashier Counter" ? "Counter 1" : o.counterName || "Counter 1").trim().toLowerCase();
+        if (station && (rawCounter === station || station.includes(rawCounter) || rawCounter.includes(station))) return true;
+        if (cashierId && o.cashierId === cashierId) return true;
+        return false;
+      });
+
+      const paidOrderIds = new Set(paidOrders.map((o) => o.id));
+      allPayments = allPayments.filter((p) => p.orderId !== null && paidOrderIds.has(p.orderId as number));
+    }
+
+    const totalCash = paidOrders.reduce((s, o) => s + (o.totalAmount ?? 0), 0);
     const cashTotal = allPayments
       .filter(p => p.method === "cash")
       .reduce((s, p) => s + (p.amount ?? 0), 0);
@@ -786,6 +977,8 @@ export const hotelRouter = router({
       cashTotal: cashTotal.toFixed(2),
       bankTotal: bankTotal.toFixed(2),
       totalOrders: paidOrders.length,
+      stationName: ctx.staff?.stationName || "Counter 1",
+      operationMode,
       lastUpdated: new Date(),
     };
   }),

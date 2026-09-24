@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useSocket } from "@/hooks/useSocket";
-import { getDashboardPin } from "@/lib/dashboardAuth";
 import { useKitchenService } from "../services/kitchenService";
 
 /**
@@ -13,17 +12,9 @@ import { useKitchenService } from "../services/kitchenService";
 export function useKitchenViewModel() {
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
   const [loadingItems, setLoadingItems] = useState<Set<number>>(new Set());
-  const [pinUnlocked, setPinUnlocked] = useState(() => !!getDashboardPin());
-  const pinErrorRef = useRef<((msg: string) => void) | null>(null);
 
   // ── Service Layer Hook ───────────────────────────────────────────────────
-  const service = useKitchenService({
-    pinUnlocked,
-    onAuthError: () => {
-      setPinUnlocked(false);
-      pinErrorRef.current?.("Incorrect PIN — try again");
-    },
-  });
+  const service = useKitchenService();
 
   // Realtime Socket Sync
   const socket = useSocket();
@@ -61,7 +52,7 @@ export function useKitchenViewModel() {
     try {
       await service.updateItemStatus({ itemId, kitchenStatus: next as any });
       service.refetch();
-      toast.success(next === "preparing" ? "Cooking started" : "Item ready ✓");
+      toast.success(next === "preparing" ? "Cooking started" : "Item ready");
     } catch {
       toast.error("Failed");
     } finally {
@@ -103,11 +94,6 @@ export function useKitchenViewModel() {
     }
   };
 
-  const handleUnlockPin = (onErr: (msg: string) => void) => {
-    pinErrorRef.current = onErr;
-    setPinUnlocked(true);
-  };
-
   // Orders with at least one active (unserved) item
   const activeOrders = (service.orders ?? []).filter(
     (o) =>
@@ -127,14 +113,12 @@ export function useKitchenViewModel() {
   );
 
   return {
-    pinUnlocked,
     isLoading: service.isLoading,
     activeOrders,
     groupedOrders,
     expandedOrders,
     loadingItems,
     isMutating: service.isMutating,
-    handleUnlockPin,
     toggleExpand,
     handleItemAction,
     handleMarkAllReady,

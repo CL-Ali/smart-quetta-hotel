@@ -259,7 +259,7 @@ export function MenuSection({
                     {badge && (
                       <div className="flex items-center">
                         <span className="text-[9px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200/70 dark:border-amber-800/60 px-1.5 py-0.2 rounded-md">
-                          ★ {badge.text}
+                          {badge.text}
                         </span>
                       </div>
                     )}
@@ -374,7 +374,7 @@ export function MenuSection({
                       </h3>
                       {badge && (
                         <span className="text-[8px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200/70 dark:border-amber-800/60 px-1 py-0.2 rounded shrink-0">
-                          ★ {badge.text}
+                          {badge.text}
                         </span>
                       )}
                     </div>

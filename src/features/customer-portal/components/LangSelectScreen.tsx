@@ -50,24 +50,30 @@ export function LangSelectScreen({ onDone }: LangSelectScreenProps) {
                 key={opt.value}
                 type="button"
                 onClick={() => handleSelectLang(opt.value)}
-                className={`flex items-center justify-between p-3.5 min-h-[50px] rounded-xl border transition-all cursor-pointer select-none text-left ${
+                className={`flex items-center justify-between p-3.5 min-h-[58px] rounded-2xl border transition-all cursor-pointer select-none text-left ${
                   isSelected
-                    ? "border-amber-500 bg-amber-500/10 text-stone-900 dark:text-white font-bold"
-                    : "border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-600 dark:text-zinc-400 hover:border-stone-300 dark:hover:border-zinc-700"
+                    ? "border-amber-500 bg-amber-500 text-stone-950 font-bold shadow-xs scale-[1.02]"
+                    : "border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:border-stone-300 dark:hover:border-zinc-700"
                 }`}
               >
                 <div className="flex flex-col min-w-0 pr-2">
-                  <span className="text-xs sm:text-sm font-semibold truncate leading-tight">
-                    {opt.label}
+                  <span className="text-sm sm:text-base font-black truncate leading-tight">
+                    {opt.nativeName}
                   </span>
-                  <span className="text-[10px] text-stone-400 dark:text-zinc-500 uppercase font-mono mt-0.5">
-                    {opt.value}
+                  <span
+                    className={`text-[11px] font-semibold mt-0.5 ${
+                      isSelected ? "text-stone-900 font-bold" : "text-stone-400 dark:text-zinc-500"
+                    }`}
+                  >
+                    {opt.englishName}
                   </span>
                 </div>
                 {isSelected ? (
-                  <FaCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <div className="w-5 h-5 rounded-full bg-stone-950 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <FaCheck className="w-2.5 h-2.5" />
+                  </div>
                 ) : (
-                  <div className="w-3.5 h-3.5 rounded-full border border-stone-300 dark:border-zinc-700 shrink-0" />
+                  <div className="w-4 h-4 rounded-full border-2 border-stone-300 dark:border-zinc-700 shrink-0" />
                 )}
               </button>
             );

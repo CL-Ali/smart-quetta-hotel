@@ -51,7 +51,7 @@ export function PaymentSheet({ order, open, onClose, onDone }: PaymentSheetProps
         method,
         bankName: method === "bank" ? bankName.trim() : undefined,
       });
-      toast.success(isExact ? "Order fully paid ✓" : `Rs. ${numAmount.toFixed(0)} saved`);
+      toast.success(isExact ? "Order fully paid" : `Rs. ${numAmount.toFixed(0)} saved`);
       onDone();
       onClose();
     } catch {
@@ -220,7 +220,7 @@ export function PaymentSheet({ order, open, onClose, onDone }: PaymentSheetProps
         {recordPayment.isPending
           ? "Saving…"
           : isExact
-          ? `${t.save} ✓`
+          ? t.save
           : `Record Rs. ${numAmount.toFixed(0)}`}
       </button>
     </div>

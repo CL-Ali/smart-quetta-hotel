@@ -6,10 +6,9 @@ import { UNAUTHED_ERR_MSG } from "@shared/const";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import superjson from "superjson";
-import { getLoginUrl } from "@/lib/const";
-import { getDashboardPin } from "@/lib/dashboardAuth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LangProvider } from "@/contexts/LangContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -40,7 +39,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
       if (!isUnauthorized) return;
 
-      window.location.href = getLoginUrl();
+      window.location.href = "/login";
     };
 
     const unsubscribeQuery = queryClient.getQueryCache().subscribe((event) => {
@@ -69,12 +68,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
         httpBatchLink({
           url: "/api/trpc",
           transformer: superjson,
-          headers() {
-            const pin = getDashboardPin();
-            return {
-              ...(pin ? { "x-dashboard-pin": pin } : {}),
-            };
-          },
           fetch(input, init) {
             return globalThis.fetch(input, {
               ...(init ?? {}),
@@ -90,15 +83,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ErrorBoundary>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
-          <ThemeProvider defaultTheme="light">
-            <LangProvider>
-              <TooltipProvider>
-                <Toaster />
-                <SocketOwner />
-                {children}
-              </TooltipProvider>
-            </LangProvider>
-          </ThemeProvider>
+          <AuthProvider>
+            <ThemeProvider defaultTheme="light">
+              <LangProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <SocketOwner />
+                  {children}
+                </TooltipProvider>
+              </LangProvider>
+            </ThemeProvider>
+          </AuthProvider>
         </QueryClientProvider>
       </trpc.Provider>
     </ErrorBoundary>

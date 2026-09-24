@@ -4,7 +4,6 @@ import { createServer } from "http";
 import net from "net";
 import next from "next";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./api/middleware/oauth";
 import { registerStorageProxy } from "./api/middleware/storageProxy";
 import { registerPortalRoutes } from "./api/middleware/portal";
 import { appRouter } from "./api/routers";
@@ -46,7 +45,6 @@ async function startServer() {
 
   // Existing backend middlewares
   registerStorageProxy(app);
-  registerOAuthRoutes(app);
   registerPortalRoutes(app);
 
   // tRPC API endpoint
