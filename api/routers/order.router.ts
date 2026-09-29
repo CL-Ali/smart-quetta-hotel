@@ -15,6 +15,7 @@ import {
   type DomainCommandResult,
 } from "../lib/domain";
 import { getIo, SOCKET_EVENT } from "../lib/socket";
+import { getCurrentTicketVersion } from "../lib/ticketVersion";
 
 const createOrderInput = z.object({
   visitId: z.number(),
@@ -51,10 +52,13 @@ export const orderRouter = router({
         return { item, menuItem };
       });
 
+      const activeTicketVersion = getCurrentTicketVersion(db);
+
       const orderTotal = calculateSubtotal(input.items);
       const inserted = db
         .insert(orders)
         .values({
+          ticketVersion: activeTicketVersion,
           visitId: input.visitId,
           customerId: null,
           customerName: guest.name,
@@ -84,6 +88,7 @@ export const orderRouter = router({
         db.insert(tickets)
           .values({
             ticketNo,
+            ticketVersion: activeTicketVersion,
             guestId: guest.id,
             orderId: inserted.id,
             visitId: input.visitId,

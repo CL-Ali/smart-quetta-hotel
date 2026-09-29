@@ -10,6 +10,7 @@ import { StaffBottomNav } from "@/components/StaffBottomNav";
 import { StaffDrawerSheet } from "@/components/StaffDrawerSheet";
 import { StaffAuthGuard } from "@/components/StaffAuthGuard";
 import { playTapSound, playOrderSuccessSound } from "@/lib/sound";
+import { ShiftSessionManager } from "./components/ShiftSessionManager";
 import {
   Hotel,
   Users,
@@ -148,7 +149,7 @@ export function AdminDashboardView() {
   const { staff, clientIp, logout, permissions } = useAuth();
   const { t, lang } = useLang();
 
-  const [activeTab, setActiveTab] = useState<"accounts" | "staff">(
+  const [activeTab, setActiveTab] = useState<"accounts" | "staff" | "shift_session">(
     permissions?.canViewReports !== false ? "accounts" : "staff"
   );
 
@@ -558,6 +559,29 @@ _Please open the Portal URL on your device to sign in._`;
                 }`}>
                   {allStaffMembers.length}
                 </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  playTapSound();
+                  setActiveTab("shift_session");
+                }}
+                className={`relative px-3.5 h-8 text-xs font-extrabold rounded-full inline-flex items-center gap-1.5 transition-colors duration-200 select-none cursor-pointer border-0 ${
+                  activeTab === "shift_session"
+                    ? "text-white"
+                    : "text-stone-600 dark:text-stone-400 hover:text-[#24180A] dark:hover:text-white"
+                }`}
+              >
+                {activeTab === "shift_session" && (
+                  <motion.div
+                    layoutId="adminTabIndicator"
+                    className="absolute inset-0 bg-[#D98A3C] rounded-full shadow-xs -z-0"
+                    transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                  />
+                )}
+                <Layers className="w-3.5 h-3.5 relative z-10" />
+                <span className="relative z-10">{lang === "ur" ? "شفٹ و ڈے کلوز" : "Shift & Day Close"}</span>
               </button>
             </div>
           }
@@ -2733,6 +2757,8 @@ _Please open the Portal URL on your device to sign in._`;
             </div>
           </div>
         )}
+          {/* TAB 3: SHIFT & DAY CLOSE SESSION MANAGER */}
+          {activeTab === "shift_session" && <ShiftSessionManager />}
         </main>
 
         {/* Mobile Bottom Navigation */}
@@ -2741,10 +2767,11 @@ _Please open the Portal URL on your device to sign in._`;
           items={[
             { key: "accounts", label: lang === "ur" ? "کھاتہ جات" : "Accounts", icon: Building2 },
             { key: "staff", label: lang === "ur" ? "عملہ و اختیارات" : "Staff & Roles", icon: Users, badge: allStaffMembers.length },
+            { key: "shift_session", label: lang === "ur" ? "شفٹ و کلوز" : "Shift & Close", icon: Layers },
           ]}
           activeItem={activeTab}
-          onSelectItem={(k) => setActiveTab(k as "accounts" | "staff")}
-          onOpenDrawer={() => setDrawerOpen(true)}
+          onSelectItem={(k) => setActiveTab(k as "accounts" | "staff" | "shift_session")}
+          onOpenDrawer={() => setDrawerOpen(false)}
         />
 
         {/* Mobile Drawer Sheet */}

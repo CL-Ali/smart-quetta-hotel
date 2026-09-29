@@ -1,10 +1,25 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, desc, ne, and } from "drizzle-orm";
+import { eq, desc, ne, and, inArray } from "drizzle-orm";
 import { adminProcedure, router } from "../lib/trpc";
 import { getDb } from "../db";
-import { staff, orders, payments, shopkeepers, invoices, systemSettings } from "../db/schema";
+import {
+  staff,
+  orders,
+  payments,
+  shopkeepers,
+  invoices,
+  systemSettings,
+  ticketSessionLogs,
+  orderItems,
+  tickets,
+} from "../db/schema";
 import { hashPassword } from "../lib/auth";
+import {
+  getCurrentTicketVersion,
+  getCurrentShiftStatus,
+  setShiftSessionState,
+} from "../lib/ticketVersion";
 
 export const adminRouter = router({
   getSystemConfig: adminProcedure.query(async () => {
@@ -572,5 +587,280 @@ export const adminRouter = router({
       }
 
       return { success: true };
+    }),
+
+  // ── Shift Session & Day Close Procedures ──────────────────────────────────
+  getShiftSessionInfo: adminProcedure.query(async () => {
+    const db = getDb();
+    const currentTicketVersion = getCurrentTicketVersion(db);
+    const shiftStatus = getCurrentShiftStatus(db);
+
+    // Fetch all orders for the current ticketVersion
+    const currentOrders = db
+      .select()
+      .from(orders)
+      .where(eq(orders.ticketVersion, currentTicketVersion))
+      .all();
+
+    const nonCancelledOrders = currentOrders.filter((o) => o.status !== "cancelled");
+    const todayTicketsCount = nonCancelledOrders.length;
+    const todayRevenue = nonCancelledOrders.reduce((sum, o) => sum + (o.total ?? 0), 0);
+    const todayDiscount = nonCancelledOrders.reduce((sum, o) => sum + (o.discount ?? 0), 0);
+    const todayPaid = nonCancelledOrders.reduce((sum, o) => sum + (o.paidAmount ?? 0), 0);
+    const todayUnpaid = Math.max(0, todayRevenue - todayPaid);
+
+    // Payments breakdown for this session
+    const currentPayments = db
+      .select()
+      .from(payments)
+      .where(eq(payments.ticketVersion, currentTicketVersion))
+      .all();
+
+    const todayCash = currentPayments
+      .filter((p) => p.method === "cash" && p.status !== "failed")
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const todayBank = currentPayments
+      .filter((p) => p.method !== "cash" && p.status !== "failed")
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    return {
+      ticketVersion: currentTicketVersion,
+      shiftStatus,
+      todayTicketsCount,
+      todayOrdersCount: currentOrders.length,
+      todayRevenue,
+      todayDiscount,
+      todayPaid,
+      todayUnpaid,
+      todayCash,
+      todayBank,
+    };
+  }),
+
+  // Move active day to verifying / audit staging mode
+  stageShiftWindup: adminProcedure.mutation(async () => {
+    const db = getDb();
+    const currentTicketVersion = getCurrentTicketVersion(db);
+    setShiftSessionState(db, currentTicketVersion, "verifying");
+    return { success: true, shiftStatus: "verifying", ticketVersion: currentTicketVersion };
+  }),
+
+  // Revert verifying mode back to live active
+  revertShiftWindup: adminProcedure.mutation(async () => {
+    const db = getDb();
+    const currentTicketVersion = getCurrentTicketVersion(db);
+    setShiftSessionState(db, currentTicketVersion, "active");
+    return { success: true, shiftStatus: "active", ticketVersion: currentTicketVersion };
+  }),
+
+  // Get all staged orders for audit/verification
+  getStagedVerificationOrders: adminProcedure.query(async () => {
+    const db = getDb();
+    const currentTicketVersion = getCurrentTicketVersion(db);
+    const currentOrders = db
+      .select()
+      .from(orders)
+      .where(eq(orders.ticketVersion, currentTicketVersion))
+      .orderBy(desc(orders.id))
+      .all();
+
+    const orderIds = currentOrders.map((o) => o.id);
+    const allItems = orderIds.length > 0
+      ? db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds)).all()
+      : [];
+
+    return currentOrders.map((ord) => ({
+      ...ord,
+      items: allItems.filter((it) => it.orderId === ord.id),
+    }));
+  }),
+
+  // Update order during audit / verification
+  updateStagedOrder: adminProcedure
+    .input(
+      z.object({
+        orderId: z.number(),
+        customerName: z.string().optional(),
+        discount: z.number().optional(),
+        total: z.number().optional(),
+        paidAmount: z.number().optional(),
+        paymentStatus: z.enum(["unpaid", "partial", "paid"]).optional(),
+        status: z.string().optional(),
+        remarks: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const updateData: Record<string, any> = { updatedAt: new Date().toISOString() };
+      if (input.customerName !== undefined) updateData.customerName = input.customerName;
+      if (input.discount !== undefined) updateData.discount = input.discount;
+      if (input.total !== undefined) {
+        updateData.total = input.total;
+        updateData.totalAmount = input.total;
+      }
+      if (input.paidAmount !== undefined) updateData.paidAmount = input.paidAmount;
+      if (input.paymentStatus !== undefined) updateData.paymentStatus = input.paymentStatus;
+      if (input.status !== undefined) updateData.status = input.status;
+      if (input.remarks !== undefined) updateData.remarks = input.remarks;
+
+      db.update(orders).set(updateData).where(eq(orders.id, input.orderId)).run();
+      return { success: true };
+    }),
+
+  // Delete staged / fake / test order
+  deleteStagedOrder: adminProcedure
+    .input(z.object({ orderId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      // Delete orderItems, tickets, payments
+      db.delete(orderItems).where(eq(orderItems.orderId, input.orderId)).run();
+      db.delete(tickets).where(eq(tickets.orderId, input.orderId)).run();
+      db.delete(payments).where(eq(payments.orderId, input.orderId)).run();
+      db.delete(orders).where(eq(orders.id, input.orderId)).run();
+      return { success: true };
+    }),
+
+  // Final Close Day: Save snapshot into ticket_session_logs & increment ticketVersion + 1
+  finalizeDayClose: adminProcedure.mutation(async ({ ctx }) => {
+    const db = getDb();
+    const currentTicketVersion = getCurrentTicketVersion(db);
+    const nowIso = new Date().toISOString();
+
+    // Fetch all current version orders & items
+    const currentOrders = db
+      .select()
+      .from(orders)
+      .where(eq(orders.ticketVersion, currentTicketVersion))
+      .all();
+
+    const orderIds = currentOrders.map((o) => o.id);
+    const allItems = orderIds.length > 0
+      ? db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds)).all()
+      : [];
+
+    const nonCancelledOrders = currentOrders.filter((o) => o.status !== "cancelled");
+    const totalRevenue = nonCancelledOrders.reduce((sum, o) => sum + (o.total ?? 0), 0);
+    const totalDiscount = nonCancelledOrders.reduce((sum, o) => sum + (o.discount ?? 0), 0);
+    const totalPaid = nonCancelledOrders.reduce((sum, o) => sum + (o.paidAmount ?? 0), 0);
+    const totalKhata = Math.max(0, totalRevenue - totalPaid);
+
+    // Payments breakdown
+    const currentPayments = db
+      .select()
+      .from(payments)
+      .where(eq(payments.ticketVersion, currentTicketVersion))
+      .all();
+
+    const totalCash = currentPayments
+      .filter((p) => p.method === "cash" && p.status !== "failed")
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const totalBank = currentPayments
+      .filter((p) => p.method !== "cash" && p.status !== "failed")
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    // Item sales snapshot
+    const itemMap = new Map<string, { name: string; quantity: number; total: number }>();
+    for (const it of allItems) {
+      const name = it.nameSnapshot || "Item";
+      const existing = itemMap.get(name) || { name, quantity: 0, total: 0 };
+      existing.quantity += it.quantity;
+      existing.total += it.unitPrice * it.quantity;
+      itemMap.set(name, existing);
+    }
+    const itemsSnapshot = JSON.stringify(Array.from(itemMap.values()));
+
+    // Orders full snapshot
+    const enrichedOrders = currentOrders.map((ord) => ({
+      ...ord,
+      items: allItems.filter((it) => it.orderId === ord.id),
+    }));
+    const ordersSnapshot = JSON.stringify(enrichedOrders);
+
+    const firstOrderTime = currentOrders[0]?.createdAt || nowIso;
+
+    // Check if session log already exists for this version
+    const existingLog = db
+      .select()
+      .from(ticketSessionLogs)
+      .where(eq(ticketSessionLogs.ticketVersion, currentTicketVersion))
+      .all()[0];
+
+    if (existingLog) {
+      db.update(ticketSessionLogs)
+        .set({
+          shiftStatus: "closed",
+          closedDate: nowIso,
+          closedBy: ctx.staff?.name || "Admin",
+          totalTickets: nonCancelledOrders.length,
+          totalOrders: currentOrders.length,
+          totalRevenue,
+          totalCash,
+          totalBank,
+          totalKhata,
+          totalDiscount,
+          itemsSnapshot,
+          ordersSnapshot,
+        })
+        .where(eq(ticketSessionLogs.ticketVersion, currentTicketVersion))
+        .run();
+    } else {
+      db.insert(ticketSessionLogs)
+        .values({
+          ticketVersion: currentTicketVersion,
+          shiftStatus: "closed",
+          startDate: firstOrderTime,
+          closedDate: nowIso,
+          closedBy: ctx.staff?.name || "Admin",
+          totalTickets: nonCancelledOrders.length,
+          totalOrders: currentOrders.length,
+          totalRevenue,
+          totalCash,
+          totalBank,
+          totalKhata,
+          totalDiscount,
+          itemsSnapshot,
+          ordersSnapshot,
+          createdAt: nowIso,
+        })
+        .run();
+    }
+
+    // Increment ticketVersion by +1 and set shiftStatus back to "active"
+    const nextTicketVersion = currentTicketVersion + 1;
+    setShiftSessionState(db, nextTicketVersion, "active");
+
+    return {
+      success: true,
+      closedVersion: currentTicketVersion,
+      nextVersion: nextTicketVersion,
+      totalRevenue,
+      totalTickets: nonCancelledOrders.length,
+    };
+  }),
+
+  // Get historical session archive logs
+  getSessionLogs: adminProcedure.query(async () => {
+    const db = getDb();
+    return db
+      .select()
+      .from(ticketSessionLogs)
+      .orderBy(desc(ticketSessionLogs.ticketVersion))
+      .all();
+  }),
+
+  // Get single session archive log by version
+  getSessionLogByVersion: adminProcedure
+    .input(z.object({ ticketVersion: z.number() }))
+    .query(async ({ input }) => {
+      const db = getDb();
+      const log = db
+        .select()
+        .from(ticketSessionLogs)
+        .where(eq(ticketSessionLogs.ticketVersion, input.ticketVersion))
+        .all()[0];
+      if (!log) throw new TRPCError({ code: "NOT_FOUND", message: `Session log for version ${input.ticketVersion} not found` });
+      return log;
     }),
 });

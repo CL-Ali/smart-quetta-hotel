@@ -25,6 +25,7 @@ import {
   settleBalance,
 } from "../lib/domain";
 import { getIo, SOCKET_EVENT } from "../lib/socket";
+import { getCurrentTicketVersion } from "../lib/ticketVersion";
 
 export const hotelRouter = router({
   // ── Public System Configuration (Queue visibility, etc.) ───────────────────
@@ -383,9 +384,12 @@ export const hotelRouter = router({
         validCustomerId = exists.length > 0 ? input.customerId : null;
       }
 
+      const activeTicketVersion = getCurrentTicketVersion(db);
+
       const result = db
         .insert(orders)
         .values({
+          ticketVersion: activeTicketVersion,
           customerId: validCustomerId,
           seatingAreaId: input.seatingAreaId ?? null,
           customerName: input.customerName,
@@ -413,6 +417,7 @@ export const hotelRouter = router({
         db.insert(tickets)
           .values({
             ticketNo,
+            ticketVersion: activeTicketVersion,
             guestId: resolvedGuestId,
             orderId,
             visitId: input.visitId ?? null,
@@ -459,13 +464,30 @@ export const hotelRouter = router({
     }),
 
   // ── All orders (kitchen / waiter / dashboard) ────────────────────────────────
-  getOrders: staffProcedure.query(async ({ ctx }) => {
-    const db = getDb();
-    let allOrders = db
-      .select()
-      .from(orders)
-      .orderBy(desc(orders.createdAt))
-      .all();
+  getOrders: staffProcedure
+    .input(
+      z
+        .object({
+          ticketVersion: z.number().optional(),
+          allHistory: z.boolean().optional(),
+        })
+        .optional()
+    )
+    .query(async ({ ctx, input }) => {
+      const db = getDb();
+      const currentTicketVersion = getCurrentTicketVersion(db);
+
+      let allOrders = db
+        .select()
+        .from(orders)
+        .orderBy(desc(orders.createdAt))
+        .all();
+
+      // Version filter: default to current live ticketVersion unless allHistory is requested
+      if (!input?.allHistory) {
+        const targetVersion = input?.ticketVersion ?? currentTicketVersion;
+        allOrders = allOrders.filter((o) => o.ticketVersion === targetVersion);
+      }
 
     // Check operation mode
     const modeRow = db
@@ -861,8 +883,11 @@ export const hotelRouter = router({
       const totalAmount = order.totalAmount ?? 0;
       const newPaidAmount = alreadyPaid + input.amount;
 
+      const activeTicketVersion = order.ticketVersion ?? getCurrentTicketVersion(db);
+
       db.insert(payments)
         .values({
+          ticketVersion: activeTicketVersion,
           orderId: input.orderId,
           amount: input.amount,
           method: input.method,

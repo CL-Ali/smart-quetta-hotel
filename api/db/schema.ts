@@ -77,6 +77,7 @@ export type InsertVisit = typeof visits.$inferInsert;
 export const tickets = sqliteTable("tickets", {
   id: int("id").primaryKey({ autoIncrement: true }),
   ticketNo: text("ticketNo").notNull().unique(),
+  ticketVersion: int("ticketVersion").default(1).notNull(),
   guestId: int("guestId")
     .references(() => guests.id)
     .notNull(),
@@ -200,6 +201,7 @@ export type InsertShopkeeper = typeof shopkeepers.$inferInsert;
  */
 export const orders = sqliteTable("orders", {
   id: int("id").primaryKey({ autoIncrement: true }),
+  ticketVersion: int("ticketVersion").default(1).notNull(),
   customerId: int("customerId").references(() => customers.id),
   seatingAreaId: int("seatingAreaId").references(() => seatingAreas.id),
   customerName: text("customerName"),
@@ -271,6 +273,7 @@ export const orderItems = sqliteTable("order_items", {
  */
 export const invoices = sqliteTable("invoices", {
   id: int("id").primaryKey({ autoIncrement: true }),
+  ticketVersion: int("ticketVersion").default(1).notNull(),
   visitId: int("visitId")
     .references(() => visits.id)
     .notNull(),
@@ -295,6 +298,7 @@ export type InsertInvoice = typeof invoices.$inferInsert;
  */
 export const receipts = sqliteTable("receipts", {
   id: int("id").primaryKey({ autoIncrement: true }),
+  ticketVersion: int("ticketVersion").default(1).notNull(),
   invoiceId: int("invoiceId")
     .references(() => invoices.id)
     .notNull(),
@@ -351,6 +355,7 @@ export type InsertStock = typeof stock.$inferInsert;
  */
 export const payments = sqliteTable("payments", {
   id: int("id").primaryKey({ autoIncrement: true }),
+  ticketVersion: int("ticketVersion").default(1).notNull(),
   orderId: int("orderId").references(() => orders.id),
   invoiceId: int("invoiceId").references(() => invoices.id),
   amount: real("amount").notNull(),
@@ -370,5 +375,32 @@ export const payments = sqliteTable("payments", {
 
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = typeof payments.$inferInsert;
+
+/**
+ * Ticket Session & Day Close Logs (Audit Archive)
+ */
+export const ticketSessionLogs = sqliteTable("ticket_session_logs", {
+  id: int("id").primaryKey({ autoIncrement: true }),
+  ticketVersion: int("ticketVersion").notNull().unique(),
+  shiftStatus: text("shiftStatus").default("closed").notNull(),
+  startDate: text("startDate").notNull(),
+  closedDate: text("closedDate").notNull(),
+  closedBy: text("closedBy").notNull(),
+  totalTickets: int("totalTickets").default(0).notNull(),
+  totalOrders: int("totalOrders").default(0).notNull(),
+  totalRevenue: real("totalRevenue").default(0).notNull(),
+  totalCash: real("totalCash").default(0).notNull(),
+  totalBank: real("totalBank").default(0).notNull(),
+  totalKhata: real("totalKhata").default(0).notNull(),
+  totalDiscount: real("totalDiscount").default(0).notNull(),
+  itemsSnapshot: text("itemsSnapshot").notNull(), // JSON string
+  ordersSnapshot: text("ordersSnapshot").notNull(), // JSON string
+  createdAt: text("createdAt")
+    .default(sql`(datetime('now'))`)
+    .notNull(),
+});
+
+export type TicketSessionLog = typeof ticketSessionLogs.$inferSelect;
+export type InsertTicketSessionLog = typeof ticketSessionLogs.$inferInsert;
 
 

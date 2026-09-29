@@ -217,6 +217,7 @@ function initSchema(sqlite: Database.Database) {
     CREATE TABLE IF NOT EXISTS tickets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       ticketNo TEXT NOT NULL UNIQUE,
+      ticketVersion INTEGER NOT NULL DEFAULT 1,
       guestId INTEGER NOT NULL REFERENCES guests(id),
       orderId INTEGER REFERENCES orders(id),
       visitId INTEGER REFERENCES visits(id),
@@ -225,7 +226,32 @@ function initSchema(sqlite: Database.Database) {
       status TEXT NOT NULL DEFAULT 'active',
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS ticket_session_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticketVersion INTEGER NOT NULL UNIQUE,
+      shiftStatus TEXT NOT NULL DEFAULT 'closed',
+      startDate TEXT NOT NULL,
+      closedDate TEXT NOT NULL,
+      closedBy TEXT NOT NULL,
+      totalTickets INTEGER NOT NULL DEFAULT 0,
+      totalOrders INTEGER NOT NULL DEFAULT 0,
+      totalRevenue REAL NOT NULL DEFAULT 0,
+      totalCash REAL NOT NULL DEFAULT 0,
+      totalBank REAL NOT NULL DEFAULT 0,
+      totalKhata REAL NOT NULL DEFAULT 0,
+      totalDiscount REAL NOT NULL DEFAULT 0,
+      itemsSnapshot TEXT NOT NULL,
+      ordersSnapshot TEXT NOT NULL,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
+
+    // Seed default system shift settings if missing
+    sqlite.exec(`
+      INSERT OR IGNORE INTO system_settings (key, value) VALUES ('currentTicketVersion', '1');
+      INSERT OR IGNORE INTO system_settings (key, value) VALUES ('shiftStatus', 'active');
+    `);
 
     // Seed exactly 2 default shopkeepers (parties) if empty
     const shopCount = sqlite
@@ -258,6 +284,32 @@ function initSchema(sqlite: Database.Database) {
       sqlite.exec(`ALTER TABLE ${tableName} ADD COLUMN ${ddl}`);
     }
   };
+
+  addColumnIfMissing(
+    "orders",
+    "ticketVersion",
+    "ticketVersion INTEGER NOT NULL DEFAULT 1"
+  );
+  addColumnIfMissing(
+    "tickets",
+    "ticketVersion",
+    "ticketVersion INTEGER NOT NULL DEFAULT 1"
+  );
+  addColumnIfMissing(
+    "payments",
+    "ticketVersion",
+    "ticketVersion INTEGER NOT NULL DEFAULT 1"
+  );
+  addColumnIfMissing(
+    "invoices",
+    "ticketVersion",
+    "ticketVersion INTEGER NOT NULL DEFAULT 1"
+  );
+  addColumnIfMissing(
+    "receipts",
+    "ticketVersion",
+    "ticketVersion INTEGER NOT NULL DEFAULT 1"
+  );
 
   addColumnIfMissing(
     "orders",
