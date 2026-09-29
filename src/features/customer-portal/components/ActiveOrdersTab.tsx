@@ -62,13 +62,12 @@ function getLiveDeptDisplayName(deptName: string, lang: string = "en"): string {
 function resolveItemDepartment(
   item: {
     name: string;
-    category?: string | null;
     departmentId?: number | null;
   },
   liveDepts: any[],
   lang: string = "en"
 ): { key: string; name: string; label: string } {
-  // 1. Direct departmentId match with Live Departments from DB
+  // Direct departmentId match with Live Departments from DB
   if (item.departmentId && liveDepts.length > 0) {
     const matched = liveDepts.find((d) => d.id === item.departmentId);
     if (matched) {
@@ -80,25 +79,11 @@ function resolveItemDepartment(
     }
   }
 
-  // 2. Category matching with Live Departments from DB
-  if (item.category && liveDepts.length > 0) {
-    const catLower = item.category.toLowerCase().trim();
-    const matched = liveDepts.find((d) => (d.name || "").toLowerCase().trim() === catLower);
-    if (matched) {
-      return {
-        key: `dept-${matched.id}`,
-        name: matched.name,
-        label: getLiveDeptDisplayName(matched.name, lang),
-      };
-    }
-  }
-
-  // 3. If no live department matched, use the category or item name as clean label
-  const fallback = item.category?.trim() || item.name;
+  // Fallback to item name
   return {
-    key: `cat-${fallback.toLowerCase()}`,
-    name: fallback,
-    label: getItemDisplayName(fallback, lang) || fallback,
+    key: `dept-all`,
+    name: item.name,
+    label: getItemDisplayName(item.name, lang) || item.name,
   };
 }
 
@@ -204,7 +189,6 @@ export function ActiveOrdersTab({
             id: item.id,
             menuItemId: item.menuItemId || item.id,
             name: item.name || item.nameSnapshot || (item.menuItem && item.menuItem.name) || "Item",
-            category: item.category || (item.menuItem && item.menuItem.category) || null,
             departmentId: item.departmentId || (item.menuItem && item.menuItem.departmentId) || null,
             quantity: item.quantity || 1,
             unitPrice: item.unitPrice,

@@ -66,7 +66,6 @@ export function listOrderItemsWithMenuForOrder(db: Db, orderId: number) {
       unitPrice: orderItems.unitPrice,
       name: menuItems.name,
       price: menuItems.price,
-      category: menuItems.category,
       imageUrl: menuItems.imageUrl,
       departmentId: menuItems.departmentId,
       kitchenStatus: orderItems.kitchenStatus,

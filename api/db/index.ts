@@ -89,7 +89,6 @@ function initSchema(sqlite: Database.Database) {
       name TEXT NOT NULL,
       description TEXT,
       price REAL NOT NULL,
-      category TEXT,
       imageUrl TEXT,
       departmentId INTEGER REFERENCES departments(id),
       options TEXT,
@@ -394,10 +393,10 @@ function initSchema(sqlite: Database.Database) {
   // Backfill any menu items with NULL departmentId to dynamic department
   try {
     sqlite.exec(`
-      UPDATE menu_items SET departmentId = 1 WHERE departmentId IS NULL AND (category = 'Tea' OR name LIKE '%Chai%' OR name LIKE '%Tea%');
-      UPDATE menu_items SET departmentId = 2 WHERE departmentId IS NULL AND (category = 'Paratha' OR name LIKE '%Paratha%' OR name LIKE '%Puri%');
-      UPDATE menu_items SET departmentId = 3 WHERE departmentId IS NULL AND (category = 'Kitchen' OR category = 'Food' OR name LIKE '%Karahi%');
-      UPDATE menu_items SET departmentId = 4 WHERE departmentId IS NULL AND (category = 'Drinks' OR name LIKE '%Lassi%' OR name LIKE '%Water%');
+      UPDATE menu_items SET departmentId = 1 WHERE departmentId IS NULL AND (name LIKE '%Chai%' OR name LIKE '%Tea%');
+      UPDATE menu_items SET departmentId = 2 WHERE departmentId IS NULL AND (name LIKE '%Paratha%' OR name LIKE '%Puri%');
+      UPDATE menu_items SET departmentId = 3 WHERE departmentId IS NULL AND (name LIKE '%Karahi%' OR name LIKE '%Chicken%');
+      UPDATE menu_items SET departmentId = 4 WHERE departmentId IS NULL AND (name LIKE '%Lassi%' OR name LIKE '%Water%');
       UPDATE menu_items SET departmentId = 1 WHERE departmentId IS NULL;
     `);
   } catch (_) {}
@@ -408,15 +407,15 @@ function initSchema(sqlite: Database.Database) {
     .get() as { c: number };
   if (count.c === 0) {
     sqlite.exec(`
-      INSERT INTO menu_items (name, description, price, category, imageUrl, departmentId, options, isAvailable) VALUES
-        ('Chai',           'Special doodh patti',        30,  'Tea',     '/images/chai.png', 1, 'Less Sugar, Extra Karak, Sugar Free, Extra Hot', 1),
-        ('Karwa Chai',     'Traditional green tea qehwa', 20,  'Tea',     'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&q=80', 1, 'With Lemon, Extra Sweet, No Sugar', 1),
-        ('Paratha',        'Crispy butter paratha',      40,  'Paratha', 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=400&q=80', 2, 'Extra Crispy, Less Oil, Soft', 1),
-        ('Anda Paratha',   'Egg stuffed paratha',        60,  'Paratha', 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&q=80', 2, 'Full Fried Egg, Half Fried Egg, Spicy', 1),
-        ('Halwa Puri',     'Fresh morning halwa puri',  100,  'Paratha', 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=400&q=80', 2, 'Extra Chana, Extra Halwa, Hot Puris', 1),
-        ('Chicken Karahi', 'Desi chicken karahi',       350,  'Kitchen', 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400&q=80', 3, 'Extra Spicy, Mild Spicy, Less Oil, Desi Ghee', 1),
-        ('Lassi',          'Thandi meethi lassi',        60,  'Drinks',  'https://images.unsplash.com/photo-1553787499-6f9133860278?w=400&q=80', 4, 'Meethi Lassi, Namkeen Lassi, Extra Cream', 1),
-        ('Mineral Water',  'Chilled 500ml water',        50,  'Drinks',  'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=400&q=80', 4, 'Chilled, Room Temperature', 1);
+      INSERT INTO menu_items (name, description, price, imageUrl, departmentId, options, isAvailable) VALUES
+        ('Chai',           'Special doodh patti',        30,  '/images/chai.png', 1, 'Less Sugar, Extra Karak, Sugar Free, Extra Hot', 1),
+        ('Karwa Chai',     'Traditional green tea qehwa', 20,  'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&q=80', 1, 'With Lemon, Extra Sweet, No Sugar', 1),
+        ('Paratha',        'Crispy butter paratha',      40,  'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=400&q=80', 2, 'Extra Crispy, Less Oil, Soft', 1),
+        ('Anda Paratha',   'Egg stuffed paratha',        60,  'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&q=80', 2, 'Full Fried Egg, Half Fried Egg, Spicy', 1),
+        ('Halwa Puri',     'Fresh morning halwa puri',  100,  'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=400&q=80', 2, 'Extra Chana, Extra Halwa, Hot Puris', 1),
+        ('Chicken Karahi', 'Desi chicken karahi',       350,  'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400&q=80', 3, 'Extra Spicy, Mild Spicy, Less Oil, Desi Ghee', 1),
+        ('Lassi',          'Thandi meethi lassi',        60,  'https://images.unsplash.com/photo-1553787499-6f9133860278?w=400&q=80', 4, 'Meethi Lassi, Namkeen Lassi, Extra Cream', 1),
+        ('Mineral Water',  'Chilled 500ml water',        50,  'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=400&q=80', 4, 'Chilled, Room Temperature', 1);
     `);
   }
 

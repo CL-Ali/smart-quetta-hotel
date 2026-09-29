@@ -6,9 +6,9 @@ export const STAFF_COOKIE_NAME = "qh_staff_session";
 export const TOKEN_LIFETIME_SECONDS = 24 * 60 * 60; // 24 Hours
 export const REFRESH_WINDOW_SECONDS = 2 * 60 * 60;  // 2 Hours sliding window
 
-const AUTH_SECRET_STRING = process.env.JWT_SECRET || "smart-quetta-hotel-jwt-super-secret-key-2026";
+const AUTH_SECRET_STRING = process.env.JWT_SECRET || "smart-hotel-jwt-super-secret-key-2026";
 const AUTH_SECRET = new TextEncoder().encode(AUTH_SECRET_STRING);
-const PASSWORD_SALT = "quetta-hotel-salt-2026";
+const PASSWORD_SALT = "hotel-salt-2026";
 
 export interface StaffTokenPayload {
   staffId: number;

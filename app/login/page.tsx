@@ -92,7 +92,7 @@ function LoginForm() {
           </div>
           <div>
             <h1 className="text-base sm:text-lg font-black tracking-tight leading-none text-stone-900">
-              {t.hotelName || "Smart Quetta Hotel"}
+              {t.hotelName || "Smart Hotel POS"}
             </h1>
             <p className="text-[10px] text-amber-600 font-extrabold uppercase tracking-widest mt-0.5">
               Staff Portal & Terminal Auth
@@ -248,7 +248,7 @@ function LoginForm() {
 
       {/* Footer */}
       <footer className="p-4 text-center text-xs text-stone-400 z-10">
-        <p>24-Hour Session • Auto-Refresh Active • Smart Quetta Hotel POS</p>
+        <p>24-Hour Session • Auto-Refresh Active • Smart Hotel POS</p>
       </footer>
     </div>
   );

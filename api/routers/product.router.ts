@@ -12,7 +12,6 @@ export const productRouter = router({
         name: z.string().min(1),
         description: z.string().optional(),
         price: z.number().positive(),
-        category: z.string().optional(),
         imageUrl: z.string().optional(),
         departmentId: z.number(),
         options: z.string().optional(),
@@ -27,7 +26,6 @@ export const productRouter = router({
           name: input.name,
           description: input.description ?? null,
           price: input.price,
-          category: input.category ?? null,
           imageUrl: input.imageUrl ?? null,
           departmentId: input.departmentId,
           options: input.options ?? null,
@@ -37,7 +35,7 @@ export const productRouter = router({
       return { id: Number(result.lastInsertRowid) };
     }),
 
-  // Retrieve list of products, with optional search across name, category, department name
+  // Retrieve list of products, with optional search across name, department name
   getProducts: dashboardProcedure
     .input(
       z.object({
@@ -52,7 +50,6 @@ export const productRouter = router({
           name: menuItems.name,
           description: menuItems.description,
           price: menuItems.price,
-          category: menuItems.category,
           imageUrl: menuItems.imageUrl,
           isAvailable: menuItems.isAvailable,
           departmentId: menuItems.departmentId,
@@ -68,7 +65,6 @@ export const productRouter = router({
           .where(
             or(
               like(menuItems.name, term),
-              like(menuItems.category, term),
               like(departments.name, term)
             )
           )
@@ -87,7 +83,6 @@ export const productRouter = router({
         name: z.string().optional(),
         description: z.string().optional(),
         price: z.number().positive().optional(),
-        category: z.string().optional(),
         imageUrl: z.string().optional(),
         departmentId: z.number().optional(),
         options: z.string().optional(),

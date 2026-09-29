@@ -122,7 +122,6 @@ export const menuItems = sqliteTable("menu_items", {
   name: text("name").notNull(),
   description: text("description"),
   price: real("price").notNull(),
-  category: text("category"),
   imageUrl: text("imageUrl"),
   departmentId: int("departmentId").references(() => departments.id),
   options: text("options"),

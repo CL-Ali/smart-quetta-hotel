@@ -22,7 +22,6 @@ export interface ProductFormProps {
     id: number;
     name: string;
     price: number;
-    category?: string | null;
     departmentId: number;
     options?: string | null;
     imageUrl?: string | null;
@@ -34,7 +33,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
   const isEdit = !!initialData;
   const [name, setName] = useState(initialData?.name ?? "");
   const [price, setPrice] = useState(initialData?.price?.toString() ?? "");
-  const [category, setCategory] = useState(initialData?.category ?? "");
   const [departmentId, setDepartmentId] = useState<number | undefined>(initialData?.departmentId);
   const [options, setOptions] = useState(initialData?.options ?? "");
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -54,7 +52,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
     if (initialData) {
       setName(initialData.name);
       setPrice(initialData.price.toString());
-      setCategory(initialData.category ?? "");
       setDepartmentId(initialData.departmentId);
       setOptions(initialData.options ?? "");
       setPreviewUrl(initialData.imageUrl ?? "");
@@ -62,7 +59,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
     } else {
       setName("");
       setPrice("");
-      setCategory("");
       setDepartmentId(undefined);
       setOptions("");
       setPreviewUrl("");
@@ -76,7 +72,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
   const handleClose = () => {
     setName("");
     setPrice("");
-    setCategory("");
     setDepartmentId(undefined);
     setOptions("");
     setPreviewUrl("");
@@ -86,8 +81,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !price || !category.trim() || !departmentId) {
-      toast.error("All fields are required");
+    if (!name.trim() || !price || !departmentId) {
+      toast.error("All required fields must be filled");
       return;
     }
 
@@ -120,7 +115,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
           id: initialData!.id,
           name: name.trim(),
           price: parseFloat(price),
-          category: category.trim(),
           departmentId,
           options: options.trim() || undefined,
           imageUrl: uploadedUrl || undefined,
@@ -130,7 +124,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
         await createMutation.mutateAsync({
           name: name.trim(),
           price: parseFloat(price),
-          category: category.trim(),
           departmentId,
           options: options.trim() || undefined,
           imageUrl: uploadedUrl || undefined,
@@ -185,19 +178,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
             placeholder="e.g. 120"
             value={price}
             onChange={e => setPrice(e.target.value)}
-            required
-            className="h-11"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide block">
-            Category *
-          </label>
-          <Input
-            placeholder="e.g. Tea or Snacks"
-            value={category}
-            onChange={e => setCategory(e.target.value)}
             required
             className="h-11"
           />

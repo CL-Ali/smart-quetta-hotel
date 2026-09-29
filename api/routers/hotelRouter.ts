@@ -235,7 +235,6 @@ export const hotelRouter = router({
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               name: item.name,
-              category: item.category,
               departmentId: item.departmentId,
               imageUrl: item.imageUrl,
               status: item.kitchenStatus || "pending",
@@ -296,7 +295,6 @@ export const hotelRouter = router({
             name: item.name,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            category: item.category,
             departmentId: item.departmentId,
             imageUrl: item.imageUrl,
             kitchenStatus: item.kitchenStatus || "pending",
@@ -574,13 +572,6 @@ export const hotelRouter = router({
 
           items = items.filter((item) => {
             if (targetDeptObj && item.departmentId === targetDeptObj.id) return true;
-            if (
-              item.category &&
-              targetDeptObj &&
-              item.category.toLowerCase() === targetDeptObj.name.toLowerCase()
-            ) {
-              return true;
-            }
             return false;
           });
         }

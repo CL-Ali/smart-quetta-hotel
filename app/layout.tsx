@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Smart Quetta Hotel",
-  description: "Smart Quetta Hotel – Order, track and manage hotel meals in real time.",
+  title: "Smart Hotel Management & POS System",
+  description: "Smart Hotel – Order, track and manage hotel meals in real time.",
   icons: {
     icon: [
       { url: "/logo-192.png", sizes: "192x192", type: "image/png" },
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Quetta Hotel",
+    title: "Smart Hotel POS",
   },
 };
 

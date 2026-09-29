@@ -51,13 +51,12 @@ function getLiveDeptDisplayName(deptName: string, lang: string = "en"): string {
 function resolveItemDepartment(
   item: {
     name: string;
-    category?: string | null;
     departmentId?: number | null;
   },
   liveDepts: any[],
   lang: string = "en"
 ): { key: string; name: string; label: string } {
-  // 1. Direct departmentId match with Live Departments from DB
+  // Direct departmentId match with Live Departments from DB
   if (item.departmentId && liveDepts.length > 0) {
     const matched = liveDepts.find((d) => d.id === item.departmentId);
     if (matched) {
@@ -69,32 +68,21 @@ function resolveItemDepartment(
     }
   }
 
-  // 2. Category name matching with Live Departments from DB
-  if (item.category && liveDepts.length > 0) {
-    const catLower = item.category.toLowerCase().trim();
-    const matched = liveDepts.find((d) => (d.name || "").toLowerCase().trim() === catLower);
-    if (matched) {
-      return {
-        key: `dept-${matched.id}`,
-        name: matched.name,
-        label: getLiveDeptDisplayName(matched.name, lang),
-      };
-    }
-  }
-
-  // 3. Fallback category or item name
-  const fallback = item.category?.trim() || item.name;
+  // Fallback to item name
   return {
-    key: `cat-${fallback.toLowerCase()}`,
-    name: fallback,
-    label: getItemDisplayName(fallback, lang) || fallback,
+    key: `dept-all`,
+    name: item.name,
+    label: getItemDisplayName(item.name, lang) || item.name,
   };
 }
 
 // Clean Minimal Badge
-function getItemBadge(name: string, category: string | null | undefined, lang: string): { text: string } | null {
-  if (category) {
-    return { text: getLiveDeptDisplayName(category, lang) };
+function getItemBadge(item: any, liveDepts: any[], lang: string): { text: string } | null {
+  if (item.departmentId && liveDepts.length > 0) {
+    const dept = liveDepts.find((d: any) => d.id === item.departmentId);
+    if (dept) {
+      return { text: getLiveDeptDisplayName(dept.name, lang) };
+    }
   }
   return null;
 }
@@ -140,27 +128,12 @@ export function MenuSection({
       liveDepartments.forEach((dept: any) => {
         const key = `dept-${dept.id}`;
         const count = menu.filter(
-          (item) => resolveItemDepartment(item, liveDepartments, lang).key === key
+          (item) => item.departmentId === dept.id
         ).length;
         list.push({
           key,
           name: dept.name,
           label: getLiveDeptDisplayName(dept.name, lang),
-          count,
-        });
-      });
-    } else {
-      // Fallback categories if departments not loaded yet
-      const cats = new Set<string>();
-      menu.forEach((item) => {
-        if (item.category) cats.add(item.category);
-      });
-      cats.forEach((c) => {
-        const count = menu.filter((i) => i.category === c).length;
-        list.push({
-          key: `cat-${c.toLowerCase()}`,
-          name: c,
-          label: getItemDisplayName(c, lang) || c,
           count,
         });
       });
@@ -174,11 +147,7 @@ export function MenuSection({
     return menu.filter((item) => {
       let matchesDept = true;
       if (selectedDepartment !== "all") {
-        const itemDept = resolveItemDepartment(item, liveDepartments, lang);
-        matchesDept =
-          itemDept.key === selectedDepartment ||
-          (selectedDepartment.startsWith("cat-") &&
-            `cat-${(item.category || "").toLowerCase()}` === selectedDepartment);
+        matchesDept = `dept-${item.departmentId}` === selectedDepartment;
       }
       const matchesSearch =
         searchQuery === "" ||
@@ -187,7 +156,7 @@ export function MenuSection({
           item.description.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchesDept && matchesSearch;
     });
-  }, [menu, selectedDepartment, searchQuery, liveDepartments, lang]);
+  }, [menu, selectedDepartment, searchQuery]);
 
   const handleFastAdd = (item: MenuItem, addQty: number = 1) => {
     unlockAudio();
@@ -307,7 +276,7 @@ export function MenuSection({
             {filteredMenu.map((item) => {
               const qty = getQty(item.id);
               const isSelected = qty > 0;
-              const badge = getItemBadge(item.name, item.category, lang);
+              const badge = getItemBadge(item, liveDepartments, lang);
               const accurateImg = getAccurateItemImage(item);
               const displayName = getItemDisplayName(item.name, lang);
 
@@ -430,7 +399,7 @@ export function MenuSection({
             {filteredMenu.map((item) => {
               const qty = getQty(item.id);
               const isSelected = qty > 0;
-              const badge = getItemBadge(item.name, item.category, lang);
+              const badge = getItemBadge(item, liveDepartments, lang);
               const accurateImg = getAccurateItemImage(item);
               const displayName = getItemDisplayName(item.name, lang);
 

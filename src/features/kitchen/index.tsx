@@ -63,13 +63,6 @@ export function KitchenView() {
       return dn === lowerDept || String(d.id) === deptName;
     });
     if (dObj && item.departmentId === dObj.id) return true;
-    if (
-      item.category &&
-      dObj &&
-      item.category.toLowerCase() === dObj.name.toLowerCase()
-    ) {
-      return true;
-    }
     return false;
   };
 

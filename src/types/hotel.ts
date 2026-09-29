@@ -22,7 +22,6 @@ export interface MenuItem {
   name: string;
   description?: string | null;
   price: number;
-  category?: string | null;
   imageUrl?: string | null;
   departmentId?: number | null;
   options?: string | null;

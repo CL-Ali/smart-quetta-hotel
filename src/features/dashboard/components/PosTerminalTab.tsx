@@ -45,7 +45,7 @@ interface PosCartItem {
   price: number;
   quantity: number;
   imageUrl?: string | null;
-  category?: string | null;
+  departmentId?: number | null;
 }
 
 interface PosTerminalTabProps {
@@ -70,9 +70,6 @@ function getItemBadge(product: any, departments: any[], lang: string): { text: s
     if (dept) {
       return { text: getDepartmentLabel(dept.name, lang) };
     }
-  }
-  if (product.category) {
-    return { text: getDepartmentLabel(product.category, lang) };
   }
   return null;
 }
@@ -214,7 +211,7 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
           price: product.price,
           quantity: qtyCount,
           imageUrl: product.imageUrl,
-          category: product.category,
+          departmentId: product.departmentId,
         },
       ];
     });
@@ -278,12 +275,10 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
     return menu.filter((p: any) => {
       const matchesDept =
         selectedCategory === "all" ||
-        String(p.departmentId) === selectedCategory ||
-        (p.category && p.category.toLowerCase() === selectedCategory.toLowerCase());
+        String(p.departmentId) === selectedCategory;
       const matchesSearch =
         !search ||
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        (p.category && p.category.toLowerCase().includes(search.toLowerCase()));
+        p.name.toLowerCase().includes(search.toLowerCase());
       return matchesDept && matchesSearch;
     });
   }, [menu, selectedCategory, search]);
