@@ -19,7 +19,7 @@ export default function Logo({ size = "md", showText = true, className = "" }: L
     <Link href="/" className={`flex items-center gap-2 select-none group ${className}`}>
         <img
           src="/logo.png"
-          alt="Smart Quetta Hotel Logo"
+          alt="Smart Hotel Logo"
           width={img}
           height={img}
           className="rounded-xl shadow-md group-hover:scale-105 transition-transform duration-200"
@@ -35,7 +35,7 @@ export default function Logo({ size = "md", showText = true, className = "" }: L
               backgroundClip: "text",
             }}
           >
-            Smart Quetta Hotel
+            Smart Hotel
           </span>
         )}
     </Link>

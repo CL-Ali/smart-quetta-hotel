@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Loader2, ChefHat, Check, Coffee, ChevronDown, ChevronUp, Store, LogOut, Utensils, Layers, Lock } from "lucide-react";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
 import { useLang } from "@/contexts/LangContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { LangSwitcher } from "@/components/LangSwitcher";
-import { StaffWorkspaceSwitcher } from "@/components/StaffWorkspaceSwitcher";
+import { StaffHeaderBar } from "@/components/StaffHeaderBar";
+import { StaffBottomNav } from "@/components/StaffBottomNav";
+import { StaffDrawerSheet } from "@/components/StaffDrawerSheet";
 import { playTapSound } from "@/lib/sound";
 import { fmtTime } from "@/lib/time";
 import { useKitchenViewModel } from "./viewmodel/useKitchenViewModel";
@@ -21,13 +23,14 @@ const ITEM_STATUS: Record<string, { bg: string; text: string; label: string }> =
 };
 
 export function KitchenView() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { staff, logout, permissions } = useAuth();
   const vm = useKitchenViewModel();
   const departmentsQuery = trpc.hotel.getDepartments.useQuery();
 
   const [selectedCounter, setSelectedCounter] = useState<string>("all");
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isStaffRestricted =
     staff?.role === "kitchen" &&
@@ -45,16 +48,6 @@ export function KitchenView() {
     }
   }, [isStaffRestricted, assignedDept]);
 
-  const getDeptUrdu = (name: string) => {
-    const n = (name || "").toLowerCase();
-    if (n.includes("tea") || n.includes("chai")) return "(چائے و قہوہ)";
-    if (n.includes("paratha") || n.includes("tandoor") || n.includes("food")) return "(پراٹھا و تندور)";
-    if (n.includes("drink") || n.includes("lassi")) return "(مشروبات و لسی)";
-    if (n.includes("appetizer")) return "(ایپیٹائزر)";
-    if (n.includes("snack")) return "(سنیکس)";
-    return `(${name})`;
-  };
-
   const matchDepartment = (item: any, deptName: string, depts: any[]) => {
     if (
       !deptName ||
@@ -67,45 +60,15 @@ export function KitchenView() {
     const lowerDept = deptName.toLowerCase();
     const dObj = depts.find((d) => {
       const dn = (d.name || "").toLowerCase();
-      return dn === lowerDept || lowerDept.includes(dn) || dn.includes(lowerDept);
+      return dn === lowerDept || String(d.id) === deptName;
     });
     if (dObj && item.departmentId === dObj.id) return true;
     if (
       item.category &&
-      (item.category.toLowerCase() === lowerDept ||
-        lowerDept.includes(item.category.toLowerCase()) ||
-        item.category.toLowerCase().includes(lowerDept))
+      dObj &&
+      item.category.toLowerCase() === dObj.name.toLowerCase()
     ) {
       return true;
-    }
-    const lowerName = (item.name || "").toLowerCase();
-    if (lowerDept.includes("tea") || lowerDept.includes("chai")) {
-      return (
-        lowerName.includes("chai") ||
-        lowerName.includes("tea") ||
-        item.category === "Tea" ||
-        (item.category === "Drinks" && !lowerName.includes("lassi"))
-      );
-    }
-    if (lowerDept.includes("paratha") || lowerDept.includes("tandoor") || lowerDept.includes("food")) {
-      return (
-        lowerName.includes("paratha") ||
-        lowerName.includes("puri") ||
-        lowerName.includes("anda") ||
-        item.category === "Food" ||
-        item.category === "Parathas"
-      );
-    }
-    if (lowerDept.includes("drink") || lowerDept.includes("lassi")) {
-      return lowerName.includes("lassi") || item.category === "Drinks";
-    }
-    if (lowerDept.includes("appetizer") || lowerDept.includes("snack")) {
-      return (
-        lowerName.includes("samosa") ||
-        lowerName.includes("pakora") ||
-        item.category === "Snacks" ||
-        item.category === "Appetizer"
-      );
     }
     return false;
   };
@@ -163,50 +126,39 @@ export function KitchenView() {
   );
 
   return (
-    <StaffAuthGuard allowedRoles={["admin", "cashier", "kitchen"]}>
-      <div className="min-h-screen bg-[#F8F3EC] dark:bg-[#0B0F17] text-[#24180A] dark:text-[#F8FAFC]">
-        {/* Monolithic Floating Luxe Top Navigation Header */}
-        <header className="bg-white dark:bg-[#121824] rounded-[24px] sm:rounded-[28px] border-0 shadow-none px-4 sm:px-6 py-3.5 flex items-center justify-between shrink-0 gap-3 sticky top-3 z-30 mx-3 sm:mx-4 my-2">
-          {/* Left: Brand + Context */}
-          <div className="flex items-center gap-3 shrink-0 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-[#D98A3C] text-white flex items-center justify-center font-black shrink-0 shadow-none">
-              <ChefHat className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-sm sm:text-base font-black text-[#24180A] dark:text-white leading-none truncate">
-                  {t.hotelName || "Smart Quetta Hotel"}
-                </h1>
-                {vm.activeOrders.length > 0 && (
-                  <span className="bg-[#D98A3C] text-white text-[10px] font-bold rounded-full px-2 py-0.5">
-                    {vm.activeOrders.length}
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-[#D98A3C] font-extrabold uppercase tracking-widest mt-1 truncate">
-                Kitchen Live Display System (KDS)
-              </p>
-            </div>
-          </div>
-
-          {/* Center: Counter Station Tabs Pill */}
-          <div className="flex-1 flex justify-center items-center px-2 min-w-0">
-            <div className="flex items-center gap-1.5 bg-[#F4EFEA] dark:bg-[#1A2234] p-1.5 rounded-full overflow-x-auto no-scrollbar max-w-full border-0">
+    <StaffAuthGuard requiredPermission="canKitchen" allowedRoles={["admin", "kitchen"]}>
+      <div className="min-h-screen bg-[#F8F3EC] dark:bg-[#0B0F17] text-[#24180A] dark:text-[#F8FAFC] pb-20 md:pb-4">
+        {/* Top Unified Navigation Header */}
+        <StaffHeaderBar
+          current="kitchen"
+          title={t.hotelName || "Smart Hotel"}
+          subtitle={`Kitchen KDS${staff?.stationName ? ` • ${staff.stationName}` : ""}`}
+          icon={ChefHat}
+          onOpenDrawer={() => setDrawerOpen(true)}
+          centerContent={
+            <div className="inline-flex items-center bg-[#F4EFEA] dark:bg-[#1A2234] p-1 rounded-full overflow-x-auto no-scrollbar max-w-full border-0 shadow-none relative">
               <button
                 type="button"
                 onClick={() => {
                   playTapSound();
                   setSelectedCounter("all");
                 }}
-                className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer select-none shrink-0 border-0 ${
+                className={`relative px-3.5 h-8 text-xs font-extrabold rounded-full inline-flex items-center gap-1.5 transition-colors duration-200 select-none cursor-pointer border-0 ${
                   selectedCounter === "all"
-                    ? "bg-[#D98A3C] text-white shadow-none font-black"
-                    : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
+                    ? "text-white"
+                    : "text-stone-600 dark:text-stone-400 hover:text-[#24180A] dark:hover:text-white"
                 }`}
               >
-                <span>All Stations</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  selectedCounter === "all" ? "bg-white/20 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
+                {selectedCounter === "all" && (
+                  <motion.div
+                    layoutId="kitchenCounterIndicator"
+                    className="absolute inset-0 bg-[#D98A3C] rounded-full shadow-xs -z-0"
+                    transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                  />
+                )}
+                <span className="relative z-10">All Stations</span>
+                <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  selectedCounter === "all" ? "bg-white/25 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                 }`}>
                   {vm.activeOrders.length}
                 </span>
@@ -216,6 +168,7 @@ export function KitchenView() {
                 const count = (vm.activeOrders || []).filter(
                   (o: any) => (o.counterName || "Main Cashier Counter") === cnt
                 ).length;
+                const isSelected = selectedCounter === cnt;
                 return (
                   <button
                     key={cnt}
@@ -224,16 +177,23 @@ export function KitchenView() {
                       playTapSound();
                       setSelectedCounter(cnt);
                     }}
-                    className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer select-none shrink-0 border-0 ${
-                      selectedCounter === cnt
-                        ? "bg-[#D98A3C] text-white shadow-none font-black"
-                        : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
+                    className={`relative px-3.5 h-8 text-xs font-extrabold rounded-full inline-flex items-center gap-1.5 transition-colors duration-200 select-none cursor-pointer border-0 ${
+                      isSelected
+                        ? "text-white"
+                        : "text-stone-600 dark:text-stone-400 hover:text-[#24180A] dark:hover:text-white"
                     }`}
                   >
-                    <Store className="w-3.5 h-3.5" />
-                    <span>{cnt}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                      selectedCounter === cnt ? "bg-white/20 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
+                    {isSelected && (
+                      <motion.div
+                        layoutId="kitchenCounterIndicator"
+                        className="absolute inset-0 bg-[#D98A3C] rounded-full shadow-xs -z-0"
+                        transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                      />
+                    )}
+                    <Store className="w-3.5 h-3.5 relative z-10" />
+                    <span className="relative z-10">{cnt}</span>
+                    <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      isSelected ? "bg-white/25 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                     }`}>
                       {count}
                     </span>
@@ -241,44 +201,17 @@ export function KitchenView() {
                 );
               })}
             </div>
-          </div>
-
-          {/* Right: Desktop Tools */}
-          <div className="flex items-center gap-2.5 shrink-0">
-            {/* Quick Staff View Links */}
-            <StaffWorkspaceSwitcher current="kitchen" />
-
-            {staff && (
-              <div className="hidden md:flex items-center gap-2 bg-[#F4EFEA] dark:bg-[#1A2234] px-3.5 py-1.5 rounded-full text-xs border-0">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="font-bold text-[#24180A] dark:text-white">{staff.name}</span>
-                <span className="text-[10px] font-extrabold text-[#D98A3C] uppercase bg-amber-500/15 px-2 py-0.5 rounded-full">
-                  Kitchen KDS
-                </span>
-              </div>
-            )}
-
-            <LangSwitcher />
-
-            <button
-              type="button"
-              onClick={() => logout()}
-              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-full transition cursor-pointer shrink-0 border-0"
-              title="Sign Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </header>
+          }
+        />
 
         {/* Main Content Workspace */}
         <main className="max-w-4xl lg:max-w-5xl mx-auto px-4 sm:px-6 py-4 space-y-4 pb-20">
           {/* Dynamic Kitchen Department Header / Tabs */}
           <div className="bg-white dark:bg-[#121824] p-3 rounded-[24px] border-0 shadow-none space-y-2">
             <div className="flex items-center justify-between px-1">
-              <span className="text-[11px] font-black text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-[11px] font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider flex items-center gap-1.5">
                 <ChefHat className="w-3.5 h-3.5 text-amber-600" />
-                <span>Kitchen Department (شعبہ کچن)</span>
+                <span>{t.kitchenDept || "Kitchen Department"}</span>
               </span>
               {isStaffRestricted && (
                 <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -295,11 +228,10 @@ export function KitchenView() {
                     <ChefHat className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                    <div className="text-xs font-black text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
                       <span>{assignedDept} Section</span>
-                      <span className="text-[11px] text-amber-800 font-bold">{getDeptUrdu(assignedDept || "")}</span>
                     </div>
-                    <p className="text-[10px] text-amber-800/80 font-semibold">
+                    <p className="text-[10px] text-amber-800/80 dark:text-amber-300/80 font-semibold">
                       You are strictly assigned to prepare only items from this department.
                     </p>
                   </div>
@@ -321,17 +253,17 @@ export function KitchenView() {
                     selectedDepartment === "all" ||
                     selectedDepartment.includes("All Departments") ||
                     selectedDepartment.includes("Main Kitchen")
-                      ? "bg-stone-900 text-white shadow-2xs"
-                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
+                      ? "bg-stone-900 dark:bg-amber-600 text-white shadow-2xs"
+                      : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-800"
                   }`}
                 >
                   <Layers className="w-3.5 h-3.5" />
-                  <span>All Departments (مکمل کچن)</span>
+                  <span>{t.allDepartments || "All Departments"}</span>
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                       selectedDepartment === "all" || selectedDepartment.includes("All Departments")
-                        ? "bg-stone-700 text-white"
-                        : "bg-stone-100 text-stone-600"
+                        ? "bg-stone-700 dark:bg-amber-700 text-white"
+                        : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300"
                     }`}
                   >
                     {vm.activeOrders.length}
@@ -363,7 +295,7 @@ export function KitchenView() {
                       }`}
                     >
                       <span>
-                        {dept.name} Section {getDeptUrdu(dept.name)}
+                        {dept.name} Section
                       </span>
                       <span
                         className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
@@ -574,6 +506,29 @@ export function KitchenView() {
             ))
           )}
         </main>
+
+        {/* Mobile Bottom Navigation */}
+        <StaffBottomNav
+          current="kitchen"
+          items={[
+            { key: "all", label: lang === "ur" ? "تمام" : "All", icon: ChefHat },
+            ...(departmentsQuery.data || []).map((d) => ({
+              key: d.name,
+              label: lang === "ur" ? (d.name.toLowerCase() === "tea" ? "چائے" : d.name.toLowerCase() === "paratha" ? "پراٹھا" : d.name.toLowerCase() === "kitchen" ? "کچن" : d.name.toLowerCase() === "drinks" ? "مشروبات" : d.name) : d.name,
+              icon: Coffee,
+            })),
+          ]}
+          activeItem={selectedDepartment}
+          onSelectItem={(k) => setSelectedDepartment(k)}
+          onOpenDrawer={() => setDrawerOpen(true)}
+        />
+
+        {/* Mobile Drawer Sheet */}
+        <StaffDrawerSheet
+          isOpen={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          current="kitchen"
+        />
       </div>
     </StaffAuthGuard>
   );

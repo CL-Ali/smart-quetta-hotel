@@ -1,5 +1,5 @@
 /**
- * Ultra-low-latency Web Audio sound effects for Quetta Hotel touch POS & customer menu
+ * Ultra-low-latency Web Audio sound effects for Smart Hotel touch POS & customer menu
  * Generates instant acoustic feedback with zero network latency.
  */
 

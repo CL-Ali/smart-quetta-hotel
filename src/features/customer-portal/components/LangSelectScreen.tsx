@@ -36,7 +36,7 @@ export function LangSelectScreen({ onDone }: LangSelectScreenProps) {
               <FaUtensils className="w-5 h-5" />
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-[#24180A] dark:text-white tracking-tight">
-              {t.hotelName || "Quetta Hotel"}
+              {t.hotelName || "Smart Hotel"}
             </h1>
             <p className="text-xs text-[#786B5D] dark:text-stone-400 font-medium mt-1">
               Choose Language / اپنی زبان منتخب کریں

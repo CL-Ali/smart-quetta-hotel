@@ -25,7 +25,7 @@ interface ConfirmPlaceModalProps {
   cart: CartItem[];
   cartTotal: number;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (notes?: string) => void;
   onRemoveItem?: (id: number) => void;
   onAdd?: (item: any, qty?: number) => void;
   onDec?: (id: number) => void;
@@ -33,65 +33,37 @@ interface ConfirmPlaceModalProps {
 
 interface SpecialRequestOption {
   id: string;
-  labelUr: string;
-  labelEn: string;
+  label: string;
 }
 
-// Dynamic special requests detected from cart items
-function getDynamicSpecialRequests(cart: CartItem[]): SpecialRequestOption[] {
+// Dynamic preparation & cooking preferences extracted from the specific products in the cart
+function getDynamicSpecialRequests(cart: CartItem[], lang: string): SpecialRequestOption[] {
   if (!cart || cart.length === 0) return [];
 
-  const cartText = cart
-    .map((i) => `${i.name} ${i.description || ""}`)
-    .join(" ")
-    .toLowerCase();
+  const foundOptions: string[] = [];
+  cart.forEach((item) => {
+    if (item.options && typeof item.options === "string") {
+      const parts = item.options.split(/[,;\n]/).map((p) => p.trim()).filter(Boolean);
+      parts.forEach((p) => {
+        if (!foundOptions.some((existing) => existing.toLowerCase() === p.toLowerCase())) {
+          foundOptions.push(p);
+        }
+      });
+    }
+  });
 
-  const options: SpecialRequestOption[] = [];
-
-  // 1. Chai detection
-  const hasChai = /chai|tea|chaye|چائے|doodh patti|karak/i.test(cartText);
-  if (hasChai) {
-    options.push(
-      { id: "chai_karak", labelUr: "کڑک چائے", labelEn: "Strong Karak" },
-      { id: "chai_less_sugar", labelUr: "کم چینی", labelEn: "Less Sugar" },
-      { id: "chai_no_sugar", labelUr: "بغیر چینی", labelEn: "No Sugar" }
-    );
+  if (foundOptions.length > 0) {
+    return foundOptions.map((opt, idx) => ({
+      id: `opt_${idx}_${opt.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
+      label: opt,
+    }));
   }
 
-  // 2. Paratha / Roti
-  const hasParatha = /paratha|lacha|roti|naan|پراٹھا|روٹی|نان/i.test(cartText);
-  if (hasParatha) {
-    options.push(
-      { id: "paratha_crispy", labelUr: "کرکرا پراٹھا", labelEn: "Extra Crispy" },
-      { id: "paratha_less_oil", labelUr: "کم تیل/گھی", labelEn: "Less Oil" }
-    );
-  }
-
-  // 3. Egg / Breakfast
-  const hasEgg = /anda|egg|omelette|fry|half fry|انڈہ|آملیٹ|ناشتہ/i.test(cartText);
-  if (hasEgg) {
-    options.push(
-      { id: "egg_half_fry", labelUr: "ہاف فرائی", labelEn: "Half Fry" },
-      { id: "egg_full_fry", labelUr: "فل فرائی", labelEn: "Full Fry" },
-      { id: "egg_spicy", labelUr: "تیز مرچ", labelEn: "Extra Spicy" }
-    );
-  }
-
-  // 4. Curry / Karahi
-  const hasCurry = /karahi|chicken|gosht|mutton|handi|qeema|کڑاہی|قیمہ|سالن/i.test(cartText);
-  if (hasCurry) {
-    options.push(
-      { id: "curry_spicy", labelUr: "تیز مصالحہ", labelEn: "Extra Spicy" },
-      { id: "curry_mild", labelUr: "ہلکی مرچ", labelEn: "Mild Spicy" }
-    );
-  }
-
-  // 5. Takeaway packing option
-  options.push(
-    { id: "takeaway_pack", labelUr: "پارسل / پیکنگ", labelEn: "Takeaway Packing" }
-  );
-
-  return options;
+  // Universal dining fallback if no specific product options are configured
+  const takeawayLabel = lang === "ur" ? "پارسل / پیکنگ" : "Takeaway Packing";
+  return [
+    { id: "req_takeaway", label: takeawayLabel },
+  ];
 }
 
 export function ConfirmPlaceModal({
@@ -113,7 +85,7 @@ export function ConfirmPlaceModal({
   const [itemToDelete, setItemToDelete] = useState<CartItem | null>(null);
 
   const totalItems = cart.reduce((s, i) => s + i.quantity, 0);
-  const specialOptions = useMemo(() => getDynamicSpecialRequests(cart), [cart]);
+  const specialOptions = useMemo(() => getDynamicSpecialRequests(cart, lang), [cart, lang]);
 
   const toggleSpecialRequest = (id: string) => {
     unlockAudio();
@@ -239,7 +211,7 @@ export function ConfirmPlaceModal({
       {specialOptions.length > 0 && (
         <div className="text-left pt-1">
           <p className="text-xs font-bold text-stone-700 dark:text-zinc-300 mb-1.5">
-            {lang === "ur" ? "خصوصی ہدایات (Preferences)" : "Preferences"}
+            {lang === "ur" ? "خصوصی ہدایات" : "Preferences"}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {specialOptions.map((opt) => {
@@ -256,7 +228,7 @@ export function ConfirmPlaceModal({
                   }`}
                 >
                   {isSelected && <FaCheck className="w-2 h-2" />}
-                  <span>{lang === "ur" ? opt.labelUr : opt.labelEn}</span>
+                  <span>{opt.label}</span>
                 </button>
               );
             })}
@@ -325,7 +297,14 @@ export function ConfirmPlaceModal({
           onClick={() => {
             unlockAudio();
             playTapSound();
-            onConfirm();
+            const selectedLabels = specialOptions
+              .filter((opt) => selectedRequests.includes(opt.id))
+              .map((opt) => opt.label);
+            let finalNote = selectedLabels.join(", ");
+            if (customNote.trim()) {
+              finalNote = finalNote ? `${finalNote} (${customNote.trim()})` : customNote.trim();
+            }
+            onConfirm(finalNote || undefined);
           }}
           className="h-11 rounded-full bg-brand-amber hover:bg-brand-amber-hover text-white text-xs font-bold transition cursor-pointer shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 active:scale-98"
         >
@@ -336,8 +315,9 @@ export function ConfirmPlaceModal({
 
       {/* ── Item Delete Confirmation Prompt Inside Modal ── */}
       {itemToDelete && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in-0">
-          <div className="bg-white dark:bg-[#121824] rounded-[24px] border border-stone-200/90 dark:border-white/[0.08] p-5 max-w-xs w-full text-center shadow-2xl space-y-3.5 animate-in zoom-in-95">
+        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in-0 duration-200">
+          <div className="bg-white dark:bg-[#121824] rounded-t-[32px] sm:rounded-[24px] border border-stone-200/90 dark:border-white/[0.08] p-5 sm:p-6 max-w-xs w-full text-center shadow-2xl space-y-3.5 animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+            <div className="w-12 h-1.5 bg-stone-300 dark:bg-stone-600 rounded-full mx-auto mb-2 sm:hidden shrink-0" />
             <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-950/40 text-red-500 mx-auto flex items-center justify-center">
               <FaTrashCan className="w-5 h-5" />
             </div>

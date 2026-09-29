@@ -1,5 +1,5 @@
 /**
- * Core Domain Types for Smart Quetta Hotel
+ * Core Domain Types for Smart Hotel
  * Easy-to-understand TypeScript interfaces for intermediate developers
  */
 
@@ -25,6 +25,7 @@ export interface MenuItem {
   category?: string | null;
   imageUrl?: string | null;
   departmentId?: number | null;
+  options?: string | null;
   isAvailable: boolean;
   createdAt: string;
 }
@@ -36,6 +37,8 @@ export interface CartItem {
   quantity: number;
   description?: string | null;
   imageUrl?: string | null;
+  departmentId?: number | null;
+  options?: string | null;
 }
 
 export interface OrderItem {

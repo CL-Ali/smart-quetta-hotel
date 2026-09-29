@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
-import { LangSwitcher } from "@/components/LangSwitcher";
-import { StaffWorkspaceSwitcher } from "@/components/StaffWorkspaceSwitcher";
+import { StaffHeaderBar } from "@/components/StaffHeaderBar";
+import { StaffBottomNav } from "@/components/StaffBottomNav";
+import { StaffDrawerSheet } from "@/components/StaffDrawerSheet";
 import { StaffAuthGuard } from "@/components/StaffAuthGuard";
 import { playTapSound, playOrderSuccessSound } from "@/lib/sound";
 import {
@@ -45,81 +47,116 @@ import {
   ChefHat,
   Utensils,
   User,
+  LayoutGrid,
+  Percent,
+  BookOpen,
+  Ban,
+  BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 
 const PERMISSION_OPTIONS = [
   {
+    id: "can_access_pos",
+    label: "POS Terminal Ordering Access",
+    desc: "Open live touchscreen POS register, select dishes, and punch orders",
+    icon: LayoutGrid,
+    roles: ["admin", "cashier", "waiter", "kitchen"],
+  },
+  {
     id: "can_access_cashier",
-    label: "Cashier POS Access",
-    desc: "Open billing register and punch orders",
-    roles: ["admin", "cashier"],
+    label: "Cashier Management Access",
+    desc: "Manage customer orders, unpaid bills, guests, products, and inventory stock",
+    icon: Store,
+    roles: ["admin", "cashier", "waiter", "kitchen"],
+  },
+  {
+    id: "can_access_kitchen",
+    label: "Kitchen KDS Station Access",
+    desc: "View live cooking queue and update food preparation status",
+    icon: ChefHat,
+    roles: ["admin", "cashier", "kitchen", "waiter"],
+  },
+  {
+    id: "can_access_waiter",
+    label: "Waiter Delivery Station Access",
+    desc: "Serve ready food items and manage table delivery",
+    icon: Utensils,
+    roles: ["admin", "cashier", "kitchen", "waiter"],
+  },
+  {
+    id: "can_access_admin",
+    label: "Master Admin Dashboard Control",
+    desc: "Access financial analytics, audit logs, and staff management",
+    icon: ShieldCheck,
+    roles: ["admin"],
   },
   {
     id: "can_discount",
-    label: "Apply Discounts",
-    desc: "Allow applying custom discounts & vouchers",
+    label: "Apply Discounts & Vouchers",
+    desc: "Allow applying custom discounts & vouchers on checkout",
+    icon: Percent,
     roles: ["admin", "cashier"],
   },
   {
     id: "can_settle_khata",
-    label: "Settle Khata / Udhar",
+    label: "Settle Khata / Udhar Ledger",
     desc: "Collect payments & clear shopkeeper ledger balances",
+    icon: BookOpen,
     roles: ["admin", "cashier"],
   },
   {
     id: "can_void_order",
-    label: "Void / Cancel Orders",
-    desc: "Cancel active or misplaced orders",
-    roles: ["admin"],
-  },
-  {
-    id: "can_access_kitchen",
-    label: "Kitchen KDS Access",
-    desc: "View kitchen queue and update food preparation status",
-    roles: ["admin", "cashier", "kitchen"],
-  },
-  {
-    id: "can_access_waiter",
-    label: "Waiter Delivery Station",
-    desc: "Serve ready items and manage table delivery",
-    roles: ["admin", "cashier", "kitchen", "waiter"],
+    label: "Void / Cancel Placed Orders",
+    desc: "Cancel active, unpaid or misplaced orders",
+    icon: Ban,
+    roles: ["admin", "cashier"],
   },
   {
     id: "can_view_reports",
     label: "Financial Analytics & Reports",
-    desc: "View daily sales, total cash/bank breakdown",
-    roles: ["admin"],
+    desc: "View daily sales, total cash/bank breakdown & charts",
+    icon: BarChart3,
+    roles: ["admin", "cashier"],
   },
 ];
 
 const DEFAULT_ROLE_PERMS: Record<string, string[]> = {
   admin: [
+    "can_access_admin",
     "can_access_cashier",
+    "can_access_pos",
+    "can_access_kitchen",
+    "can_access_waiter",
     "can_discount",
     "can_settle_khata",
     "can_void_order",
-    "can_access_kitchen",
-    "can_access_waiter",
     "can_view_reports",
   ],
   cashier: [
     "can_access_cashier",
+    "can_access_pos",
     "can_discount",
     "can_settle_khata",
-    "can_access_kitchen",
-    "can_access_waiter",
   ],
-  kitchen: ["can_access_kitchen", "can_access_waiter"],
-  waiter: ["can_access_waiter"],
+  kitchen: ["can_access_kitchen"],
+  waiter: ["can_access_waiter", "can_access_pos"],
 };
 
 export function AdminDashboardView() {
-  const { staff, clientIp, logout } = useAuth();
-  const { t } = useLang();
+  const { staff, clientIp, logout, permissions } = useAuth();
+  const { t, lang } = useLang();
 
-  const [activeTab, setActiveTab] = useState<"accounts" | "staff">("accounts");
+  const [activeTab, setActiveTab] = useState<"accounts" | "staff">(
+    permissions?.canViewReports !== false ? "accounts" : "staff"
+  );
+
+  useEffect(() => {
+    if (permissions && !permissions.canViewReports && activeTab === "accounts") {
+      setActiveTab("staff");
+    }
+  }, [permissions, activeTab]);
   const [selectedCounterTab, setSelectedCounterTab] = useState<string>("all");
   const [staffRoleFilter, setStaffRoleFilter] = useState<
     "all" | "admin" | "cashier" | "kitchen" | "waiter"
@@ -129,6 +166,7 @@ export function AdminDashboardView() {
   const [editingStaff, setEditingStaff] = useState<any | null>(null);
   const [showEditIpModal, setShowEditIpModal] = useState<any | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({});
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Form State for Add Staff
   const [newName, setNewName] = useState("");
@@ -136,7 +174,7 @@ export function AdminDashboardView() {
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<"admin" | "cashier" | "waiter" | "kitchen">("cashier");
   const [newStation, setNewStation] = useState("Counter 1");
-  const [newAssignedCashierId, setNewAssignedCashierId] = useState<number | null>(null);
+  const [newAssignedCashierIds, setNewAssignedCashierIds] = useState<number[]>([]);
   const [newAllowedIp, setNewAllowedIp] = useState("");
   const [newPermissions, setNewPermissions] = useState<string[]>(DEFAULT_ROLE_PERMS.cashier);
   const [formError, setFormError] = useState("");
@@ -147,7 +185,7 @@ export function AdminDashboardView() {
   const [editPassword, setEditPassword] = useState("");
   const [editRole, setEditRole] = useState<"admin" | "cashier" | "waiter" | "kitchen">("cashier");
   const [editStation, setEditStation] = useState("");
-  const [editAssignedCashierId, setEditAssignedCashierId] = useState<number | null>(null);
+  const [editAssignedCashierIds, setEditAssignedCashierIds] = useState<number[]>([]);
   const [editAllowedIp, setEditAllowedIp] = useState("");
   const [editIsActive, setEditIsActive] = useState(true);
   const [editPermissions, setEditPermissions] = useState<string[]>([]);
@@ -223,6 +261,24 @@ export function AdminDashboardView() {
     }
   };
 
+  const handleToggleCustomerQueue = async () => {
+    const currentQueueState = (accountsQuery.data as any)?.showCustomerQueue ?? true;
+    const nextState = !currentQueueState;
+    playTapSound();
+    try {
+      await updateConfigMut.mutateAsync({ showCustomerQueue: nextState });
+      playOrderSuccessSound();
+      toast.success(
+        nextState
+          ? "Customer Live Kitchen Queue is now Visible!"
+          : "Customer Live Kitchen Queue is now Hidden!"
+      );
+      accountsQuery.refetch();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update customer queue visibility");
+    }
+  };
+
   const allCashiers = (staffQuery.data || []).filter((s) => s.role === "cashier" || s.role === "admin");
 
   const handleOpenAddModal = () => {
@@ -232,7 +288,7 @@ export function AdminDashboardView() {
     setNewPassword("1234");
     setNewRole("cashier");
     setNewStation("Counter 1");
-    setNewAssignedCashierId(null);
+    setNewAssignedCashierIds([]);
     setNewAllowedIp("");
     setNewPermissions(DEFAULT_ROLE_PERMS.cashier);
     setFormError("");
@@ -246,7 +302,7 @@ export function AdminDashboardView() {
     else if (role === "kitchen") setNewStation("Main Kitchen KDS");
     else if (role === "waiter") {
       setNewStation("Floor Delivery");
-      setNewAssignedCashierId(allCashiers[0]?.id || null);
+      setNewAssignedCashierIds([]);
     } else {
       setNewStation("Master Admin Terminal");
     }
@@ -268,7 +324,7 @@ export function AdminDashboardView() {
         password: newPassword.trim(),
         role: newRole,
         stationName: newStation.trim() || null,
-        assignedCashierId: newRole === "waiter" ? newAssignedCashierId : null,
+        assignedCashierIds: (newRole === "waiter" || newRole === "kitchen") ? newAssignedCashierIds : null,
         permissions: newPermissions,
         allowedIp: newAllowedIp.trim() || null,
       });
@@ -290,7 +346,11 @@ export function AdminDashboardView() {
     setEditPassword(member.password || "");
     setEditRole(member.role || "cashier");
     setEditStation(member.stationName || "");
-    setEditAssignedCashierId(member.assignedCashierId || null);
+    setEditAssignedCashierIds(
+      member.assignedCashierIds && Array.isArray(member.assignedCashierIds)
+        ? member.assignedCashierIds
+        : []
+    );
     setEditAllowedIp(member.allowedIp || "");
     setEditIsActive(member.isActive ?? true);
     setEditPermissions(
@@ -319,7 +379,7 @@ export function AdminDashboardView() {
         password: editPassword.trim() || undefined,
         role: editRole,
         stationName: editStation.trim() || null,
-        assignedCashierId: editRole === "waiter" ? editAssignedCashierId : null,
+        assignedCashierIds: (editRole === "waiter" || editRole === "kitchen") ? editAssignedCashierIds : null,
         permissions: editPermissions,
         allowedIp: editAllowedIp.trim() || null,
         isActive: editIsActive,
@@ -378,7 +438,7 @@ export function AdminDashboardView() {
         ? "Kitchen Staff"
         : "Floor Waiter";
 
-    const text = `*Smart Quetta Hotel - Staff Login Credentials*
+    const text = `*Smart Hotel - Staff Login Credentials*
 ━━━━━━━━━━━━━━━━━━━━━━
 *Name:* ${member.name}
 *Role:* ${roleEmoji}
@@ -413,6 +473,7 @@ _Please open the Portal URL on your device to sign in._`;
   const shopkeepers = accountsQuery.data?.shopkeepers || [];
   const recentPayments = accountsQuery.data?.recentPayments || [];
   const operationMode = accountsQuery.data?.operationMode || "unified";
+  const showCustomerQueue = (accountsQuery.data as any)?.showCustomerQueue ?? true;
   const countersBreakdown = accountsQuery.data?.countersBreakdown || [];
 
   const allStaffMembers = staffQuery.data || [];
@@ -431,47 +492,45 @@ _Please open the Portal URL on your device to sign in._`;
 
   return (
     <StaffAuthGuard allowedRoles={["admin"]}>
-      <div className="min-h-screen bg-[#F8F3EC] dark:bg-[#0B0F17] text-[#24180A] dark:text-[#F8FAFC] flex flex-col select-none">
-        {/* Top Navigation Header (Floating Pill / Squircle Card) */}
-        <header className="bg-white dark:bg-[#121824] rounded-[24px] sm:rounded-[28px] border-0 shadow-none px-4 sm:px-6 py-3.5 flex items-center justify-between shrink-0 gap-3 sticky top-3 z-30 mx-3 sm:mx-4 my-2">
-          {/* Left: Brand + Context */}
-          <div className="flex items-center gap-3 shrink-0 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-[#D98A3C] text-white flex items-center justify-center font-black shrink-0">
-              <Hotel className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-sm sm:text-base font-black text-[#24180A] dark:text-white leading-none truncate">
-                {t.hotelName || "Smart Quetta Hotel"}
-              </h1>
-              <p className="text-[10px] text-[#D98A3C] font-extrabold uppercase tracking-widest mt-1 truncate">
-                Admin Master Portal & Multi-Terminal Control
-              </p>
-            </div>
-          </div>
-
-          {/* Center: Centered Tab Navigation Pill */}
-          <div className="flex-1 flex justify-center items-center px-2 min-w-0">
-            <div className="flex items-center gap-1.5 bg-[#F4EFEA] dark:bg-[#1A2234] p-1.5 rounded-full overflow-x-auto no-scrollbar max-w-full">
-              <button
-                type="button"
-                onClick={() => {
-                  playTapSound();
-                  setActiveTab("accounts");
-                }}
-                className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer shrink-0 ${
-                  activeTab === "accounts"
-                    ? "bg-[#D98A3C] text-white shadow-none"
-                    : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
-                }`}
-              >
-                <Wallet className="w-3.5 h-3.5" />
-                <span>Accounts & Ledger</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  activeTab === "accounts" ? "bg-white/20 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
-                }`}>
-                  {countersBreakdown.length} {countersBreakdown.length === 1 ? "Counter" : "Counters"}
-                </span>
-              </button>
+      <div className="min-h-screen bg-[#F8F3EC] dark:bg-[#0B0F17] text-[#24180A] dark:text-[#F8FAFC] flex flex-col select-none pb-20 md:pb-4">
+        {/* Top Unified Navigation Header */}
+        <StaffHeaderBar
+          current="admin"
+          title={t.hotelName || "Smart Hotel"}
+          subtitle={t.adminMasterPortal || (lang === "ur" ? "ایڈمن کنٹرول پینل" : "Admin Master Portal & Control")}
+          icon={Hotel}
+          onOpenDrawer={() => setDrawerOpen(true)}
+          centerContent={
+            <div className="inline-flex items-center bg-[#F4EFEA] dark:bg-[#1A2234] p-1 rounded-full overflow-x-auto no-scrollbar max-w-full border-0 shadow-none relative">
+              {permissions?.canViewReports && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    setActiveTab("accounts");
+                  }}
+                  className={`relative px-3.5 h-8 text-xs font-extrabold rounded-full inline-flex items-center gap-1.5 transition-colors duration-200 select-none cursor-pointer border-0 ${
+                    activeTab === "accounts"
+                      ? "text-white"
+                      : "text-stone-600 dark:text-stone-400 hover:text-[#24180A] dark:hover:text-white"
+                  }`}
+                >
+                  {activeTab === "accounts" && (
+                    <motion.div
+                      layoutId="adminTabIndicator"
+                      className="absolute inset-0 bg-[#D98A3C] rounded-full shadow-xs -z-0"
+                      transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                    />
+                  )}
+                  <Wallet className="w-3.5 h-3.5 relative z-10" />
+                  <span className="relative z-10">{t.accountsLedger || (lang === "ur" ? "کھاتہ و مالیات" : "Accounts & Ledger")}</span>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    activeTab === "accounts" ? "bg-white/25 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
+                  }`}>
+                    {countersBreakdown.length} {countersBreakdown.length === 1 ? (lang === "ur" ? "کاؤنٹر" : "Counter") : (lang === "ur" ? "کاؤنٹرز" : "Counters")}
+                  </span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -479,55 +538,40 @@ _Please open the Portal URL on your device to sign in._`;
                   playTapSound();
                   setActiveTab("staff");
                 }}
-                className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer shrink-0 ${
+                className={`relative px-3.5 h-8 text-xs font-extrabold rounded-full inline-flex items-center gap-1.5 transition-colors duration-200 select-none cursor-pointer border-0 ${
                   activeTab === "staff"
-                    ? "bg-[#D98A3C] text-white shadow-none"
-                    : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
+                    ? "text-white"
+                    : "text-stone-600 dark:text-stone-400 hover:text-[#24180A] dark:hover:text-white"
                 }`}
               >
-                <Users className="w-3.5 h-3.5" />
-                <span>Staff & Dynamic Access</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  activeTab === "staff" ? "bg-white/20 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
+                {activeTab === "staff" && (
+                  <motion.div
+                    layoutId="adminTabIndicator"
+                    className="absolute inset-0 bg-[#D98A3C] rounded-full shadow-xs -z-0"
+                    transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                  />
+                )}
+                <Users className="w-3.5 h-3.5 relative z-10" />
+                <span className="relative z-10">{t.staffAccess || (lang === "ur" ? "عملہ و رسائی کنٹرول" : "Staff & Dynamic Access")}</span>
+                <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  activeTab === "staff" ? "bg-white/25 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                 }`}>
                   {allStaffMembers.length}
                 </span>
               </button>
             </div>
-          </div>
-
-          {/* Right: Profile & Portal Tools */}
-          <div className="flex items-center gap-2.5 shrink-0">
-            {/* Quick Staff View Links */}
-            <StaffWorkspaceSwitcher current="admin" />
-
-            <div className="hidden md:flex items-center gap-2 bg-[#F4EFEA] dark:bg-[#1A2234] px-3.5 py-1.5 rounded-full text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-bold text-[#24180A] dark:text-stone-200">{staff?.name}</span>
-              <span className="text-[10px] font-extrabold text-[#D98A3C] uppercase bg-amber-500/15 px-2 py-0.5 rounded-full">
-                Master Admin
-              </span>
-            </div>
-
-            <LangSwitcher />
-
-            <button
-              type="button"
-              onClick={() => logout()}
-              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-full transition cursor-pointer shrink-0"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </header>
+          }
+        />
 
         {/* Main Workspace */}
         <main className="flex-1 p-3 sm:p-4 max-w-7xl w-full mx-auto space-y-4">
-          {/* Streamlined Operation Mode Floating Bar */}
-          <div className="bg-white dark:bg-[#121824] rounded-[24px] sm:rounded-[26px] p-4 flex items-center justify-between gap-3 text-xs border-0 shadow-none">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="font-bold text-stone-500 dark:text-stone-400 hidden sm:inline">Operation Mode:</span>
+          {/* Streamlined Operation Mode & System Settings Floating Bar */}
+          <div className="bg-white dark:bg-[#121824] rounded-[24px] sm:rounded-[26px] p-3.5 sm:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs border-0 shadow-none">
+            {/* Left: Operation Mode */}
+            <div className="flex items-center justify-between md:justify-start gap-2.5 min-w-0">
+              <span className="font-bold text-stone-500 dark:text-stone-400">
+                {lang === "ur" ? "موڈ:" : "Mode:"}
+              </span>
               <span
                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold ${
                   operationMode === "segregated"
@@ -542,23 +586,67 @@ _Please open the Portal URL on your device to sign in._`;
                 />
                 <span>
                   {operationMode === "segregated"
-                    ? "Counter-Segregated Pods (الگ کاؤنٹرز)"
-                    : "Unified Shared Register (مشترکہ رجسٹر)"}
+                    ? (lang === "ur" ? "الگ کاؤنٹر سسٹم" : "Counter-Segregated Pods")
+                    : (lang === "ur" ? "مشترکہ رجسٹر سسٹم" : "Unified Shared Register")}
                 </span>
               </span>
+              <button
+                type="button"
+                onClick={handleToggleMode}
+                disabled={updateConfigMut.isPending}
+                className="px-3.5 py-1.5 bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-amber-100 dark:hover:bg-stone-800 active:scale-[0.98] transition text-stone-800 dark:text-stone-200 text-xs font-bold rounded-full flex items-center gap-1.5 cursor-pointer shrink-0 ml-auto md:ml-0"
+              >
+                <Settings className="w-3.5 h-3.5 text-[#D98A3C]" />
+                <span>
+                  {operationMode === "segregated"
+                    ? (lang === "ur" ? "مشترکہ موڈ منتخب کریں" : "Switch to Unified")
+                    : (lang === "ur" ? "الگ کاؤنٹر موڈ منتخب کریں" : "Switch to Pods")}
+                </span>
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={handleToggleMode}
-              disabled={updateConfigMut.isPending}
-              className="px-4 py-2 bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-amber-100 dark:hover:bg-stone-800 active:scale-[0.98] transition text-stone-800 dark:text-stone-200 text-xs font-bold rounded-full flex items-center gap-1.5 cursor-pointer shrink-0"
-            >
-              <Settings className="w-3.5 h-3.5 text-[#D98A3C]" />
-              <span>
-                {operationMode === "segregated" ? "Switch to Unified" : "Switch to Pods"}
+            {/* Right: Customer Live Queue Visibility Toggle */}
+            <div className="flex items-center justify-between md:justify-end gap-2.5 min-w-0 pt-2.5 md:pt-0 border-t md:border-t-0 border-stone-100 dark:border-zinc-800/80">
+              <span className="font-bold text-stone-500 dark:text-stone-400">
+                {lang === "ur" ? "گاہک کی قطار:" : "Customer Queue:"}
               </span>
-            </button>
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold ${
+                  showCustomerQueue
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300"
+                    : "bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400"
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    showCustomerQueue ? "bg-emerald-500 animate-pulse" : "bg-stone-400"
+                  }`}
+                />
+                <span>
+                  {showCustomerQueue
+                    ? (lang === "ur" ? "قطار فعال ہے" : "Queue Visible")
+                    : (lang === "ur" ? "قطار غیر فعال ہے" : "Queue Hidden")}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={handleToggleCustomerQueue}
+                disabled={updateConfigMut.isPending}
+                className="px-3.5 py-1.5 bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-stone-800 active:scale-[0.98] transition text-stone-800 dark:text-stone-200 text-xs font-bold rounded-full flex items-center gap-1.5 cursor-pointer shrink-0 ml-auto md:ml-0"
+              >
+                {showCustomerQueue ? (
+                  <>
+                    <EyeOff className="w-3.5 h-3.5 text-stone-500" />
+                    <span>{lang === "ur" ? "قطار چھپائیں" : "Hide Queue"}</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{lang === "ur" ? "قطار دکھائیں" : "Show Queue"}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* TAB 1: TOTAL ACCOUNTS & COUNTER SUB-TABS */}
@@ -579,7 +667,7 @@ _Please open the Portal URL on your device to sign in._`;
                   }`}
                 >
                   <Building2 className="w-3.5 h-3.5" />
-                  <span>All Counters</span>
+                  <span>{lang === "ur" ? "تمام کاؤنٹرز" : "All Counters"}</span>
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                       selectedCounterTab === "all"
@@ -992,10 +1080,12 @@ _Please open the Portal URL on your device to sign in._`;
                 <div>
                   <h3 className="text-sm font-black text-[#24180A] dark:text-white flex items-center gap-2">
                     <Users className="w-4 h-4 text-[#D98A3C]" />
-                    <span>Staff Accounts & Multi-Terminal Control</span>
+                    <span>{lang === "ur" ? "عملہ اکاؤنٹس و ملٹی ٹرمینل کنٹرول" : "Staff Accounts & Multi-Terminal Control"}</span>
                   </h3>
                   <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
-                    Manage multi-cashiers, link floor waiters, lock terminal IPs, and configure staff permissions.
+                    {lang === "ur"
+                      ? "کیشیئرز، فلور ویٹرز، ٹرمینل آئی پی لاک اور اختیارات کا انتظام کریں۔"
+                      : "Manage multi-cashiers, link floor waiters, lock terminal IPs, and configure staff permissions."}
                   </p>
                 </div>
 
@@ -1005,7 +1095,7 @@ _Please open the Portal URL on your device to sign in._`;
                   className="px-5 py-2.5 bg-[#D98A3C] hover:bg-[#c27931] active:scale-[0.98] transition text-white font-bold text-xs rounded-full flex items-center justify-center gap-2 cursor-pointer shrink-0"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Add Staff Account</span>
+                  <span>{t.addStaff || (lang === "ur" ? "+ نیا عملہ شامل کریں" : "Add Staff Account")}</span>
                 </button>
               </div>
 
@@ -1024,7 +1114,7 @@ _Please open the Portal URL on your device to sign in._`;
                   }`}
                 >
                   <Users className="w-3 h-3" />
-                  <span>All ({allStaffMembers.length})</span>
+                  <span>{lang === "ur" ? `تمام (${allStaffMembers.length})` : `All (${allStaffMembers.length})`}</span>
                 </button>
 
                 <button
@@ -1039,7 +1129,7 @@ _Please open the Portal URL on your device to sign in._`;
                       : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
                   }`}
                 >
-                  <span>Admins ({adminCount})</span>
+                  <span>{lang === "ur" ? `ایڈمنز (${adminCount})` : `Admins (${adminCount})`}</span>
                 </button>
 
                 <button
@@ -1054,7 +1144,7 @@ _Please open the Portal URL on your device to sign in._`;
                       : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
                   }`}
                 >
-                  <span>Cashiers ({cashierCount})</span>
+                  <span>{lang === "ur" ? `کیشیئرز (${cashierCount})` : `Cashiers (${cashierCount})`}</span>
                 </button>
 
                 <button
@@ -1069,7 +1159,7 @@ _Please open the Portal URL on your device to sign in._`;
                       : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
                   }`}
                 >
-                  <span>Kitchen ({kitchenCount})</span>
+                  <span>{lang === "ur" ? `کچن (${kitchenCount})` : `Kitchen (${kitchenCount})`}</span>
                 </button>
 
                 <button
@@ -1084,429 +1174,764 @@ _Please open the Portal URL on your device to sign in._`;
                       : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
                   }`}
                 >
-                  <span>Waiters ({waiterCount})</span>
+                  <span>{lang === "ur" ? `ویٹرز (${waiterCount})` : `Waiters (${waiterCount})`}</span>
                 </button>
               </div>
 
-              {/* Staff Floating Squircle Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {filteredStaff.map((member: any) => {
-                  const isVisible = visiblePasswords[member.id] || false;
-                  const roleBadge =
-                    member.role === "admin"
-                      ? { bg: "bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300", label: "Admin" }
-                      : member.role === "cashier"
-                      ? { bg: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300", label: "Cashier" }
-                      : member.role === "kitchen"
-                      ? { bg: "bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300", label: "Kitchen" }
-                      : { bg: "bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300", label: "Waiter" };
+              {/* Staff Directory Table Format */}
+              <div className="bg-white dark:bg-[#121824] rounded-[26px] p-4 sm:p-6 border-0 shadow-none space-y-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-black text-[#24180A] dark:text-white">
+                      {lang === "ur"
+                        ? `رجسٹرڈ عملہ اکاؤنٹس (${filteredStaff.length})`
+                        : `Registered Staff Accounts (${filteredStaff.length})`}
+                    </h3>
+                    <p className="text-[11px] text-stone-500 dark:text-stone-400 font-medium">
+                      {lang === "ur"
+                        ? "عملے کا پن، مخصوص کاؤنٹرز، ڈیوائس آئی پی اور اختیارات کا انتظام کریں۔"
+                        : "Manage staff login PINs, assigned counter stations, device IP bindings, and access permissions"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleOpenAddModal}
+                    className="px-4 py-2 bg-[#D98A3C] hover:bg-[#C27930] active:scale-[0.98] transition text-white text-xs font-black rounded-full flex items-center gap-1.5 shadow-none cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>{t.addStaff || (lang === "ur" ? "+ نیا عملہ شامل کریں" : "Register New Staff")}</span>
+                  </button>
+                </div>
 
-                  const perms = member.permissionsList || [];
+                {filteredStaff.length === 0 ? (
+                  <div className="text-center py-12 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl text-stone-400">
+                    <p className="text-xs font-bold">
+                      {lang === "ur" ? "اس فلٹر کے مطابق کوئی عملہ نہیں ملا۔" : "No staff members found matching this filter."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-2xl bg-[#F8F3EC] dark:bg-[#182030] p-1">
+                    <table className="w-full text-left text-xs text-stone-700 dark:text-stone-300 border-collapse">
+                      <thead className="text-stone-400 uppercase font-extrabold text-[10px] border-b border-stone-200/60 dark:border-stone-700/60">
+                        <tr>
+                          <th className="py-3 px-3.5">{t.staffMember || (lang === "ur" ? "عملہ ممبر" : "Staff Member")}</th>
+                          <th className="py-3 px-3.5">{t.role || (lang === "ur" ? "عہدہ" : "Role")}</th>
+                          <th className="py-3 px-3.5">{t.stationCounter || (lang === "ur" ? "مخصوص کاؤنٹر / شعبہ" : "Station / Dept")}</th>
+                          <th className="py-3 px-3.5">{lang === "ur" ? "لاگ ان پن" : "Login PIN"}</th>
+                          <th className="py-3 px-3.5">{t.deviceIp || (lang === "ur" ? "ڈیوائس آئی پی" : "Allowed Device IP")}</th>
+                          <th className="py-3 px-3.5">{t.permissions || (lang === "ur" ? "اختیارات" : "Permissions")}</th>
+                          <th className="py-3 px-3.5 text-right">{t.actions || (lang === "ur" ? "کارروائی" : "Actions")}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-200/50 dark:divide-stone-700/50 font-medium">
+                        {filteredStaff.map((member: any) => {
+                          const isVisible = visiblePasswords[member.id] || false;
+                          const roleBadge =
+                            member.role === "admin"
+                              ? { bg: "bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300", label: lang === "ur" ? "ایڈمن" : "Admin" }
+                              : member.role === "cashier"
+                              ? { bg: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300", label: lang === "ur" ? "کیشیئر" : "Cashier" }
+                              : member.role === "kitchen"
+                              ? { bg: "bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300", label: lang === "ur" ? "کچن" : "Kitchen" }
+                              : { bg: "bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300", label: lang === "ur" ? "ویٹر" : "Waiter" };
 
-                  return (
-                    <div
-                      key={member.id}
-                      className={`bg-white dark:bg-[#121824] rounded-[26px] p-5 sm:p-6 border-0 shadow-none flex flex-col justify-between space-y-4 transition hover:scale-[1.01] ${
-                        member.isActive ? "" : "opacity-75"
-                      }`}
-                    >
-                      {/* Top Info */}
-                      <div>
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-black text-sm text-[#24180A] dark:text-white truncate">{member.name}</h4>
-                              {!member.isActive && (
-                                <span className="text-[9px] bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 px-2 py-0.5 rounded-full font-bold">
-                                  Disabled
-                                </span>
-                              )}
-                            </div>
-                            {member.role === "kitchen" ? (
-                              <p className="text-[11px] font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1 mt-0.5">
-                                <ChefHat className="w-3 h-3 text-blue-600" />
-                                <span>Dept: {member.stationName || "All Departments (Main Kitchen)"}</span>
-                              </p>
-                            ) : member.stationName ? (
-                              <p className="text-[11px] font-bold text-[#D98A3C] flex items-center gap-1 mt-0.5">
-                                <span>Station: {member.stationName}</span>
-                              </p>
-                            ) : null}
-                            {member.role === "waiter" && member.assignedCashierName && (
-                              <p className="text-[11px] font-bold text-purple-700 dark:text-purple-400 flex items-center gap-1 mt-0.5">
-                                <span>Assigned: {member.assignedCashierName}</span>
-                              </p>
-                            )}
-                            {member.role === "waiter" && !member.assignedCashierName && (
-                              <p className="text-[11px] font-bold text-stone-400 flex items-center gap-1 mt-0.5">
-                                <span>Roaming (All Stations)</span>
-                              </p>
-                            )}
-                          </div>
+                          const perms = member.permissionsList || [];
 
-                          <span
-                            className={`px-3 py-1 rounded-full text-[10px] font-extrabold shrink-0 ${roleBadge.bg}`}
-                          >
-                            {roleBadge.label}
-                          </span>
-                        </div>
-
-                        {/* Password & Credentials View for Hotel Owner */}
-                        <div className="bg-[#F8F3EC] dark:bg-[#182030] p-3 rounded-2xl space-y-1 text-xs mt-3">
-                          <div className="flex items-center justify-between text-stone-500 dark:text-stone-400 text-[11px]">
-                            <span>PIN / Password:</span>
-                            <button
-                              type="button"
-                              onClick={() => togglePasswordVisibility(member.id)}
-                              className="flex items-center gap-1 text-[10px] text-[#D98A3C] font-bold cursor-pointer"
+                          return (
+                            <tr
+                              key={member.id}
+                              className={`hover:bg-white/80 dark:hover:bg-stone-800/60 transition ${
+                                member.isActive ? "" : "opacity-60 bg-red-50/20"
+                              }`}
                             >
-                              {isVisible ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                              <span>{isVisible ? "Hide" : "Show"}</span>
-                            </button>
-                          </div>
-                          <div className="font-mono font-black text-xs text-[#24180A] dark:text-white tracking-wider">
-                            {isVisible ? member.password || "1234" : "••••••••"}
-                          </div>
-                        </div>
+                              {/* Column 1: Staff Member */}
+                              <td className="py-3 px-3.5">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-8 h-8 rounded-xl bg-[#D98A3C]/15 text-[#D98A3C] font-black text-xs flex items-center justify-center shrink-0">
+                                    {member.name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-black text-xs text-[#24180A] dark:text-white truncate">
+                                        {member.name}
+                                      </span>
+                                      {!member.isActive && (
+                                        <span className="text-[9px] bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 px-1.5 py-0.2 rounded-full font-bold">
+                                          Disabled
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] text-stone-500 dark:text-stone-400 truncate">
+                                      {member.email || member.username}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
 
-                        {/* Bound Device IP Info */}
-                        <div className="mt-2.5 p-3 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl space-y-0.5 text-xs">
-                          <div className="flex items-center justify-between text-stone-500 dark:text-stone-400 text-[11px]">
-                            <span className="flex items-center gap-1">
-                              <Smartphone className="w-3 h-3 text-stone-400" />
-                              <span>Allowed IP:</span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                playTapSound();
-                                setShowEditIpModal(member);
-                                setEditIpValue(member.allowedIp || "");
-                              }}
-                              className="text-[10px] text-[#D98A3C] hover:underline font-bold cursor-pointer"
-                            >
-                              Edit IP
-                            </button>
-                          </div>
-                          <div className="font-mono text-[#24180A] dark:text-white font-bold text-[11px] truncate">
-                            {member.role === "admin" ? (
-                              <span className="text-emerald-600 dark:text-emerald-400">Any Network</span>
-                            ) : member.allowedIp ? (
-                              <span>{member.allowedIp}</span>
-                            ) : (
-                              <span className="text-stone-400 italic">No IP set</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Permissions Summary Tags */}
-                        <div className="mt-2.5 flex flex-wrap gap-1.5">
-                          {perms.length > 0 ? (
-                            perms.slice(0, 2).map((p: string) => {
-                              const match = PERMISSION_OPTIONS.find((opt) => opt.id === p);
-                              return (
-                                <span
-                                  key={p}
-                                  className="text-[10px] bg-[#F4EFEA] dark:bg-stone-800 text-stone-600 dark:text-stone-300 px-2.5 py-0.5 rounded-full font-medium"
-                                >
-                                  {match?.label || p}
+                              {/* Column 2: Role */}
+                              <td className="py-3 px-3.5">
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold inline-block ${roleBadge.bg}`}>
+                                  {roleBadge.label}
                                 </span>
-                              );
-                            })
-                          ) : (
-                            <span className="text-[10px] text-stone-400 italic">Standard Access</span>
-                          )}
-                          {perms.length > 2 && (
-                            <span className="text-[10px] bg-amber-50 dark:bg-amber-950/40 text-[#D98A3C] px-2 py-0.5 rounded-full font-bold">
-                              +{perms.length - 2} more
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                              </td>
 
-                      {/* Action Buttons */}
-                      <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleShareCredentials(member)}
-                          className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] transition text-white text-xs font-bold rounded-full flex items-center justify-center gap-1.5 cursor-pointer"
-                          title="Share credentials via WhatsApp or Clipboard"
-                        >
-                          <Share2 className="w-3 h-3" />
-                          <span>Share</span>
-                        </button>
+                              {/* Column 3: Assigned Station / Dept */}
+                              <td className="py-3 px-3.5">
+                                {member.role === "kitchen" && (
+                                  <div className="space-y-0.5">
+                                    <span className="text-[11px] font-bold text-[#D98A3C] flex items-center gap-1">
+                                      <ChefHat className="w-3 h-3 text-[#D98A3C] shrink-0" />
+                                      <span>{member.stationName || "All Departments"}</span>
+                                    </span>
+                                    <p className="text-[10px] text-stone-500 dark:text-stone-400 truncate">
+                                      {member.assignedCashierName ? member.assignedCashierName : "All Counters / Roaming"}
+                                    </p>
+                                  </div>
+                                )}
+                                {member.role === "cashier" && (
+                                  <span className="text-[11px] font-bold text-[#D98A3C]">
+                                    {member.stationName || "Main Counter"}
+                                  </span>
+                                )}
+                                {member.role === "waiter" && (
+                                  <span className="text-[11px] font-bold text-stone-700 dark:text-stone-300">
+                                    {member.assignedCashierName || "Roaming (All Stations)"}
+                                  </span>
+                                )}
+                                {member.role === "admin" && (
+                                  <span className="text-[11px] font-bold text-amber-800 dark:text-amber-300">
+                                    All Systems & Controls
+                                  </span>
+                                )}
+                              </td>
 
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditModal(member)}
-                          className="py-2 px-3.5 bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-amber-100 dark:hover:bg-stone-800 text-stone-800 dark:text-stone-200 text-xs font-bold rounded-full flex items-center gap-1.5 transition cursor-pointer"
-                          title="Edit Staff Member"
-                        >
-                          <Edit2 className="w-3 h-3 text-[#D98A3C]" />
-                          <span>Edit</span>
-                        </button>
+                              {/* Column 4: Login PIN / Password */}
+                              <td className="py-3 px-3.5">
+                                <div className="inline-flex items-center gap-2 bg-white dark:bg-[#121824] px-2.5 py-1 rounded-xl border border-stone-200/50 dark:border-zinc-800">
+                                  <span className="font-mono font-bold text-xs text-[#24180A] dark:text-white tracking-wider">
+                                    {isVisible ? member.password || "1234" : "••••••••"}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => togglePasswordVisibility(member.id)}
+                                    className="text-stone-400 hover:text-[#D98A3C] cursor-pointer"
+                                    title={isVisible ? "Hide Password" : "Show Password"}
+                                  >
+                                    {isVisible ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                  </button>
+                                </div>
+                              </td>
 
-                        {member.role !== "admin" && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteStaff(member.id, member.name)}
-                            className="p-2 text-stone-400 hover:text-red-600 transition rounded-full hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
-                            title="Remove Staff Member"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                              {/* Column 5: Allowed Device IP */}
+                              <td className="py-3 px-3.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono text-xs font-bold">
+                                    {member.role === "admin" ? (
+                                      <span className="text-emerald-600 dark:text-emerald-400">Any Network</span>
+                                    ) : member.allowedIp ? (
+                                      <span className="text-[#24180A] dark:text-white">{member.allowedIp}</span>
+                                    ) : (
+                                      <span className="text-stone-400 italic">No IP set</span>
+                                    )}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      playTapSound();
+                                      setShowEditIpModal(member);
+                                      setEditIpValue(member.allowedIp || "");
+                                    }}
+                                    className="p-1 text-[#D98A3C] hover:bg-amber-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer transition"
+                                    title="Edit Network IP binding"
+                                  >
+                                    <Smartphone className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </td>
+
+                              {/* Column 6: Permissions */}
+                              <td className="py-3 px-3.5">
+                                <div className="flex flex-wrap gap-1 max-w-[220px]">
+                                  {perms.length > 0 ? (
+                                    perms.slice(0, 2).map((p: string) => {
+                                      const match = PERMISSION_OPTIONS.find((opt) => opt.id === p);
+                                      const MatchIcon = match?.icon || ShieldCheck;
+                                      return (
+                                        <span
+                                          key={p}
+                                          className="text-[9px] bg-[#F4EFEA] dark:bg-stone-800 text-stone-600 dark:text-stone-300 px-2 py-0.5 rounded-md font-medium flex items-center gap-1"
+                                        >
+                                          <MatchIcon className="w-2.5 h-2.5 text-[#D98A3C] shrink-0" />
+                                          <span className="truncate max-w-[90px]">{match?.label || p}</span>
+                                        </span>
+                                      );
+                                    })
+                                  ) : (
+                                    <span className="text-[10px] text-stone-400 italic">Standard</span>
+                                  )}
+                                  {perms.length > 2 && (
+                                    <span className="text-[9px] bg-amber-50 dark:bg-amber-950/40 text-[#D98A3C] px-1.5 py-0.5 rounded-md font-bold">
+                                      +{perms.length - 2}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Column 7: Actions */}
+                              <td className="py-3 px-3.5 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleShareCredentials(member)}
+                                    className="h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition text-white text-[11px] font-bold rounded-full flex items-center gap-1 cursor-pointer"
+                                    title="Share credentials via WhatsApp"
+                                  >
+                                    <Share2 className="w-3 h-3" />
+                                    <span className="hidden sm:inline">Share</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditModal(member)}
+                                    className="h-7 px-2.5 bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-amber-100 dark:hover:bg-stone-800 text-stone-800 dark:text-stone-200 text-[11px] font-bold rounded-full flex items-center gap-1 transition cursor-pointer"
+                                    title="Edit Staff Member"
+                                  >
+                                    <Edit2 className="w-3 h-3 text-[#D98A3C]" />
+                                    <span className="hidden sm:inline">Edit</span>
+                                  </button>
+
+                                  {member.role !== "admin" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteStaff(member.id, member.name)}
+                                      className="h-7 w-7 text-stone-400 hover:text-red-600 transition rounded-full hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center justify-center cursor-pointer"
+                                      title="Remove Staff Member"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
-        </main>
 
         {/* MODAL: ADD STAFF */}
         {showAddModal && (
-          <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white dark:bg-[#121824] rounded-[28px] sm:rounded-[32px] p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-4 text-[#24180A] dark:text-white my-8 max-h-[90vh] overflow-y-auto border-0">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-black text-[#24180A] dark:text-white flex items-center gap-2">
-                  <Users className="w-5 h-5 text-[#D98A3C]" />
-                  <span>Register New Staff Account</span>
-                </h3>
+          <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#121824] rounded-t-[32px] sm:rounded-[32px] p-5 sm:p-7 max-w-xl w-full shadow-2xl space-y-4 sm:space-y-5 text-[#24180A] dark:text-white max-h-[92vh] sm:max-h-[88vh] overflow-y-auto no-scrollbar border-0 animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+              <div className="w-12 h-1.5 bg-stone-300 dark:bg-stone-600 rounded-full mx-auto mb-1 sm:hidden shrink-0" />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center font-black shrink-0">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-[#24180A] dark:text-white leading-tight">
+                      Register New Staff Account
+                    </h3>
+                    <p className="text-[11px] text-stone-500 dark:text-stone-400 font-medium">
+                      Create staff credentials, assign station & dynamic permissions
+                    </p>
+                  </div>
+                </div>
                 <button
+                  type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 p-2 rounded-full cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-stone-800 flex items-center justify-center text-stone-500 hover:text-stone-800 dark:hover:text-white transition cursor-pointer border-0 shrink-0"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
               <form onSubmit={handleCreateStaff} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
-                      Staff Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      placeholder="e.g. Aslam Khan"
-                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-medium"
-                      required
-                    />
+                {/* 1. Account Credentials */}
+                <div className="p-4 bg-[#F8F3EC]/80 dark:bg-[#182030] rounded-2xl space-y-3 border-0">
+                  <div className="text-xs font-black text-[#D98A3C] uppercase tracking-wider">
+                    Account Credentials (حساب کی تفصیلات)
                   </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
-                      Username / Login ID *
-                    </label>
-                    <input
-                      type="text"
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      placeholder="e.g. cashier2, waiter3"
-                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
-                      Password / PIN *
-                    </label>
-                    <input
-                      type="text"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="e.g. 1234 or pass123"
-                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
-                      Role Assignment *
-                    </label>
-                    <select
-                      value={newRole}
-                      onChange={(e) => handleRoleChangeForAdd(e.target.value as any)}
-                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-bold"
-                    >
-                      <option value="cashier">Cashier (POS & Billing)</option>
-                      <option value="waiter">Waiter (Floor Delivery)</option>
-                      <option value="kitchen">Kitchen (KDS Queue)</option>
-                      <option value="admin">Admin (Master Control)</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Station & Counter Configuration / Kitchen Department Configuration */}
-                {newRole === "kitchen" ? (
-                  <div className="p-4 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
-                        <ChefHat className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Assigned Kitchen Department (شعبہ کچن)</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                        Staff Full Name *
                       </label>
-                      <span className="text-[10px] text-blue-700 dark:text-blue-300 font-bold">Live Departments</span>
+                      <input
+                        type="text"
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        placeholder="e.g. Aslam Khan"
+                        className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-medium"
+                        required
+                      />
                     </div>
-                    <select
-                      value={newStation}
-                      onChange={(e) => setNewStation(e.target.value)}
-                      className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white outline-none font-bold border-0"
-                    >
-                      <option value="All Departments (Main Kitchen)">
-                        All Departments (Main Kitchen) - سارے شعبہ جات
-                      </option>
-                      {(departmentsQuery.data || []).map((d) => (
-                        <option key={d.id} value={d.name}>
-                          {d.name} Section ({d.name === "Tea" ? "چائے سیکشن" : d.name === "Parathas" ? "پراٹھا و تندور" : d.name === "Drinks" ? "مشروبات" : "سنیکس / کچن"})
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex flex-wrap gap-1.5">
-                      {["All Departments (Main Kitchen)", ...((departmentsQuery.data || []).map((d) => d.name))].map(
-                        (preset) => (
+
+                    <div>
+                      <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                        Username / Login ID *
+                      </label>
+                      <input
+                        type="text"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        placeholder="e.g. cashier2, waiter3"
+                        className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                        Password / PIN *
+                      </label>
+                      <input
+                        type="text"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="e.g. 1234 or pass123"
+                        className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                        Role Assignment *
+                      </label>
+                      <select
+                        value={newRole}
+                        onChange={(e) => handleRoleChangeForAdd(e.target.value as any)}
+                        className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-bold"
+                      >
+                        <option value="cashier">Cashier (POS & Billing)</option>
+                        <option value="waiter">Waiter (Floor Delivery)</option>
+                        <option value="kitchen">Kitchen (KDS Queue)</option>
+                        <option value="admin">Admin (Master Control)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Station & Routing Configuration */}
+                <div className="p-4 bg-[#F8F3EC]/80 dark:bg-[#182030] rounded-2xl space-y-3 border-0">
+                  <div className="text-xs font-black text-[#D98A3C] uppercase tracking-wider">
+                    Station & Routing (کاؤنٹر و تعیناتی)
+                  </div>
+
+                  {newRole === "admin" ? (
+                    <div className="p-3.5 bg-white dark:bg-[#121824] rounded-2xl flex items-center gap-2.5 border-0">
+                      <ShieldCheck className="w-4 h-4 text-[#D98A3C] shrink-0" />
+                      <div className="text-xs text-stone-600 dark:text-stone-300">
+                        <span className="font-bold text-[#24180A] dark:text-white">Master Admin: </span>
+                        Unrestricted global access across all registers, kitchen pods, and waiter stations.
+                      </div>
+                    </div>
+                  ) : newRole === "cashier" ? (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-bold text-stone-600 dark:text-stone-300">
+                          Station / Counter Name (کاؤنٹر کا نام) *
+                        </label>
+                        <span className="text-[10px] text-stone-500">Quick Presets:</span>
+                      </div>
+                      <input
+                        type="text"
+                        value={newStation}
+                        onChange={(e) => setNewStation(e.target.value)}
+                        placeholder="e.g. Counter 1, Counter 2, Takeaway Desk"
+                        className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-bold"
+                        required
+                      />
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {["Counter 1", "Counter 2", "Counter 3", "Takeaway Desk"].map(
+                          (preset) => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setNewStation(preset)}
+                              className={`text-[10px] px-3 py-1 rounded-full transition font-bold cursor-pointer border-0 ${
+                                newStation === preset
+                                  ? "bg-amber-100 dark:bg-amber-950/60 text-[#D98A3C]"
+                                  : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:bg-stone-200/60"
+                              }`}
+                            >
+                              {preset}
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  ) : newRole === "kitchen" ? (
+                    <div className="space-y-3.5">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-stone-600 dark:text-stone-300 flex items-center gap-1.5">
+                            <ChefHat className="w-3.5 h-3.5 text-[#D98A3C]" />
+                            <span>Assigned Kitchen Department (شعبہ کچن)</span>
+                          </label>
+                          <span className="text-[10px] text-[#D98A3C] font-bold">Live Departments</span>
+                        </div>
+                        <select
+                          value={newStation}
+                          onChange={(e) => setNewStation(e.target.value)}
+                          className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none font-bold border-0"
+                        >
+                          <option value="All Departments (Main Kitchen)">
+                            All Departments (Main Kitchen) - سارے شعبہ جات
+                          </option>
+                          {(departmentsQuery.data || []).map((d) => (
+                            <option key={d.id} value={d.name}>
+                              {d.name} Department ({d.name} سیکشن)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Multi-Counter Cashier Assignment for Kitchen */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-xs font-bold text-stone-600 dark:text-stone-300">
+                            Assigned Counters / Cashiers (مختص کردہ کاؤنٹرز)
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                playTapSound();
+                                setNewAssignedCashierIds([]);
+                              }}
+                              className={`text-[10px] px-2.5 py-1 rounded-full font-bold cursor-pointer border-0 transition ${
+                                newAssignedCashierIds.length === 0
+                                  ? "bg-[#D98A3C] text-white"
+                                  : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:bg-amber-100"
+                              }`}
+                            >
+                              All Counters (Roaming)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                playTapSound();
+                                setNewAssignedCashierIds(allCashiers.map((c) => c.id));
+                              }}
+                              className="text-[10px] px-2 py-1 rounded-full bg-white dark:bg-[#121824] hover:bg-stone-200 text-stone-700 dark:text-stone-300 font-bold cursor-pointer border-0 transition"
+                            >
+                              All
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                playTapSound();
+                                setNewAssignedCashierIds([]);
+                              }}
+                              className="text-[10px] px-2 py-1 rounded-full bg-white dark:bg-[#121824] hover:bg-red-50 text-stone-700 dark:text-stone-300 font-bold cursor-pointer border-0 transition"
+                            >
+                              Clear
+                            </button>
+                          </div>
+                        </div>
+
+                        {allCashiers.length === 0 ? (
+                          <div className="text-xs text-stone-400 p-3 bg-white dark:bg-[#121824] rounded-2xl">
+                            No cashier accounts found. Kitchen will display orders from all counters.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {allCashiers.map((c) => {
+                              const isSelected = newAssignedCashierIds.includes(c.id);
+                              return (
+                                <div
+                                  key={c.id}
+                                  onClick={() => {
+                                    playTapSound();
+                                    if (isSelected) {
+                                      setNewAssignedCashierIds((prev) => prev.filter((id) => id !== c.id));
+                                    } else {
+                                      setNewAssignedCashierIds((prev) => [...prev, c.id]);
+                                    }
+                                  }}
+                                  className={`p-2.5 rounded-2xl flex items-center justify-between gap-2 transition active:scale-[0.98] select-none cursor-pointer border-0 ${
+                                    isSelected
+                                      ? "bg-white dark:bg-[#121824] ring-2 ring-[#D98A3C] shadow-xs"
+                                      : "bg-white/60 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 opacity-75 hover:opacity-100"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div
+                                      className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition ${
+                                        isSelected
+                                          ? "bg-[#D98A3C]/15 text-[#D98A3C]"
+                                          : "bg-stone-200/60 dark:bg-white/5 text-stone-400"
+                                      }`}
+                                    >
+                                      <Store className="w-3.5 h-3.5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="text-xs font-bold text-[#24180A] dark:text-white truncate">
+                                        {c.name}
+                                      </div>
+                                      <div className="text-[10px] text-stone-500 dark:text-stone-400 truncate">
+                                        {c.stationName || `Counter #${c.id}`}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition ${
+                                      isSelected
+                                        ? "bg-[#D98A3C] text-white shadow-xs"
+                                        : "border-2 border-stone-300 dark:border-stone-600 bg-transparent"
+                                    }`}
+                                  >
+                                    {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-stone-500 dark:text-stone-400 mt-1.5">
+                          {newAssignedCashierIds.length === 0
+                            ? "✨ Roaming Mode: Kitchen displays incoming tickets from all active counters."
+                            : `⚡ Restricted Mode: Kitchen receives tickets from ${newAssignedCashierIds.length} selected counter(s).`}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-bold text-stone-600 dark:text-stone-300">
+                          Assigned Counters / Cashiers (مختص کردہ کاؤنٹرز)
+                        </label>
+                        <div className="flex items-center gap-1.5">
                           <button
-                            key={preset}
                             type="button"
-                            onClick={() => setNewStation(preset)}
-                            className={`text-[10px] px-3 py-1 rounded-full transition font-bold cursor-pointer border-0 ${
-                              newStation === preset
-                                ? "bg-blue-600 text-white shadow-none"
-                                : "bg-white dark:bg-[#121824] text-stone-700 dark:text-stone-300 hover:bg-stone-50"
+                            onClick={() => {
+                              playTapSound();
+                              setNewAssignedCashierIds([]);
+                            }}
+                            className={`text-[10px] px-2.5 py-1 rounded-full font-bold cursor-pointer border-0 transition ${
+                              newAssignedCashierIds.length === 0
+                                ? "bg-[#D98A3C] text-white"
+                                : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:bg-amber-100"
                             }`}
                           >
-                            {preset}
+                            All Counters (Roaming)
                           </button>
-                        )
+                          <button
+                            type="button"
+                            onClick={() => {
+                              playTapSound();
+                              setNewAssignedCashierIds(allCashiers.map((c) => c.id));
+                            }}
+                            className="text-[10px] px-2 py-1 rounded-full bg-white dark:bg-[#121824] hover:bg-stone-200 text-stone-700 dark:text-stone-300 font-bold cursor-pointer border-0 transition"
+                          >
+                            All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              playTapSound();
+                              setNewAssignedCashierIds([]);
+                            }}
+                            className="text-[10px] px-2 py-1 rounded-full bg-white dark:bg-[#121824] hover:bg-red-50 text-stone-700 dark:text-stone-300 font-bold cursor-pointer border-0 transition"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+
+                      {allCashiers.length === 0 ? (
+                        <div className="text-xs text-stone-400 p-3 bg-white dark:bg-[#121824] rounded-2xl">
+                          No cashier accounts found. Waiter will operate across all counters.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {allCashiers.map((c) => {
+                            const isSelected = newAssignedCashierIds.includes(c.id);
+                            return (
+                              <div
+                                key={c.id}
+                                onClick={() => {
+                                  playTapSound();
+                                  if (isSelected) {
+                                    setNewAssignedCashierIds((prev) => prev.filter((id) => id !== c.id));
+                                  } else {
+                                    setNewAssignedCashierIds((prev) => [...prev, c.id]);
+                                  }
+                                }}
+                                className={`p-2.5 rounded-2xl flex items-center justify-between gap-2 transition active:scale-[0.98] select-none cursor-pointer border-0 ${
+                                  isSelected
+                                    ? "bg-white dark:bg-[#121824] ring-2 ring-[#D98A3C] shadow-xs"
+                                    : "bg-white/60 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 opacity-75 hover:opacity-100"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div
+                                    className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition ${
+                                      isSelected
+                                        ? "bg-[#D98A3C]/15 text-[#D98A3C]"
+                                        : "bg-stone-200/60 dark:bg-white/5 text-stone-400"
+                                    }`}
+                                  >
+                                    <Store className="w-3.5 h-3.5" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-bold text-[#24180A] dark:text-white truncate">
+                                      {c.name}
+                                    </div>
+                                    <div className="text-[10px] text-stone-500 dark:text-stone-400 truncate">
+                                      {c.stationName || `Counter #${c.id}`}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div
+                                  className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition ${
+                                    isSelected
+                                      ? "bg-[#D98A3C] text-white shadow-xs"
+                                      : "border-2 border-stone-300 dark:border-stone-600 bg-transparent"
+                                  }`}
+                                >
+                                  {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
+                      <p className="text-[10px] text-stone-500 dark:text-stone-400 mt-1.5">
+                        {newAssignedCashierIds.length === 0
+                          ? "✨ Roaming Mode: Waiter can deliver orders from all counters."
+                          : `⚡ Restricted Mode: Waiter delivers orders for ${newAssignedCashierIds.length} selected counter(s).`}
+                      </p>
                     </div>
-                    <p className="text-[10px] text-stone-500 dark:text-stone-400">
-                      Kitchen staff assigned to a specific department only receive orders containing those items (e.g. Chai section only sees tea orders).
-                    </p>
+                  )}
+                </div>
+
+                {/* 3. Dynamic Permissions Grid (HIG Accessible Tap Cards) */}
+                <div className="p-4 bg-[#F8F3EC]/80 dark:bg-[#182030] rounded-2xl space-y-3 border-0">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <div className="text-xs font-black text-[#D98A3C] uppercase tracking-wider">
+                        Dynamic Permissions (اختیارات)
+                      </div>
+                      <div className="text-[10px] text-stone-500 dark:text-stone-400">
+                        {newPermissions.length} of {PERMISSION_OPTIONS.length} permissions granted
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setNewPermissions(PERMISSION_OPTIONS.map((p) => p.id))}
+                        className="text-[10px] px-2.5 py-1 rounded-full bg-white dark:bg-[#121824] hover:bg-amber-50 text-stone-700 dark:text-stone-300 font-bold cursor-pointer border-0 transition"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewPermissions([])}
+                        className="text-[10px] px-2.5 py-1 rounded-full bg-white dark:bg-[#121824] hover:bg-red-50 text-stone-700 dark:text-stone-300 font-bold cursor-pointer border-0 transition"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewPermissions(DEFAULT_ROLE_PERMS[newRole] || [])}
+                        className="text-[10px] px-2.5 py-1 rounded-full bg-[#D98A3C]/15 text-[#D98A3C] hover:bg-[#D98A3C]/25 font-bold cursor-pointer border-0 transition"
+                      >
+                        Reset Preset
+                      </button>
+                    </div>
                   </div>
-                ) : (
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {PERMISSION_OPTIONS.map((opt) => {
+                      const isChecked = newPermissions.includes(opt.id);
+                      const OptIcon = opt.icon;
+                      return (
+                        <div
+                          key={opt.id}
+                          onClick={() => {
+                            playTapSound();
+                            if (isChecked) {
+                              setNewPermissions((prev) => prev.filter((p) => p !== opt.id));
+                            } else {
+                              setNewPermissions((prev) => [...prev, opt.id]);
+                            }
+                          }}
+                          className={`p-3 rounded-2xl flex items-start gap-2.5 transition active:scale-[0.98] select-none cursor-pointer border-0 ${
+                            isChecked
+                              ? "bg-white dark:bg-[#121824] ring-2 ring-[#D98A3C] shadow-xs"
+                              : "bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 opacity-70 hover:opacity-100"
+                          }`}
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition ${
+                              isChecked
+                                ? "bg-[#D98A3C]/15 text-[#D98A3C]"
+                                : "bg-stone-200/50 dark:bg-white/5 text-stone-400"
+                            }`}
+                          >
+                            <OptIcon className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-black text-[#24180A] dark:text-white leading-tight">
+                              {opt.label}
+                            </div>
+                            <div className="text-[10px] text-stone-500 dark:text-stone-400 leading-tight mt-0.5 line-clamp-2">
+                              {opt.desc}
+                            </div>
+                          </div>
+                          <div
+                            className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition ${
+                              isChecked
+                                ? "bg-[#D98A3C] text-white shadow-xs"
+                                : "border-2 border-stone-300 dark:border-stone-600 bg-transparent"
+                            }`}
+                          >
+                            {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 4. Security & Status (LAST Section) */}
+                <div className="p-4 bg-[#F8F3EC]/80 dark:bg-[#182030] rounded-2xl space-y-3.5 border-0">
+                  <div className="text-xs font-black text-[#D98A3C] uppercase tracking-wider">
+                    Security & Account Status (سیکیورٹی اور حیثیت)
+                  </div>
+
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-bold text-stone-600 dark:text-stone-300">
-                        Station / Counter Name
+                        Bound Device IP Address (Optional)
                       </label>
-                      <span className="text-[10px] text-stone-500">Quick Presets:</span>
+                      <button
+                        type="button"
+                        onClick={() => setNewAllowedIp(clientIp || "127.0.0.1")}
+                        className="text-[10px] text-[#D98A3C] hover:underline font-bold cursor-pointer"
+                      >
+                        Set to Current Device ({clientIp})
+                      </button>
                     </div>
                     <input
                       type="text"
-                      value={newStation}
-                      onChange={(e) => setNewStation(e.target.value)}
-                      placeholder="e.g. Counter 1, Counter 2, Takeaway Desk, Dining Floor A"
-                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0"
+                      value={newAllowedIp}
+                      onChange={(e) => setNewAllowedIp(e.target.value)}
+                      placeholder="e.g. 192.168.1.105 (leave blank for unrestricted access)"
+                      className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono"
                     />
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {["Counter 1", "Counter 2", "Counter 3", "Takeaway Desk"].map(
-                        (preset) => (
-                          <button
-                            key={preset}
-                            type="button"
-                            onClick={() => setNewStation(preset)}
-                            className={`text-[10px] px-3 py-1 rounded-full transition font-bold cursor-pointer border-0 ${
-                              newStation === preset
-                                ? "bg-amber-100 dark:bg-amber-950/60 text-[#D98A3C]"
-                                : "bg-[#F8F3EC] dark:bg-[#182030] text-stone-600 dark:text-stone-300 hover:bg-stone-200/60"
-                            }`}
-                          >
-                            {preset}
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Waiter Specific Assigned Cashier Selector */}
-                {newRole === "waiter" && (
-                  <div>
-                    <label className="text-xs font-bold text-purple-700 dark:text-purple-300 block mb-1">
-                      Assign to Cashier / Counter Station
-                    </label>
-                    <select
-                      value={newAssignedCashierId || ""}
-                      onChange={(e) =>
-                        setNewAssignedCashierId(e.target.value ? Number(e.target.value) : null)
-                      }
-                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-purple-500/30 outline-none border-0 font-bold"
-                    >
-                      <option value="">All Counters / Roaming Waiter (کوئی بھی کاؤنٹر)</option>
-                      {allCashiers.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} ({c.stationName || `Counter #${c.id}`})
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[10px] text-stone-500 dark:text-stone-400 mt-1">
-                      In segregated mode, this waiter will only see food ready to serve for their assigned cashier.
-                    </p>
-                  </div>
-                )}
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300">
-                      Bound Device IP Address (Optional)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setNewAllowedIp(clientIp || "127.0.0.1")}
-                      className="text-[10px] text-[#D98A3C] hover:underline font-bold cursor-pointer"
-                    >
-                      Use Current Device IP ({clientIp})
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={newAllowedIp}
-                    onChange={(e) => setNewAllowedIp(e.target.value)}
-                    placeholder="e.g. 192.168.1.105 (leave blank for unrestricted)"
-                    className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono"
-                  />
-                </div>
-
-                {/* Dynamic Permissions Checkboxes */}
-                <div className="p-4 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl space-y-2 border-0">
-                  <label className="text-xs font-black text-[#D98A3C] block">
-                    Dynamic Staff Permissions (اختیارات)
-                  </label>
-                  <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
-                    {PERMISSION_OPTIONS.map((opt) => {
-                      const isChecked = newPermissions.includes(opt.id);
-                      return (
-                        <label
-                          key={opt.id}
-                          className="flex items-start gap-2.5 text-xs text-stone-700 dark:text-stone-300 cursor-pointer hover:text-[#24180A] dark:hover:text-white"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setNewPermissions((prev) => [...prev, opt.id]);
-                              } else {
-                                setNewPermissions((prev) => prev.filter((p) => p !== opt.id));
-                              }
-                            }}
-                            className="mt-0.5 rounded accent-[#D98A3C] cursor-pointer w-4 h-4"
-                          />
-                          <div>
-                            <div className="font-bold text-[#24180A] dark:text-white leading-tight">{opt.label}</div>
-                            <div className="text-[10px] text-stone-500 dark:text-stone-400">{opt.desc}</div>
-                          </div>
-                        </label>
-                      );
-                    })}
                   </div>
                 </div>
 
@@ -1520,14 +1945,14 @@ _Please open the Portal URL on your device to sign in._`;
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="flex-1 h-12 bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-stone-800 text-xs font-bold rounded-full text-stone-700 dark:text-stone-300 cursor-pointer border-0"
+                    className="flex-1 h-12 bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-stone-800 text-xs font-bold rounded-full text-stone-700 dark:text-stone-300 cursor-pointer border-0 transition"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={createStaffMut.isPending}
-                    className="flex-1 h-12 bg-[#D98A3C] hover:bg-[#c27931] text-white text-xs font-bold rounded-full cursor-pointer shadow-none"
+                    className="flex-1 h-12 bg-[#D98A3C] hover:bg-[#c27931] text-white text-xs font-black rounded-full cursor-pointer shadow-none transition"
                   >
                     {createStaffMut.isPending ? "Creating…" : "Save Account"}
                   </button>
@@ -1539,268 +1964,532 @@ _Please open the Portal URL on your device to sign in._`;
 
         {/* MODAL: EDIT STAFF (NAME, ROLE, PASS, IP, PERMISSIONS, COUNTER, ASSIGNED CASHIER) */}
         {editingStaff && (
-          <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white dark:bg-[#121824] rounded-[28px] sm:rounded-[32px] p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-4 text-[#24180A] dark:text-white my-8 max-h-[90vh] overflow-y-auto border-0">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-black text-[#24180A] dark:text-white flex items-center gap-2">
-                  <Edit2 className="w-5 h-5 text-[#D98A3C]" />
-                  <span>Edit Staff Account: {editingStaff.name}</span>
-                </h3>
+          <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#121824] rounded-t-[32px] sm:rounded-[32px] p-5 sm:p-7 max-w-xl w-full shadow-2xl space-y-4 sm:space-y-5 text-[#24180A] dark:text-white max-h-[92vh] sm:max-h-[88vh] overflow-y-auto no-scrollbar border-0 animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+              <div className="w-12 h-1.5 bg-stone-300 dark:bg-stone-600 rounded-full mx-auto mb-1 sm:hidden shrink-0" />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center font-black shrink-0">
+                    <Edit2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-[#24180A] dark:text-white leading-tight">
+                      Edit Staff Account: {editingStaff.name}
+                    </h3>
+                    <p className="text-[11px] text-stone-500 dark:text-stone-400 font-medium">
+                      Update credentials, bound station & dynamic permissions
+                    </p>
+                  </div>
+                </div>
                 <button
+                  type="button"
                   onClick={() => setEditingStaff(null)}
-                  className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 p-2 rounded-full cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-stone-800 flex items-center justify-center text-stone-500 hover:text-stone-800 dark:hover:text-white transition cursor-pointer border-0 shrink-0"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
               <form onSubmit={handleUpdateStaff} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
-                      Staff Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-medium"
-                      required
-                    />
+                {/* 1. Account Credentials */}
+                <div className="p-4 bg-[#F8F3EC]/80 dark:bg-[#182030] rounded-2xl space-y-3 border-0">
+                  <div className="text-xs font-black text-[#D98A3C] uppercase tracking-wider">
+                    Account Credentials (حساب کی تفصیلات)
                   </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
-                      Username / Login ID *
-                    </label>
-                    <input
-                      type="text"
-                      value={editEmail}
-                      onChange={(e) => setEditEmail(e.target.value)}
-                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
-                      Password / PIN
-                    </label>
-                    <input
-                      type="text"
-                      value={editPassword}
-                      onChange={(e) => setEditPassword(e.target.value)}
-                      placeholder="Leave unchanged or type new"
-                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
-                      Role Assignment *
-                    </label>
-                    <select
-                      value={editRole}
-                      onChange={(e) => setEditRole(e.target.value as any)}
-                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-bold"
-                    >
-                      <option value="cashier">Cashier (POS & Billing)</option>
-                      <option value="waiter">Waiter (Floor Delivery)</option>
-                      <option value="kitchen">Kitchen (KDS Queue)</option>
-                      <option value="admin">Admin (Full Master)</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Edit Station / Kitchen Department Configuration */}
-                {editRole === "kitchen" ? (
-                  <div className="p-4 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
-                        <ChefHat className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Assigned Kitchen Department (شعبہ کچن)</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                        Staff Name *
                       </label>
-                      <span className="text-[10px] text-blue-700 dark:text-blue-300 font-bold">Live Departments</span>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-medium"
+                        required
+                      />
                     </div>
-                    <select
-                      value={editStation}
-                      onChange={(e) => setEditStation(e.target.value)}
-                      className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white outline-none font-bold border-0"
-                    >
-                      <option value="All Departments (Main Kitchen)">
-                        All Departments (Main Kitchen) - سارے شعبہ جات
-                      </option>
-                      {(departmentsQuery.data || []).map((d) => (
-                        <option key={d.id} value={d.name}>
-                          {d.name} Section ({d.name === "Tea" ? "چائے سیکشن" : d.name === "Parathas" ? "پراٹھا و تندور" : d.name === "Drinks" ? "مشروبات" : "سنیکس / کچن"})
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex flex-wrap gap-1.5">
-                      {["All Departments (Main Kitchen)", ...((departmentsQuery.data || []).map((d) => d.name))].map(
-                        (preset) => (
+
+                    <div>
+                      <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                        Username / Login ID *
+                      </label>
+                      <input
+                        type="text"
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                        Password / PIN
+                      </label>
+                      <input
+                        type="text"
+                        value={editPassword}
+                        onChange={(e) => setEditPassword(e.target.value)}
+                        placeholder="Leave blank to keep unchanged"
+                        className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                        Role Assignment *
+                      </label>
+                      <select
+                        value={editRole}
+                        onChange={(e) => setEditRole(e.target.value as any)}
+                        className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-bold"
+                      >
+                        <option value="cashier">Cashier (POS & Billing)</option>
+                        <option value="waiter">Waiter (Floor Delivery)</option>
+                        <option value="kitchen">Kitchen (KDS Queue)</option>
+                        <option value="admin">Admin (Full Master)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Station & Routing Configuration */}
+                <div className="p-4 bg-[#F8F3EC]/80 dark:bg-[#182030] rounded-2xl space-y-3 border-0">
+                  <div className="text-xs font-black text-[#D98A3C] uppercase tracking-wider">
+                    Station & Routing (کاؤنٹر و تعیناتی)
+                  </div>
+
+                  {editRole === "admin" ? (
+                    <div className="p-3.5 bg-white dark:bg-[#121824] rounded-2xl flex items-center gap-2.5 border-0">
+                      <ShieldCheck className="w-4 h-4 text-[#D98A3C] shrink-0" />
+                      <div className="text-xs text-stone-600 dark:text-stone-300">
+                        <span className="font-bold text-[#24180A] dark:text-white">Master Admin: </span>
+                        Unrestricted global access across all registers, kitchen pods, and waiter stations.
+                      </div>
+                    </div>
+                  ) : editRole === "cashier" ? (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-bold text-stone-600 dark:text-stone-300">
+                          Station / Counter Name (کاؤنٹر کا نام) *
+                        </label>
+                        <span className="text-[10px] text-stone-500">Quick Presets:</span>
+                      </div>
+                      <input
+                        type="text"
+                        value={editStation}
+                        onChange={(e) => setEditStation(e.target.value)}
+                        placeholder="e.g. Counter 1, Counter 2, Takeaway Desk"
+                        className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-bold"
+                        required
+                      />
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {["Counter 1", "Counter 2", "Counter 3", "Takeaway Desk"].map(
+                          (preset) => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setEditStation(preset)}
+                              className={`text-[10px] px-3 py-1 rounded-full transition font-bold cursor-pointer border-0 ${
+                                editStation === preset
+                                  ? "bg-amber-100 dark:bg-amber-950/60 text-[#D98A3C]"
+                                  : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:bg-stone-200/60"
+                              }`}
+                            >
+                              {preset}
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  ) : editRole === "kitchen" ? (
+                    <div className="space-y-3.5">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-stone-600 dark:text-stone-300 flex items-center gap-1.5">
+                            <ChefHat className="w-3.5 h-3.5 text-[#D98A3C]" />
+                            <span>Assigned Kitchen Department (شعبہ کچن)</span>
+                          </label>
+                          <span className="text-[10px] text-[#D98A3C] font-bold">Live Departments</span>
+                        </div>
+                        <select
+                          value={editStation}
+                          onChange={(e) => setEditStation(e.target.value)}
+                          className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none font-bold border-0"
+                        >
+                          <option value="All Departments (Main Kitchen)">
+                            All Departments (Main Kitchen) - سارے شعبہ جات
+                          </option>
+                          {(departmentsQuery.data || []).map((d) => (
+                            <option key={d.id} value={d.name}>
+                              {d.name} Department ({d.name} سیکشن)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Multi-Counter Cashier Assignment for Kitchen */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-xs font-bold text-stone-600 dark:text-stone-300">
+                            Assigned Counters / Cashiers (مختص کردہ کاؤنٹرز)
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                playTapSound();
+                                setEditAssignedCashierIds([]);
+                              }}
+                              className={`text-[10px] px-2.5 py-1 rounded-full font-bold cursor-pointer border-0 transition ${
+                                editAssignedCashierIds.length === 0
+                                  ? "bg-[#D98A3C] text-white"
+                                  : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:bg-amber-100"
+                              }`}
+                            >
+                              All Counters (Roaming)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                playTapSound();
+                                setEditAssignedCashierIds(allCashiers.map((c) => c.id));
+                              }}
+                              className="text-[10px] px-2 py-1 rounded-full bg-white dark:bg-[#121824] hover:bg-stone-200 text-stone-700 dark:text-stone-300 font-bold cursor-pointer border-0 transition"
+                            >
+                              All
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                playTapSound();
+                                setEditAssignedCashierIds([]);
+                              }}
+                              className="text-[10px] px-2 py-1 rounded-full bg-white dark:bg-[#121824] hover:bg-red-50 text-stone-700 dark:text-stone-300 font-bold cursor-pointer border-0 transition"
+                            >
+                              Clear
+                            </button>
+                          </div>
+                        </div>
+
+                        {allCashiers.length === 0 ? (
+                          <div className="text-xs text-stone-400 p-3 bg-white dark:bg-[#121824] rounded-2xl">
+                            No cashier accounts found. Kitchen will display orders from all counters.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {allCashiers.map((c) => {
+                              const isSelected = editAssignedCashierIds.includes(c.id);
+                              return (
+                                <div
+                                  key={c.id}
+                                  onClick={() => {
+                                    playTapSound();
+                                    if (isSelected) {
+                                      setEditAssignedCashierIds((prev) => prev.filter((id) => id !== c.id));
+                                    } else {
+                                      setEditAssignedCashierIds((prev) => [...prev, c.id]);
+                                    }
+                                  }}
+                                  className={`p-2.5 rounded-2xl flex items-center justify-between gap-2 transition active:scale-[0.98] select-none cursor-pointer border-0 ${
+                                    isSelected
+                                      ? "bg-white dark:bg-[#121824] ring-2 ring-[#D98A3C] shadow-xs"
+                                      : "bg-white/60 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 opacity-75 hover:opacity-100"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div
+                                      className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition ${
+                                        isSelected
+                                          ? "bg-[#D98A3C]/15 text-[#D98A3C]"
+                                          : "bg-stone-200/60 dark:bg-white/5 text-stone-400"
+                                      }`}
+                                    >
+                                      <Store className="w-3.5 h-3.5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="text-xs font-bold text-[#24180A] dark:text-white truncate">
+                                        {c.name}
+                                      </div>
+                                      <div className="text-[10px] text-stone-500 dark:text-stone-400 truncate">
+                                        {c.stationName || `Counter #${c.id}`}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition ${
+                                      isSelected
+                                        ? "bg-[#D98A3C] text-white shadow-xs"
+                                        : "border-2 border-stone-300 dark:border-stone-600 bg-transparent"
+                                    }`}
+                                  >
+                                    {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-stone-500 dark:text-stone-400 mt-1.5">
+                          {editAssignedCashierIds.length === 0
+                            ? "✨ Roaming Mode: Kitchen displays incoming tickets from all active counters."
+                            : `⚡ Restricted Mode: Kitchen receives tickets from ${editAssignedCashierIds.length} selected counter(s).`}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-bold text-stone-600 dark:text-stone-300">
+                          Assigned Counters / Cashiers (مختص کردہ کاؤنٹرز)
+                        </label>
+                        <div className="flex items-center gap-1.5">
                           <button
-                            key={preset}
                             type="button"
-                            onClick={() => setEditStation(preset)}
-                            className={`text-[10px] px-3 py-1 rounded-full transition font-bold cursor-pointer border-0 ${
-                              editStation === preset
-                                ? "bg-blue-600 text-white shadow-none"
-                                : "bg-white dark:bg-[#121824] text-stone-700 dark:text-stone-300 hover:bg-stone-50"
+                            onClick={() => {
+                              playTapSound();
+                              setEditAssignedCashierIds([]);
+                            }}
+                            className={`text-[10px] px-2.5 py-1 rounded-full font-bold cursor-pointer border-0 transition ${
+                              editAssignedCashierIds.length === 0
+                                ? "bg-[#D98A3C] text-white"
+                                : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:bg-amber-100"
                             }`}
                           >
-                            {preset}
+                            All Counters (Roaming)
                           </button>
-                        )
+                          <button
+                            type="button"
+                            onClick={() => {
+                              playTapSound();
+                              setEditAssignedCashierIds(allCashiers.map((c) => c.id));
+                            }}
+                            className="text-[10px] px-2 py-1 rounded-full bg-white dark:bg-[#121824] hover:bg-stone-200 text-stone-700 dark:text-stone-300 font-bold cursor-pointer border-0 transition"
+                          >
+                            All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              playTapSound();
+                              setEditAssignedCashierIds([]);
+                            }}
+                            className="text-[10px] px-2 py-1 rounded-full bg-white dark:bg-[#121824] hover:bg-red-50 text-stone-700 dark:text-stone-300 font-bold cursor-pointer border-0 transition"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+
+                      {allCashiers.length === 0 ? (
+                        <div className="text-xs text-stone-400 p-3 bg-white dark:bg-[#121824] rounded-2xl">
+                          No cashier accounts found. Waiter will operate across all counters.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {allCashiers.map((c) => {
+                            const isSelected = editAssignedCashierIds.includes(c.id);
+                            return (
+                              <div
+                                key={c.id}
+                                onClick={() => {
+                                  playTapSound();
+                                  if (isSelected) {
+                                    setEditAssignedCashierIds((prev) => prev.filter((id) => id !== c.id));
+                                  } else {
+                                    setEditAssignedCashierIds((prev) => [...prev, c.id]);
+                                  }
+                                }}
+                                className={`p-2.5 rounded-2xl flex items-center justify-between gap-2 transition active:scale-[0.98] select-none cursor-pointer border-0 ${
+                                  isSelected
+                                    ? "bg-white dark:bg-[#121824] ring-2 ring-[#D98A3C] shadow-xs"
+                                    : "bg-white/60 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 opacity-75 hover:opacity-100"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div
+                                    className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition ${
+                                      isSelected
+                                        ? "bg-[#D98A3C]/15 text-[#D98A3C]"
+                                        : "bg-stone-200/60 dark:bg-white/5 text-stone-400"
+                                    }`}
+                                  >
+                                    <Store className="w-3.5 h-3.5" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-bold text-[#24180A] dark:text-white truncate">
+                                      {c.name}
+                                    </div>
+                                    <div className="text-[10px] text-stone-500 dark:text-stone-400 truncate">
+                                      {c.stationName || `Counter #${c.id}`}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div
+                                  className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition ${
+                                    isSelected
+                                      ? "bg-[#D98A3C] text-white shadow-xs"
+                                      : "border-2 border-stone-300 dark:border-stone-600 bg-transparent"
+                                  }`}
+                                >
+                                  {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
+                      <p className="text-[10px] text-stone-500 dark:text-stone-400 mt-1.5">
+                        {editAssignedCashierIds.length === 0
+                          ? "✨ Roaming Mode: Waiter can deliver orders from all counters."
+                          : `⚡ Restricted Mode: Waiter delivers orders for ${editAssignedCashierIds.length} selected counter(s).`}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Dynamic Permissions Grid (HIG Accessible Tap Cards) */}
+                <div className="p-4 bg-[#F8F3EC]/80 dark:bg-[#182030] rounded-2xl space-y-3 border-0">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <div className="text-xs font-black text-[#D98A3C] uppercase tracking-wider">
+                        Dynamic Permissions (اختیارات)
+                      </div>
+                      <div className="text-[10px] text-stone-500 dark:text-stone-400">
+                        {editPermissions.length} of {PERMISSION_OPTIONS.length} permissions granted
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditPermissions(PERMISSION_OPTIONS.map((p) => p.id))}
+                        className="text-[10px] px-2.5 py-1 rounded-full bg-white dark:bg-[#121824] hover:bg-amber-50 text-stone-700 dark:text-stone-300 font-bold cursor-pointer border-0 transition"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditPermissions([])}
+                        className="text-[10px] px-2.5 py-1 rounded-full bg-white dark:bg-[#121824] hover:bg-red-50 text-stone-700 dark:text-stone-300 font-bold cursor-pointer border-0 transition"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditPermissions(DEFAULT_ROLE_PERMS[editRole] || [])}
+                        className="text-[10px] px-2.5 py-1 rounded-full bg-[#D98A3C]/15 text-[#D98A3C] hover:bg-[#D98A3C]/25 font-bold cursor-pointer border-0 transition"
+                      >
+                        Reset Preset
+                      </button>
                     </div>
                   </div>
-                ) : (
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {PERMISSION_OPTIONS.map((opt) => {
+                      const isChecked = editPermissions.includes(opt.id);
+                      const OptIcon = opt.icon;
+                      return (
+                        <div
+                          key={opt.id}
+                          onClick={() => {
+                            playTapSound();
+                            if (isChecked) {
+                              setEditPermissions((prev) => prev.filter((p) => p !== opt.id));
+                            } else {
+                              setEditPermissions((prev) => [...prev, opt.id]);
+                            }
+                          }}
+                          className={`p-3 rounded-2xl flex items-start gap-2.5 transition active:scale-[0.98] select-none cursor-pointer border-0 ${
+                            isChecked
+                              ? "bg-white dark:bg-[#121824] ring-2 ring-[#D98A3C] shadow-xs"
+                              : "bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 opacity-70 hover:opacity-100"
+                          }`}
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition ${
+                              isChecked
+                                ? "bg-[#D98A3C]/15 text-[#D98A3C]"
+                                : "bg-stone-200/50 dark:bg-white/5 text-stone-400"
+                            }`}
+                          >
+                            <OptIcon className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-black text-[#24180A] dark:text-white leading-tight">
+                              {opt.label}
+                            </div>
+                            <div className="text-[10px] text-stone-500 dark:text-stone-400 leading-tight mt-0.5 line-clamp-2">
+                              {opt.desc}
+                            </div>
+                          </div>
+                          <div
+                            className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition ${
+                              isChecked
+                                ? "bg-[#D98A3C] text-white shadow-xs"
+                                : "border-2 border-stone-300 dark:border-stone-600 bg-transparent"
+                            }`}
+                          >
+                            {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 4. Security & Status (LAST Section as requested) */}
+                <div className="p-4 bg-[#F8F3EC]/80 dark:bg-[#182030] rounded-2xl space-y-3.5 border-0">
+                  <div className="text-xs font-black text-[#D98A3C] uppercase tracking-wider">
+                    Security & Account Status (سیکیورٹی اور حیثیت)
+                  </div>
+
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-bold text-stone-600 dark:text-stone-300">
-                        Station / Counter Name
+                        Bound Device IP Address (Optional)
                       </label>
-                      <span className="text-[10px] text-stone-500">Quick Presets:</span>
+                      <button
+                        type="button"
+                        onClick={() => setEditAllowedIp(clientIp || "127.0.0.1")}
+                        className="text-[10px] text-[#D98A3C] hover:underline font-bold cursor-pointer"
+                      >
+                        Set to Current Device ({clientIp})
+                      </button>
                     </div>
                     <input
                       type="text"
-                      value={editStation}
-                      onChange={(e) => setEditStation(e.target.value)}
-                      placeholder="e.g. Counter 1, Counter 2, Takeaway Counter, Floor Section"
-                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-medium"
+                      value={editAllowedIp}
+                      onChange={(e) => setEditAllowedIp(e.target.value)}
+                      placeholder="e.g. 192.168.1.105 (leave blank to unlock)"
+                      className="w-full h-11 bg-white dark:bg-[#121824] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono"
                     />
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {["Counter 1", "Counter 2", "Counter 3", "Takeaway Counter"].map(
-                        (preset) => (
-                          <button
-                            key={preset}
-                            type="button"
-                            onClick={() => setEditStation(preset)}
-                            className={`text-[10px] px-3 py-1 rounded-full transition font-bold cursor-pointer border-0 ${
-                              editStation === preset
-                                ? "bg-amber-100 dark:bg-amber-950/60 text-[#D98A3C]"
-                                : "bg-[#F8F3EC] dark:bg-[#182030] text-stone-600 dark:text-stone-300 hover:bg-stone-200/60"
-                            }`}
-                          >
-                            {preset}
-                          </button>
-                        )
-                      )}
+                  </div>
+
+                  {/* Account Status Switch */}
+                  <div className="flex items-center justify-between p-3.5 bg-white dark:bg-[#121824] rounded-2xl border-0">
+                    <div>
+                      <div className="text-xs font-bold text-[#24180A] dark:text-white">Account Status</div>
+                      <div className="text-[10px] text-stone-500 dark:text-stone-400">
+                        {editIsActive ? "Active & can log in to workspaces" : "Disabled / Frozen (cannot log in)"}
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {/* Waiter Edit: Assigned Cashier */}
-                {editRole === "waiter" && (
-                  <div>
-                    <label className="text-xs font-bold text-purple-700 dark:text-purple-300 block mb-1">
-                      Assign to Cashier / Counter Station
-                    </label>
-                    <select
-                      value={editAssignedCashierId || ""}
-                      onChange={(e) =>
-                        setEditAssignedCashierId(e.target.value ? Number(e.target.value) : null)
-                      }
-                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-purple-500/30 outline-none border-0 font-bold"
-                    >
-                      <option value="">All Counters / Roaming Waiter (کوئی بھی کاؤنٹر)</option>
-                      {allCashiers.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} ({c.stationName || `Counter #${c.id}`})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300">
-                      Bound Device IP Address
-                    </label>
                     <button
                       type="button"
-                      onClick={() => setEditAllowedIp(clientIp || "127.0.0.1")}
-                      className="text-[10px] text-[#D98A3C] hover:underline font-bold cursor-pointer"
+                      onClick={() => setEditIsActive((prev) => !prev)}
+                      className={`px-4 py-1.5 rounded-full text-xs font-black transition flex items-center gap-1.5 cursor-pointer border-0 select-none ${
+                        editIsActive
+                          ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
+                          : "bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300"
+                      }`}
                     >
-                      Set to Current Device ({clientIp})
+                      <span className={`w-1.5 h-1.5 rounded-full ${editIsActive ? "bg-emerald-500" : "bg-red-500"}`} />
+                      <span>{editIsActive ? "Active" : "Disabled"}</span>
                     </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={editAllowedIp}
-                    onChange={(e) => setEditAllowedIp(e.target.value)}
-                    placeholder="e.g. 192.168.1.105 (leave blank to unlock)"
-                    className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono"
-                  />
-                </div>
-
-                {/* Account Status Switch */}
-                <div className="flex items-center justify-between p-4 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl border-0">
-                  <div>
-                    <div className="text-xs font-bold text-[#24180A] dark:text-white">Account Status</div>
-                    <div className="text-[10px] text-stone-500 dark:text-stone-400">
-                      {editIsActive ? "Active & can log in" : "Disabled / Frozen"}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditIsActive((prev) => !prev)}
-                    className={`px-3.5 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border-0 ${
-                      editIsActive
-                        ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
-                        : "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300"
-                    }`}
-                  >
-                    {editIsActive ? "Active" : "Disabled"}
-                  </button>
-                </div>
-
-                {/* Dynamic Permissions Grid */}
-                <div className="p-4 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl space-y-2 border-0">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-black text-[#D98A3C]">
-                      Dynamic Permissions (اختیارات)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setEditPermissions(DEFAULT_ROLE_PERMS[editRole] || [])}
-                      className="text-[10px] text-[#D98A3C] hover:underline font-bold cursor-pointer"
-                    >
-                      Reset to Role Preset
-                    </button>
-                  </div>
-
-                  <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
-                    {PERMISSION_OPTIONS.map((opt) => {
-                      const isChecked = editPermissions.includes(opt.id);
-                      return (
-                        <label
-                          key={opt.id}
-                          className="flex items-start gap-2.5 text-xs text-stone-700 dark:text-stone-300 cursor-pointer hover:text-[#24180A] dark:hover:text-white"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setEditPermissions((prev) => [...prev, opt.id]);
-                              } else {
-                                setEditPermissions((prev) => prev.filter((p) => p !== opt.id));
-                              }
-                            }}
-                            className="mt-0.5 rounded accent-[#D98A3C] cursor-pointer w-4 h-4"
-                          />
-                          <div>
-                            <div className="font-bold text-[#24180A] dark:text-white leading-tight">{opt.label}</div>
-                            <div className="text-[10px] text-stone-500 dark:text-stone-400">{opt.desc}</div>
-                          </div>
-                        </label>
-                      );
-                    })}
                   </div>
                 </div>
 
@@ -1814,14 +2503,14 @@ _Please open the Portal URL on your device to sign in._`;
                   <button
                     type="button"
                     onClick={() => setEditingStaff(null)}
-                    className="flex-1 h-12 bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-stone-800 text-xs font-bold rounded-full text-stone-700 dark:text-stone-300 cursor-pointer border-0"
+                    className="flex-1 h-12 bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-stone-800 text-xs font-bold rounded-full text-stone-700 dark:text-stone-300 cursor-pointer border-0 transition"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={updateStaffMut.isPending}
-                    className="flex-1 h-12 bg-[#D98A3C] hover:bg-[#c27931] text-white text-xs font-bold rounded-full cursor-pointer shadow-none"
+                    className="flex-1 h-12 bg-[#D98A3C] hover:bg-[#c27931] text-white text-xs font-black rounded-full cursor-pointer shadow-none transition"
                   >
                     {updateStaffMut.isPending ? "Saving Changes…" : "Save Changes"}
                   </button>
@@ -1833,8 +2522,9 @@ _Please open the Portal URL on your device to sign in._`;
 
         {/* MODAL: QUICK EDIT DEVICE IP */}
         {showEditIpModal && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-[#121824] rounded-[28px] sm:rounded-[32px] p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-4 text-[#24180A] dark:text-white border-0">
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#121824] rounded-t-[32px] sm:rounded-[32px] p-5 sm:p-7 max-w-md w-full shadow-2xl space-y-4 text-[#24180A] dark:text-white border-0 max-h-[90vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+              <div className="w-12 h-1.5 bg-stone-300 dark:bg-stone-600 rounded-full mx-auto mb-1 sm:hidden shrink-0" />
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center shrink-0">
@@ -1912,12 +2602,13 @@ _Please open the Portal URL on your device to sign in._`;
             role="dialog"
             aria-modal="true"
             onClick={() => setShowAssignCashiersModal(null)}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer animate-in fade-in duration-150"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 cursor-pointer animate-in fade-in duration-200"
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-[#121824] rounded-[28px] sm:rounded-[32px] p-6 sm:p-7 max-w-xl w-full shadow-2xl space-y-4 text-[#24180A] dark:text-white border-0 cursor-default animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col"
+              className="bg-white dark:bg-[#121824] rounded-t-[32px] sm:rounded-[32px] p-5 sm:p-7 max-w-xl w-full shadow-2xl space-y-4 text-[#24180A] dark:text-white border-0 cursor-default animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 max-h-[90vh] flex flex-col"
             >
+              <div className="w-12 h-1.5 bg-stone-300 dark:bg-stone-600 rounded-full mx-auto mb-1 sm:hidden shrink-0" />
               {/* Header */}
               <div className="flex items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-3">
@@ -1948,7 +2639,7 @@ _Please open the Portal URL on your device to sign in._`;
               </p>
 
               {/* Scrollable List with ample space */}
-              <div className="space-y-2.5 overflow-y-auto pr-1 flex-1 max-h-[55vh]">
+              <div className="space-y-2.5 overflow-y-auto no-scrollbar pr-1 flex-1 max-h-[55vh]">
                 {allCashiers.length === 0 ? (
                   <div className="text-xs text-stone-400 py-10 text-center bg-[#F8F3EC] dark:bg-[#1A2232] rounded-2xl">
                     No cashier accounts found in the hotel. Add cashier accounts in Staff Management first.
@@ -2042,6 +2733,26 @@ _Please open the Portal URL on your device to sign in._`;
             </div>
           </div>
         )}
+        </main>
+
+        {/* Mobile Bottom Navigation */}
+        <StaffBottomNav
+          current="admin"
+          items={[
+            { key: "accounts", label: lang === "ur" ? "کھاتہ جات" : "Accounts", icon: Building2 },
+            { key: "staff", label: lang === "ur" ? "عملہ و اختیارات" : "Staff & Roles", icon: Users, badge: allStaffMembers.length },
+          ]}
+          activeItem={activeTab}
+          onSelectItem={(k) => setActiveTab(k as "accounts" | "staff")}
+          onOpenDrawer={() => setDrawerOpen(true)}
+        />
+
+        {/* Mobile Drawer Sheet */}
+        <StaffDrawerSheet
+          isOpen={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          current="admin"
+        />
       </div>
     </StaffAuthGuard>
   );

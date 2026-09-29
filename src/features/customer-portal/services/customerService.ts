@@ -24,6 +24,12 @@ export function useCustomerService({
   const socket = useSocket();
 
   // Queries
+  const configQuery = trpc.hotel.getSystemConfig.useQuery(undefined, {
+    refetchInterval: 10000,
+  });
+
+  const showCustomerQueue = configQuery.data?.showCustomerQueue ?? true;
+
   const menuQuery = trpc.hotel.getMenu.useQuery(undefined, {
     enabled: isMenuStep,
   });
@@ -39,7 +45,7 @@ export function useCustomerService({
   );
 
   const kitchenQueueQuery = trpc.hotel.getLiveKitchenQueueToday.useQuery(undefined, {
-    enabled: isMenuStep,
+    enabled: isMenuStep && showCustomerQueue,
     refetchInterval: 4000,
   });
 
@@ -79,6 +85,8 @@ export function useCustomerService({
   const cancelOrderItemMutation = trpc.hotel.cancelOrderItem.useMutation();
 
   return {
+    systemConfig: configQuery.data,
+    showCustomerQueue,
     menu: menuQuery.data,
     menuLoading: menuQuery.isLoading,
     myOrders: ordersQuery.data,

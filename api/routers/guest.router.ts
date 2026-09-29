@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, inArray } from "drizzle-orm";
 import { publicProcedure, dashboardProcedure, router } from "../lib/trpc";
 import { getDb } from "../db";
 import { guests, orders, visits, systemSettings, staff } from "../db/schema";
@@ -163,19 +163,34 @@ export const guestRouter = router({
           if (cashierId && o.cashierId === cashierId) return true;
           return false;
         });
-      } else if (ctx.staff?.role === "waiter") {
-        if (ctx.staff.assignedCashierId) {
-          const assignedCashier = db
+      } else if (ctx.staff?.role === "waiter" || ctx.staff?.role === "kitchen") {
+        const targetCashierIds: number[] =
+          ctx.staff.assignedCashierIds && ctx.staff.assignedCashierIds.length > 0
+            ? ctx.staff.assignedCashierIds
+            : [];
+
+        if (targetCashierIds.length > 0) {
+          const assignedCashiers = db
             .select()
             .from(staff)
-            .where(eq(staff.id, ctx.staff.assignedCashierId))
-            .all()[0];
+            .where(inArray(staff.id, targetCashierIds))
+            .all();
+
+          const allowedStationNames = new Set(
+            assignedCashiers
+              .map((c) => (c.stationName || c.name || "").trim().toLowerCase())
+              .filter(Boolean)
+          );
+          const allowedCashierIds = new Set(targetCashierIds);
 
           allOrders = allOrders.filter((o) => {
-            if (o.cashierId === ctx.staff?.assignedCashierId) return true;
+            if (o.cashierId && allowedCashierIds.has(o.cashierId)) return true;
             const rawCounter = (o.counterName === "Main Cashier Counter" ? "Counter 1" : o.counterName || "Counter 1").trim().toLowerCase();
-            const cashierStation = (assignedCashier?.stationName || assignedCashier?.name || "Counter 1").trim().toLowerCase();
-            if (rawCounter === cashierStation || cashierStation.includes(rawCounter) || rawCounter.includes(cashierStation)) return true;
+            for (const station of allowedStationNames) {
+              if (rawCounter === station || station.includes(rawCounter) || rawCounter.includes(station)) {
+                return true;
+              }
+            }
             return false;
           });
         }

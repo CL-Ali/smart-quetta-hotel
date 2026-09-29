@@ -27,22 +27,9 @@ export function getDb() {
 
 /** Create tables if they don't exist yet — no migration files needed */
 function initSchema(sqlite: Database.Database) {
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS menus (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      isActive INTEGER NOT NULL DEFAULT 1,
-      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-      updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+  try {
+    sqlite.exec(`
 
-    CREATE TABLE IF NOT EXISTS categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      menuId INTEGER NOT NULL REFERENCES menus(id),
-      name TEXT NOT NULL,
-      sortOrder INTEGER NOT NULL DEFAULT 0,
-      isActive INTEGER NOT NULL DEFAULT 1
-    );
 
     CREATE TABLE IF NOT EXISTS staff (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,6 +92,7 @@ function initSchema(sqlite: Database.Database) {
       category TEXT,
       imageUrl TEXT,
       departmentId INTEGER REFERENCES departments(id),
+      options TEXT,
       isAvailable INTEGER NOT NULL DEFAULT 1,
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -141,6 +129,7 @@ function initSchema(sqlite: Database.Database) {
       paymentStatus TEXT NOT NULL DEFAULT 'unpaid',
       paymentMethod TEXT DEFAULT 'pending',
       paidAmount REAL DEFAULT 0,
+      remarks TEXT,
       createdAt TEXT NOT NULL DEFAULT (datetime('now')),
       updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -200,12 +189,7 @@ function initSchema(sqlite: Database.Database) {
       lastUpdated TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE IF NOT EXISTS recipes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      menuItemId INTEGER REFERENCES menu_items(id),
-      inventoryItemId INTEGER REFERENCES inventory(id),
-      quantityNeeded REAL NOT NULL
-    );
+
 
     CREATE TABLE IF NOT EXISTS shopkeepers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -243,8 +227,7 @@ function initSchema(sqlite: Database.Database) {
     );
   `);
 
-  // Seed default shopkeepers if empty
-  try {
+    // Seed exactly 2 default shopkeepers (parties) if empty
     const shopCount = sqlite
       .prepare("SELECT COUNT(*) as c FROM shopkeepers")
       .get() as { c: number };
@@ -252,9 +235,7 @@ function initSchema(sqlite: Database.Database) {
       sqlite.exec(`
         INSERT INTO shopkeepers (name, shopName, shopNumber, phone, balance) VALUES
           ('حاجی بشیر صاحب', 'خان کلاتھ ہاؤس', 'Shop #12', '0300-1234567', 0),
-          ('ڈاکٹر عرفان', 'مدینہ میڈیکل اسٹور', 'Shop #4', '0312-9876543', 0),
-          ('ملک آصف', 'ملک موبائل شاپ', 'Shop #8', '0333-5554433', 0),
-          ('استاد علی', 'علی آٹو ورکشاپ', 'Main Road', '0345-7778899', 0);
+          ('ڈاکٹر عرفان', 'مدینہ میڈیکل اسٹور', 'Shop #4', '0312-9876543', 0);
       `);
     }
   } catch (_) {}
@@ -329,12 +310,16 @@ function initSchema(sqlite: Database.Database) {
     "departmentId",
     "departmentId INTEGER REFERENCES departments(id)"
   );
+  addColumnIfMissing(
+    "menu_items",
+    "options",
+    "options TEXT"
+  );
+  addColumnIfMissing("orders", "remarks", "remarks TEXT");
   addColumnIfMissing("payments", "reference", "reference TEXT");
   addColumnIfMissing(
     "payments",
     "receivedAt",
-    // SQLite ALTER TABLE does not support datetime() as a column default.
-    // Nullable is safe — new rows set this explicitly in code.
     "receivedAt TEXT"
   );
 
@@ -350,53 +335,36 @@ function initSchema(sqlite: Database.Database) {
     .get() as { c: number };
   if (deptCount.c === 0) {
     sqlite.exec(
-      `INSERT INTO departments (id, name) VALUES (1, 'Tea'), (2, 'Drinks'), (3, 'Parathas'), (4, 'Appetizer');`
+      `INSERT INTO departments (id, name) VALUES (1, 'Tea'), (2, 'Paratha'), (3, 'Kitchen'), (4, 'Drinks');`
     );
   }
 
-  // Backfill any menu items with NULL departmentId to default department (1: Tea or by category)
+  // Backfill any menu items with NULL departmentId to dynamic department
   try {
     sqlite.exec(`
-      UPDATE menu_items SET departmentId = 1 WHERE departmentId IS NULL AND (category = 'Drinks' OR name LIKE '%Chai%');
-      UPDATE menu_items SET departmentId = 2 WHERE departmentId IS NULL AND (category = 'Drinks');
-      UPDATE menu_items SET departmentId = 3 WHERE departmentId IS NULL AND (category = 'Food');
-      UPDATE menu_items SET departmentId = 4 WHERE departmentId IS NULL AND (category = 'Snacks');
+      UPDATE menu_items SET departmentId = 1 WHERE departmentId IS NULL AND (category = 'Tea' OR name LIKE '%Chai%' OR name LIKE '%Tea%');
+      UPDATE menu_items SET departmentId = 2 WHERE departmentId IS NULL AND (category = 'Paratha' OR name LIKE '%Paratha%' OR name LIKE '%Puri%');
+      UPDATE menu_items SET departmentId = 3 WHERE departmentId IS NULL AND (category = 'Kitchen' OR category = 'Food' OR name LIKE '%Karahi%');
+      UPDATE menu_items SET departmentId = 4 WHERE departmentId IS NULL AND (category = 'Drinks' OR name LIKE '%Lassi%' OR name LIKE '%Water%');
       UPDATE menu_items SET departmentId = 1 WHERE departmentId IS NULL;
     `);
   } catch (_) {}
 
-  // Fix any incorrect seed images (e.g. Lassi burger image)
-  try {
-    sqlite.exec(`
-      UPDATE menu_items 
-      SET imageUrl = 'https://images.unsplash.com/photo-1553787499-6f9133860278?w=400&q=80' 
-      WHERE name LIKE '%Lassi%' OR imageUrl LIKE '%photo-1571091718767%';
-
-      UPDATE menu_items 
-      SET imageUrl = 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=400&q=80' 
-      WHERE name = 'Paratha' AND imageUrl LIKE '%photo-1565557623262%';
-
-      UPDATE menu_items 
-      SET imageUrl = 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&q=80' 
-      WHERE name LIKE '%Karwa Chai%';
-    `);
-  } catch (_) {}
-
-  // Seed default menu items if empty
+  // Seed default menu items with explicit department IDs if empty
   const count = sqlite
     .prepare("SELECT COUNT(*) as c FROM menu_items")
     .get() as { c: number };
   if (count.c === 0) {
     sqlite.exec(`
-      INSERT INTO menu_items (name, description, price, category, imageUrl, departmentId, isAvailable) VALUES
-        ('Chai',        'Special doodh pati',      30,  'Drinks', '/images/chai.png', 1, 1),
-        ('Karwa Chai',  'Bina doodh ki chai',       20,  'Drinks', 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&q=80', 1, 1),
-        ('Lassi',       'Thandi meethi lassi',      60,  'Drinks', 'https://images.unsplash.com/photo-1553787499-6f9133860278?w=400&q=80', 2, 1),
-        ('Paratha',     'Crispy butter paratha',    40,  'Food',   'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=400&q=80', 3, 1),
-        ('Anda Paratha','Egg stuffed paratha',      60,  'Food',   'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&q=80', 3, 1),
-        ('Halwa Puri',  'Weekend special',         100,  'Food',   'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=400&q=80', 3, 1),
-        ('Samosa',      '2 piece crispy samosa',    30,  'Snacks', 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400&q=80', 4, 1),
-        ('Pakora',      'Pyaz aur aloo pakora',     40,  'Snacks', 'https://images.unsplash.com/photo-1630383249896-424e482df921?w=400&q=80', 4, 1);
+      INSERT INTO menu_items (name, description, price, category, imageUrl, departmentId, options, isAvailable) VALUES
+        ('Chai',           'Special doodh patti',        30,  'Tea',     '/images/chai.png', 1, 'Less Sugar, Extra Karak, Sugar Free, Extra Hot', 1),
+        ('Karwa Chai',     'Traditional green tea qehwa', 20,  'Tea',     'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&q=80', 1, 'With Lemon, Extra Sweet, No Sugar', 1),
+        ('Paratha',        'Crispy butter paratha',      40,  'Paratha', 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=400&q=80', 2, 'Extra Crispy, Less Oil, Soft', 1),
+        ('Anda Paratha',   'Egg stuffed paratha',        60,  'Paratha', 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&q=80', 2, 'Full Fried Egg, Half Fried Egg, Spicy', 1),
+        ('Halwa Puri',     'Fresh morning halwa puri',  100,  'Paratha', 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=400&q=80', 2, 'Extra Chana, Extra Halwa, Hot Puris', 1),
+        ('Chicken Karahi', 'Desi chicken karahi',       350,  'Kitchen', 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400&q=80', 3, 'Extra Spicy, Mild Spicy, Less Oil, Desi Ghee', 1),
+        ('Lassi',          'Thandi meethi lassi',        60,  'Drinks',  'https://images.unsplash.com/photo-1553787499-6f9133860278?w=400&q=80', 4, 'Meethi Lassi, Namkeen Lassi, Extra Cream', 1),
+        ('Mineral Water',  'Chilled 500ml water',        50,  'Drinks',  'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=400&q=80', 4, 'Chilled, Room Temperature', 1);
     `);
   }
 
@@ -444,7 +412,8 @@ function initSchema(sqlite: Database.Database) {
     try { sqlite.exec("ALTER TABLE staff ADD COLUMN username TEXT;"); } catch (_) {}
     try { sqlite.exec("ALTER TABLE staff ADD COLUMN password TEXT;"); } catch (_) {}
     try { sqlite.exec("ALTER TABLE staff ADD COLUMN stationName TEXT;"); } catch (_) {}
-    try { sqlite.exec("ALTER TABLE staff ADD COLUMN assignedCashierId INTEGER;"); } catch (_) {}
+    // try { sqlite.exec("ALTER TABLE staff ADD COLUMN assignedCashierId INTEGER;"); } catch (_) {}
+    try { sqlite.exec("ALTER TABLE staff ADD COLUMN assignedCashierIds TEXT;"); } catch (_) {}
     try { sqlite.exec("ALTER TABLE staff ADD COLUMN permissions TEXT;"); } catch (_) {}
     try { sqlite.exec("ALTER TABLE staff ADD COLUMN allowedIp TEXT;"); } catch (_) {}
     try { sqlite.exec("ALTER TABLE staff ADD COLUMN currentIp TEXT;"); } catch (_) {}
@@ -478,52 +447,58 @@ function initSchema(sqlite: Database.Database) {
     } catch (_) {}
 
     // Ensure standard default staff accounts exist with valid password hashes
+    // Ensure standard default staff accounts exist with valid password hashes (1 user per role)
     const adminHash = hashPassword("admin123");
-    const defaultPassHash = hashPassword("1234");
+    const cashierHash = hashPassword("cashier123");
+    const kitchenHash = hashPassword("kitchen123");
+    const waiterHash = hashPassword("waiter123");
     const tableCols = (sqlite.prepare("PRAGMA table_info(staff)").all() as any[]).map((c) => c.name);
     const hasUsername = tableCols.includes("username");
 
-    const insertDefaultStaff = (name: string, email: string, pass: string, hash: string, role: string, ip: string | null) => {
+    const insertDefaultStaff = (name: string, email: string, pass: string, hash: string, role: string, station: string | null, ip: string | null) => {
       if (hasUsername) {
         sqlite.prepare(`
-          INSERT INTO staff (name, email, username, password, passwordHash, role, allowedIp, isActive)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-        `).run(name, email, email, pass, hash, role, ip);
+          INSERT INTO staff (name, email, username, password, passwordHash, role, stationName, allowedIp, isActive)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+        `).run(name, email, email, pass, hash, role, station, ip);
       } else {
         sqlite.prepare(`
-          INSERT INTO staff (name, email, password, passwordHash, role, allowedIp, isActive)
-          VALUES (?, ?, ?, ?, ?, ?, 1)
-        `).run(name, email, pass, hash, role, ip);
+          INSERT INTO staff (name, email, password, passwordHash, role, stationName, allowedIp, isActive)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        `).run(name, email, pass, hash, role, station, ip);
       }
     };
 
-    const existingAdmin = sqlite.prepare("SELECT id FROM staff WHERE email = 'admin' OR (SELECT 1 FROM pragma_table_info('staff') WHERE name='username') AND username = 'admin'").get();
+    // 1. Admin
+    const existingAdmin = sqlite.prepare("SELECT id FROM staff WHERE email = 'admin'").get();
     if (!existingAdmin) {
-      insertDefaultStaff("Master Admin", "admin", "admin123", adminHash, "admin", null);
+      insertDefaultStaff("Master Admin", "admin", "admin123", adminHash, "admin", "Master Terminal", null);
     } else {
-      sqlite.prepare("UPDATE staff SET name = 'Master Admin', email = 'admin', password = 'admin123', passwordHash = ?, role = 'admin', stationName = NULL, isActive = 1 WHERE email = 'admin'").run(adminHash);
+      sqlite.prepare("UPDATE staff SET name = 'Master Admin', email = 'admin', password = 'admin123', passwordHash = ?, role = 'admin', isActive = 1 WHERE email = 'admin'").run(adminHash);
     }
 
-    const existingCashier = sqlite.prepare("SELECT id FROM staff WHERE email = 'cashier1'").get();
+    // 2. Cashier
+    const existingCashier = sqlite.prepare("SELECT id FROM staff WHERE email = 'cashier' OR email = 'cashier1'").get();
     if (!existingCashier) {
-      insertDefaultStaff("Cashier Counter 1", "cashier1", "1234", defaultPassHash, "cashier", "127.0.0.1");
-      sqlite.prepare("UPDATE staff SET stationName = 'Counter 1' WHERE email = 'cashier1'").run();
+      insertDefaultStaff("Bilal Cashier", "cashier", "cashier123", cashierHash, "cashier", "Counter 1", null);
     } else {
-      sqlite.prepare("UPDATE staff SET name = 'Cashier Counter 1', email = 'cashier1', password = '1234', passwordHash = ?, role = 'cashier', stationName = COALESCE(stationName, 'Counter 1'), isActive = 1 WHERE email = 'cashier1'").run(defaultPassHash);
+      sqlite.prepare("UPDATE staff SET name = 'Bilal Cashier', email = 'cashier', password = 'cashier123', passwordHash = ?, role = 'cashier', stationName = 'Counter 1', isActive = 1 WHERE email = 'cashier' OR email = 'cashier1'").run(cashierHash);
     }
 
-    const existingKitchen = sqlite.prepare("SELECT id FROM staff WHERE email = 'kitchen1' OR email = 'kitchen'").get();
+    // 3. Kitchen Chef
+    const existingKitchen = sqlite.prepare("SELECT id FROM staff WHERE email = 'kitchen' OR email = 'kitchen1'").get();
     if (!existingKitchen) {
-      insertDefaultStaff("Kitchen Display", "kitchen1", "1234", defaultPassHash, "kitchen", "127.0.0.1");
+      insertDefaultStaff("Ustad Rahim (Chef)", "kitchen", "kitchen123", kitchenHash, "kitchen", "All Departments", null);
     } else {
-      sqlite.prepare("UPDATE staff SET name = 'Kitchen Display', email = 'kitchen1', password = '1234', passwordHash = ?, role = 'kitchen', isActive = 1 WHERE email = 'kitchen1' OR email = 'kitchen'").run(defaultPassHash);
+      sqlite.prepare("UPDATE staff SET name = 'Ustad Rahim (Chef)', email = 'kitchen', password = 'kitchen123', passwordHash = ?, role = 'kitchen', stationName = 'All Departments', isActive = 1 WHERE email = 'kitchen' OR email = 'kitchen1'").run(kitchenHash);
     }
 
-    const existingWaiter = sqlite.prepare("SELECT id FROM staff WHERE email = 'waiter1' OR email = 'waiter'").get();
+    // 4. Floor Waiter
+    const existingWaiter = sqlite.prepare("SELECT id FROM staff WHERE email = 'waiter' OR email = 'waiter1'").get();
     if (!existingWaiter) {
-      insertDefaultStaff("Floor Waiter 1", "waiter1", "1234", defaultPassHash, "waiter", "127.0.0.1");
+      insertDefaultStaff("Hamza Waiter", "waiter", "waiter123", waiterHash, "waiter", "Floor Delivery", null);
     } else {
-      sqlite.prepare("UPDATE staff SET name = 'Floor Waiter 1', email = 'waiter1', password = '1234', passwordHash = ?, role = 'waiter', isActive = 1 WHERE email = 'waiter1' OR email = 'waiter'").run(defaultPassHash);
+      sqlite.prepare("UPDATE staff SET name = 'Hamza Waiter', email = 'waiter', password = 'waiter123', passwordHash = ?, role = 'waiter', stationName = 'Floor Delivery', isActive = 1 WHERE email = 'waiter' OR email = 'waiter1'").run(waiterHash);
     }
   }
 

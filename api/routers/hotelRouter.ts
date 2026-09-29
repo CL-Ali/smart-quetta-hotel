@@ -1,4 +1,4 @@
-import { publicProcedure, dashboardProcedure, router } from "../lib/trpc";
+import { publicProcedure, dashboardProcedure, staffProcedure, router } from "../lib/trpc";
 import { getDb } from "../db";
 import {
   departments,
@@ -16,7 +16,7 @@ import {
   staff,
   systemSettings,
 } from "../db/schema";
-import { eq, desc, asc, ne } from "drizzle-orm";
+import { eq, desc, asc, ne, inArray } from "drizzle-orm";
 import { z } from "zod";
 import {
   calculateSubtotal,
@@ -27,6 +27,26 @@ import {
 import { getIo, SOCKET_EVENT } from "../lib/socket";
 
 export const hotelRouter = router({
+  // ── Public System Configuration (Queue visibility, etc.) ───────────────────
+  getSystemConfig: publicProcedure.query(async () => {
+    const db = getDb();
+    const queueRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "showCustomerQueue"))
+      .all()[0];
+    const modeRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "operationMode"))
+      .all()[0];
+
+    return {
+      showCustomerQueue: queueRow ? queueRow.value === "true" : true,
+      operationMode: (modeRow?.value as "unified" | "segregated") || "unified",
+    };
+  }),
+
   // ── Departments Query ──────────────────────────────────────────────────────
   getDepartments: publicProcedure.query(async () => {
     const db = getDb();
@@ -230,6 +250,16 @@ export const hotelRouter = router({
   // ── Public Live Kitchen Queue (Today's Active Non-Served Orders in Ascending Order) ──
   getLiveKitchenQueueToday: publicProcedure.query(async () => {
     const db = getDb();
+    const queueRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "showCustomerQueue"))
+      .all()[0];
+    const showCustomerQueue = queueRow ? queueRow.value === "true" : true;
+    if (!showCustomerQueue) {
+      return [];
+    }
+
     const activeOrders = db
       .select()
       .from(orders)
@@ -298,11 +328,13 @@ export const hotelRouter = router({
         peopleCount: z.number().optional(),
         seatingType: z.string().optional(),
         counterName: z.string().optional(),
+        remarks: z.string().optional(),
         items: z.array(
           z.object({
             menuItemId: z.number(),
             quantity: z.number(),
             unitPrice: z.number(),
+            remarks: z.string().optional(),
           })
         ),
       })
@@ -369,6 +401,7 @@ export const hotelRouter = router({
           paymentStatus: "unpaid",
           paymentMethod: "pending",
           paidAmount: 0,
+          remarks: input.remarks ?? null,
         })
         .run();
       const orderId = Number(result.lastInsertRowid);
@@ -404,6 +437,7 @@ export const hotelRouter = router({
             menuItemId: item.menuItemId,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
+            remarks: item.remarks ?? input.remarks ?? null,
           })
           .run();
       }
@@ -425,7 +459,7 @@ export const hotelRouter = router({
     }),
 
   // ── All orders (kitchen / waiter / dashboard) ────────────────────────────────
-  getOrders: dashboardProcedure.query(async ({ ctx }) => {
+  getOrders: staffProcedure.query(async ({ ctx }) => {
     const db = getDb();
     let allOrders = db
       .select()
@@ -452,22 +486,37 @@ export const hotelRouter = router({
           if (cashierId && o.cashierId === cashierId) return true;
           return false;
         });
-      } else if (ctx.staff?.role === "waiter") {
-        if (ctx.staff.assignedCashierId) {
-          const assignedCashier = db
+      } else if (ctx.staff?.role === "waiter" || ctx.staff?.role === "kitchen") {
+        const targetCashierIds: number[] =
+          ctx.staff.assignedCashierIds && ctx.staff.assignedCashierIds.length > 0
+            ? ctx.staff.assignedCashierIds
+            : [];
+
+        if (targetCashierIds.length > 0) {
+          const assignedCashiers = db
             .select()
             .from(staff)
-            .where(eq(staff.id, ctx.staff.assignedCashierId))
-            .all()[0];
+            .where(inArray(staff.id, targetCashierIds))
+            .all();
+
+          const allowedStationNames = new Set(
+            assignedCashiers
+              .map((c) => (c.stationName || c.name || "").trim().toLowerCase())
+              .filter(Boolean)
+          );
+          const allowedCashierIds = new Set(targetCashierIds);
 
           allOrders = allOrders.filter((o) => {
-            if (o.cashierId === ctx.staff?.assignedCashierId) return true;
+            if (o.cashierId && allowedCashierIds.has(o.cashierId)) return true;
             const rawCounter = (o.counterName === "Main Cashier Counter" ? "Counter 1" : o.counterName || "Counter 1").trim().toLowerCase();
-            const cashierStation = (assignedCashier?.stationName || assignedCashier?.name || "Counter 1").trim().toLowerCase();
-            if (rawCounter === cashierStation || cashierStation.includes(rawCounter) || rawCounter.includes(cashierStation)) return true;
+            for (const station of allowedStationNames) {
+              if (rawCounter === station || station.includes(rawCounter) || rawCounter.includes(station)) {
+                return true;
+              }
+            }
             return false;
           });
-        } else if (ctx.staff.stationName) {
+        } else if (ctx.staff.role === "waiter" && ctx.staff.stationName) {
           const waiterStation = ctx.staff.stationName.trim().toLowerCase();
           allOrders = allOrders.filter((o) => {
             const rawCounter = (o.counterName === "Main Cashier Counter" ? "Counter 1" : o.counterName || "Counter 1").trim().toLowerCase();
@@ -498,25 +547,17 @@ export const hotelRouter = router({
           const targetDeptObj = allDepts.find(
             (d) =>
               d.name.toLowerCase() === targetKitchenDept ||
-              targetKitchenDept!.includes(d.name.toLowerCase()) ||
-              d.name.toLowerCase().includes(targetKitchenDept!)
+              String(d.id) === targetKitchenDept
           );
 
           items = items.filter((item) => {
             if (targetDeptObj && item.departmentId === targetDeptObj.id) return true;
-            if (item.category && (item.category.toLowerCase() === targetKitchenDept || targetKitchenDept!.includes(item.category.toLowerCase()) || item.category.toLowerCase().includes(targetKitchenDept!))) return true;
-            const lowerName = (item.name || "").toLowerCase();
-            if (targetKitchenDept!.includes("tea") || targetKitchenDept!.includes("chai")) {
-              return lowerName.includes("chai") || lowerName.includes("tea") || item.category === "Tea" || (item.category === "Drinks" && !lowerName.includes("lassi"));
-            }
-            if (targetKitchenDept!.includes("paratha") || targetKitchenDept!.includes("tandoor") || targetKitchenDept!.includes("food")) {
-              return lowerName.includes("paratha") || lowerName.includes("puri") || lowerName.includes("anda") || item.category === "Food" || item.category === "Parathas";
-            }
-            if (targetKitchenDept!.includes("drink") || targetKitchenDept!.includes("lassi")) {
-              return lowerName.includes("lassi") || item.category === "Drinks";
-            }
-            if (targetKitchenDept!.includes("appetizer") || targetKitchenDept!.includes("snack")) {
-              return lowerName.includes("samosa") || lowerName.includes("pakora") || item.category === "Snacks" || item.category === "Appetizer";
+            if (
+              item.category &&
+              targetDeptObj &&
+              item.category.toLowerCase() === targetDeptObj.name.toLowerCase()
+            ) {
+              return true;
             }
             return false;
           });

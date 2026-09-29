@@ -9,56 +9,97 @@ import { hashPassword } from "../lib/auth";
 export const adminRouter = router({
   getSystemConfig: adminProcedure.query(async () => {
     const db = getDb();
-    const row = db
+    const modeRow = db
       .select()
       .from(systemSettings)
       .where(eq(systemSettings.key, "operationMode"))
       .all()[0];
+    const queueRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "showCustomerQueue"))
+      .all()[0];
 
     return {
-      operationMode: (row?.value as "unified" | "segregated") || "unified",
+      operationMode: (modeRow?.value as "unified" | "segregated") || "unified",
+      showCustomerQueue: queueRow ? queueRow.value === "true" : true,
     };
   }),
 
   updateSystemConfig: adminProcedure
     .input(
       z.object({
-        operationMode: z.enum(["unified", "segregated"]),
+        operationMode: z.enum(["unified", "segregated"]).optional(),
+        showCustomerQueue: z.boolean().optional(),
       })
     )
     .mutation(async ({ input }) => {
       const db = getDb();
       const nowIso = new Date().toISOString();
-      const existing = db
-        .select()
-        .from(systemSettings)
-        .where(eq(systemSettings.key, "operationMode"))
-        .all()[0];
 
-      if (existing) {
-        db.update(systemSettings)
-          .set({ value: input.operationMode, updatedAt: nowIso })
+      if (input.operationMode !== undefined) {
+        const existing = db
+          .select()
+          .from(systemSettings)
           .where(eq(systemSettings.key, "operationMode"))
-          .run();
-      } else {
-        db.insert(systemSettings)
-          .values({ key: "operationMode", value: input.operationMode, updatedAt: nowIso })
-          .run();
+          .all()[0];
+
+        if (existing) {
+          db.update(systemSettings)
+            .set({ value: input.operationMode, updatedAt: nowIso })
+            .where(eq(systemSettings.key, "operationMode"))
+            .run();
+        } else {
+          db.insert(systemSettings)
+            .values({ key: "operationMode", value: input.operationMode, updatedAt: nowIso })
+            .run();
+        }
       }
 
-      return { success: true, operationMode: input.operationMode };
+      if (input.showCustomerQueue !== undefined) {
+        const strVal = input.showCustomerQueue ? "true" : "false";
+        const existing = db
+          .select()
+          .from(systemSettings)
+          .where(eq(systemSettings.key, "showCustomerQueue"))
+          .all()[0];
+
+        if (existing) {
+          db.update(systemSettings)
+            .set({ value: strVal, updatedAt: nowIso })
+            .where(eq(systemSettings.key, "showCustomerQueue"))
+            .run();
+        } else {
+          db.insert(systemSettings)
+            .values({ key: "showCustomerQueue", value: strVal, updatedAt: nowIso })
+            .run();
+        }
+      }
+
+      return {
+        success: true,
+        operationMode: input.operationMode,
+        showCustomerQueue: input.showCustomerQueue,
+      };
     }),
 
   getAccountsOverview: adminProcedure.query(async () => {
     const db = getDb();
 
-    // 1. Operation Mode
+    // 1. Operation Mode & Customer Queue Visibility
     const modeRow = db
       .select()
       .from(systemSettings)
       .where(eq(systemSettings.key, "operationMode"))
       .all()[0];
     const operationMode = (modeRow?.value as "unified" | "segregated") || "unified";
+
+    const queueRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "showCustomerQueue"))
+      .all()[0];
+    const showCustomerQueue = queueRow ? queueRow.value === "true" : true;
 
     // 2. Financial Metrics
     const todayStr = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
@@ -186,20 +227,32 @@ export const adminRouter = router({
       });
     }
 
-    // Distribute Waiters to Counter Map
+    // Distribute Waiters to Counter Map (Support many-to-many counters per waiter)
     for (const w of waiters) {
-      if (w.assignedCashierId) {
-        const assignedCashier = allStaff.find((s) => s.id === w.assignedCashierId);
+      let cashierIds: number[] = [];
+      if ((w as any).assignedCashierIds) {
+        try {
+          cashierIds = JSON.parse((w as any).assignedCashierIds);
+        } catch {
+          cashierIds = String((w as any).assignedCashierIds).split(",").map((id: string) => Number(id.trim())).filter(Boolean);
+        }
+      }
+
+      for (const cId of cashierIds) {
+        const assignedCashier = allStaff.find((s) => s.id === cId);
         if (!assignedCashier?.stationName || !assignedCashier.stationName.trim()) continue;
         const cName = normalizeCounter(assignedCashier.stationName);
         if (counterMap.has(cName)) {
-          counterMap.get(cName)!.waiters.push({
-            id: w.id,
-            name: w.name,
-            email: w.email,
-            allowedIp: w.allowedIp,
-            isActive: !!w.isActive,
-          });
+          const existingWaiters = counterMap.get(cName)!.waiters;
+          if (!existingWaiters.some((ex) => ex.id === w.id)) {
+            existingWaiters.push({
+              id: w.id,
+              name: w.name,
+              email: w.email,
+              allowedIp: w.allowedIp,
+              isActive: !!w.isActive,
+            });
+          }
         }
       }
     }
@@ -258,6 +311,7 @@ export const adminRouter = router({
 
     return {
       operationMode,
+      showCustomerQueue,
       financials: {
         todayRevenue,
         todayCash,
@@ -292,7 +346,7 @@ export const adminRouter = router({
         password: staff.password,
         role: staff.role,
         stationName: staff.stationName,
-        assignedCashierId: staff.assignedCashierId,
+        assignedCashierIds: staff.assignedCashierIds,
         permissions: staff.permissions,
         allowedIp: staff.allowedIp,
         currentIp: staff.currentIp,
@@ -318,9 +372,27 @@ export const adminRouter = router({
           parsedPerms = s.permissions.split(",").map((p) => p.trim());
         }
       }
+
+      let parsedCashierIds: number[] = [];
+      if (s.assignedCashierIds) {
+        try {
+          parsedCashierIds = JSON.parse(s.assignedCashierIds);
+        } catch {
+          parsedCashierIds = s.assignedCashierIds.split(",").map((id) => Number(id.trim())).filter(Boolean);
+        }
+      }
+
+      const assignedCashierNames = parsedCashierIds
+        .map((id) => staffMap.get(id))
+        .filter(Boolean) as string[];
+
       return {
         ...s,
-        assignedCashierName: s.assignedCashierId ? staffMap.get(s.assignedCashierId) || null : null,
+        assignedCashierIds: parsedCashierIds,
+        assignedCashierNames,
+        assignedCashierName: assignedCashierNames.length > 0
+          ? assignedCashierNames.join(", ")
+          : null,
         permissionsList: parsedPerms,
       };
     });
@@ -334,7 +406,7 @@ export const adminRouter = router({
         password: z.string().min(1, "Password is required"),
         role: z.enum(["admin", "cashier", "waiter", "kitchen"]),
         stationName: z.string().optional().nullable(),
-        assignedCashierId: z.number().optional().nullable(),
+        assignedCashierIds: z.array(z.number()).optional().nullable(),
         permissions: z.array(z.string()).optional().nullable(),
         allowedIp: z.string().optional().nullable(),
       })
@@ -359,6 +431,10 @@ export const adminRouter = router({
       const passHash = hashPassword(input.password);
       const nowIso = new Date().toISOString();
       const permsJson = input.permissions ? JSON.stringify(input.permissions) : null;
+      const cashierIds = input.assignedCashierIds && input.assignedCashierIds.length > 0
+        ? input.assignedCashierIds
+        : [];
+      const cashierIdsJson = cashierIds.length > 0 ? JSON.stringify(cashierIds) : null;
 
       const inserted = db
         .insert(staff)
@@ -370,7 +446,7 @@ export const adminRouter = router({
           passwordHash: passHash,
           role: input.role,
           stationName: input.stationName ? input.stationName.trim() : null,
-          assignedCashierId: input.assignedCashierId || null,
+          assignedCashierIds: cashierIdsJson,
           permissions: permsJson,
           allowedIp: input.allowedIp ? input.allowedIp.trim() : null,
           isActive: true,
@@ -395,7 +471,7 @@ export const adminRouter = router({
         password: z.string().optional(),
         role: z.enum(["admin", "cashier", "waiter", "kitchen"]).optional(),
         stationName: z.string().nullable().optional(),
-        assignedCashierId: z.number().nullable().optional(),
+        assignedCashierIds: z.array(z.number()).nullable().optional(),
         permissions: z.array(z.string()).nullable().optional(),
         allowedIp: z.string().nullable().optional(),
         isActive: z.boolean().optional(),
@@ -436,8 +512,9 @@ export const adminRouter = router({
       if (input.stationName !== undefined) {
         updatePayload.stationName = input.stationName ? input.stationName.trim() : null;
       }
-      if (input.assignedCashierId !== undefined) {
-        updatePayload.assignedCashierId = input.assignedCashierId || null;
+      if (input.assignedCashierIds !== undefined) {
+        const ids = input.assignedCashierIds && input.assignedCashierIds.length > 0 ? input.assignedCashierIds : [];
+        updatePayload.assignedCashierIds = ids.length > 0 ? JSON.stringify(ids) : null;
       }
       if (input.permissions !== undefined) {
         updatePayload.permissions = input.permissions ? JSON.stringify(input.permissions) : null;

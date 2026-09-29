@@ -71,21 +71,33 @@ export function LangSwitcher({ className = "", variant = "pill" }: LangSwitcherP
         onClick={toggleDropdown}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all cursor-pointer select-none text-xs font-bold shadow-2xs ${
+        className={`flex items-center transition-all cursor-pointer select-none font-bold ${
+          variant === "compact"
+            ? "gap-1 px-2.5 h-8 sm:h-9 rounded-full text-xs bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-200 border-0"
+            : variant === "minimal"
+            ? "gap-1 px-1.5 py-1 rounded-lg text-xs hover:bg-stone-100 text-stone-700 dark:text-stone-200 border-0"
+            : "gap-1.5 px-2.5 py-1 rounded-full text-xs border border-stone-200 dark:border-stone-700 hover:border-stone-300 bg-white dark:bg-[#121824] text-stone-700 dark:text-stone-200"
+        } ${
           isOpen
-            ? "border-amber-500 bg-amber-50 text-stone-900 ring-2 ring-amber-500/20"
-            : "border-stone-200 hover:border-stone-300 bg-white hover:bg-stone-50 text-stone-700"
+            ? "ring-2 ring-[#D98A3C]/30 bg-amber-50/60 dark:bg-amber-950/40"
+            : ""
         }`}
       >
-        <Globe className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="font-black text-stone-900 leading-none truncate">{currentOpt.nativeName}</span>
-          <span className="text-[10px] text-stone-600 font-extrabold font-mono uppercase bg-stone-100 px-1 py-0.5 rounded leading-none">
+        <Globe className={`${variant === "compact" ? "h-3.5 w-3.5" : "h-3.5 w-3.5"} text-[#D98A3C] shrink-0`} />
+        {variant === "compact" ? (
+          <span className="font-extrabold font-mono uppercase leading-none">
             {currentOpt.shortCode}
           </span>
-        </div>
+        ) : (
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="font-bold leading-none truncate">{currentOpt.nativeName}</span>
+            <span className="text-[10px] text-stone-500 font-extrabold font-mono uppercase bg-stone-100 dark:bg-stone-800 px-1 py-0.5 rounded leading-none">
+              {currentOpt.shortCode}
+            </span>
+          </div>
+        )}
         <ChevronDown
-          className={`h-3 w-3 text-stone-400 transition-transform duration-200 ${
+          className={`${variant === "compact" ? "h-2.5 w-2.5" : "h-3 w-3"} text-stone-400 transition-transform duration-200 ${
             isOpen ? "rotate-180 text-stone-700" : ""
           }`}
         />

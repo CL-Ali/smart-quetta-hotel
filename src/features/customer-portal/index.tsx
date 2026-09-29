@@ -1,21 +1,22 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import {
-  FaUtensils,
-  FaFire,
-  FaReceipt,
-  FaPen,
-  FaChair,
-  FaSpinner,
-  FaArrowRight,
-  FaTicket,
-  FaUser,
-  FaGlobe,
-  FaCheck,
-  FaXmark,
-  FaGear,
-} from "react-icons/fa6";
+  Utensils,
+  Flame,
+  Receipt,
+  Pencil,
+  Armchair,
+  Loader2,
+  ArrowRight,
+  Ticket,
+  User,
+  Globe,
+  Check,
+  X,
+  Settings,
+} from "lucide-react";
 import { useLang, LANG_OPTIONS } from "@/contexts/LangContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 import { playTapSound } from "@/lib/sound";
@@ -100,9 +101,9 @@ export function CustomerPortalView() {
   // 2. Opening fresh visit / loading
   if (vm.isOpeningVisit) {
     return (
-      <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-[#F8F3EC] dark:bg-[#0B0F17] flex items-center justify-center p-6">
         <div className="flex flex-col items-center gap-3 text-center">
-          <FaSpinner className="animate-spin h-7 w-7 text-amber-500" />
+          <Loader2 className="animate-spin h-7 w-7 text-[#D98A3C]" />
           <p className="text-xs text-stone-500 dark:text-zinc-400 font-medium">Setting up session…</p>
         </div>
       </div>
@@ -152,132 +153,162 @@ export function CustomerPortalView() {
 
   // 5. Active Single-Screen Viewport with Monolithic Floating Luxe Aesthetic
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden bg-[#F8F3EC] dark:bg-[#0B0F17]">
-      {/* ── Monolithic Floating Luxe Top App Bar (Desktop & Tablets only, hidden on mobile for maximum space) ────────────────── */}
-      <header className="hidden sm:flex bg-white dark:bg-[#121824] rounded-[24px] sm:rounded-[28px] border-0 shadow-none px-4 sm:px-6 py-3.5 items-center justify-between shrink-0 gap-3 sticky top-3 z-30 mx-3 sm:mx-4 my-2">
-        {/* Left: Brand + Seating Context */}
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-2xl bg-[#D98A3C] text-white flex items-center justify-center font-black shrink-0 shadow-none">
-            <FaUtensils className="w-4 h-4" />
-          </div>
-          
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm sm:text-base font-black text-[#24180A] dark:text-white leading-none truncate">
-                {t.hotelName || "Smart Quetta Hotel"}
-              </span>
+    <div className="min-h-screen bg-[#F8F3EC] dark:bg-[#0B0F17] text-[#24180A] dark:text-[#F8FAFC] flex flex-col select-none">
+      {/* ── Monolithic Floating Luxe Top App Bar (Unified layout matching other workspaces) ── */}
+      <header className="bg-white dark:bg-[#121824] rounded-2xl sm:rounded-[28px] border-0 shadow-none px-3.5 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shrink-0 gap-2 sm:gap-4 static sm:sticky top-0 sm:top-3 z-30 mx-2 sm:mx-4 my-2 select-none transition-all">
+        {/* Left: Brand + Seating Context + View Child Tabs */}
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+          {/* Logo and Station/View Title */}
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#D98A3C] text-white flex items-center justify-center font-black text-sm shrink-0 shadow-none">
+              <Utensils className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </div>
             
-            {/* Context chip (Guest & Table) */}
-            <button
-              type="button"
-              onClick={() => {
-                playTapSound();
-                vm.setStep("seating");
-              }}
-              className="flex items-center gap-1.5 text-[10px] text-[#D98A3C] font-extrabold uppercase tracking-widest hover:underline transition group text-left cursor-pointer truncate mt-1"
-              title="Change table or name"
-            >
-              {vm.peopleCount === 1 ? (
-                <FaChair className="w-2.5 h-2.5 text-[#D98A3C] shrink-0" />
-              ) : (
-                <FaUtensils className="w-2.5 h-2.5 text-[#D98A3C] shrink-0" />
+            <div className="hidden sm:flex flex-col min-w-0">
+              <h1 className="text-sm sm:text-base font-black text-[#24180A] dark:text-white leading-none truncate">
+                {t.hotelName || "Smart Hotel"}
+              </h1>
+              
+              {/* Context chip (Guest & Table) */}
+              <button
+                type="button"
+                onClick={() => {
+                  playTapSound();
+                  vm.setStep("seating");
+                }}
+                className="flex items-center gap-1.5 text-[10px] text-[#D98A3C] dark:text-amber-400 font-extrabold uppercase tracking-widest leading-none mt-1 hover:underline transition group text-left cursor-pointer truncate"
+                title="Change table or name"
+              >
+                <span className="truncate">
+                  {vm.formattedSeatingLabel} • {vm.guestName || "Guest"}
+                </span>
+                <Pencil className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
+              </button>
+            </div>
+          </div>
+
+          {/* Subtle Vertical Divider */}
+          <div className="hidden md:block w-px h-6 bg-stone-200 dark:bg-stone-800 shrink-0 mx-0.5" />
+
+          {/* View Child Tabs (Aligned right next to Logo & Title, matching Admin / Kitchen / Waiter design) */}
+          <div className="hidden md:flex items-center min-w-0 overflow-x-auto no-scrollbar">
+            <div className="inline-flex items-center bg-[#F4EFEA] dark:bg-[#1A2234] p-1 rounded-full overflow-x-auto no-scrollbar max-w-full border-0 shadow-none relative">
+              {/* 1. Menu Tab */}
+              <button
+                type="button"
+                onClick={() => {
+                  playTapSound();
+                  vm.setActiveTab("menu");
+                }}
+                className={`relative px-3.5 h-8 text-xs font-extrabold rounded-full inline-flex items-center gap-1.5 transition-colors duration-200 select-none cursor-pointer border-0 ${
+                  vm.activeTab === "menu"
+                    ? "text-white"
+                    : "text-stone-600 dark:text-stone-400 hover:text-[#24180A] dark:hover:text-white"
+                }`}
+              >
+                {vm.activeTab === "menu" && (
+                  <motion.div
+                    layoutId="customerTabIndicator"
+                    className="absolute inset-0 bg-[#D98A3C] rounded-full shadow-xs -z-0"
+                    transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                  />
+                )}
+                <Utensils className="w-3.5 h-3.5 relative z-10" />
+                <span className="relative z-10">{t.menu || "Menu"}</span>
+              </button>
+
+              {/* 2. Today Orders / My Orders Tab */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (vm.hasOrders) {
+                    playTapSound();
+                    vm.setActiveTab("history");
+                  }
+                }}
+                className={`relative px-3.5 h-8 text-xs font-extrabold rounded-full inline-flex items-center gap-1.5 transition-colors duration-200 select-none border-0 ${
+                  !vm.hasOrders
+                    ? "text-stone-400 dark:text-zinc-600 cursor-not-allowed opacity-50"
+                    : vm.activeTab === "history"
+                    ? "text-white cursor-pointer"
+                    : "text-stone-600 dark:text-stone-400 hover:text-[#24180A] dark:hover:text-white cursor-pointer"
+                }`}
+              >
+                {vm.activeTab === "history" && (
+                  <motion.div
+                    layoutId="customerTabIndicator"
+                    className="absolute inset-0 bg-[#D98A3C] rounded-full shadow-xs -z-0"
+                    transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                  />
+                )}
+                <Receipt className="w-3.5 h-3.5 relative z-10 opacity-90" />
+                <span className="relative z-10">{lang === "ur" ? "میرے آرڈرز و بل" : "My Orders & Bill"}</span>
+                {vm.hasOrders && (
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-bold font-mono ${
+                    vm.activeTab === "history" ? "bg-white/25 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
+                  }`}>
+                    {vm.myOrders!.length}
+                  </span>
+                )}
+              </button>
+
+              {/* 3. Live Kitchen Queue Tab (Admin Configurable) */}
+              {vm.showCustomerQueue && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    vm.setActiveTab("active");
+                  }}
+                  className={`relative px-3.5 h-8 text-xs font-extrabold rounded-full inline-flex items-center gap-1.5 transition-colors duration-200 select-none cursor-pointer border-0 ${
+                    vm.activeTab === "active"
+                      ? "text-white"
+                      : "text-stone-600 dark:text-stone-400 hover:text-[#24180A] dark:hover:text-white"
+                  }`}
+                >
+                  {vm.activeTab === "active" && (
+                    <motion.div
+                      layoutId="customerTabIndicator"
+                      className="absolute inset-0 bg-[#D98A3C] rounded-full shadow-xs -z-0"
+                      transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                    />
+                  )}
+                  <Flame className={`w-3.5 h-3.5 relative z-10 ${vm.activeTab === "active" ? "text-white" : vm.hasActiveOrders ? "text-[#D98A3C]" : "text-stone-400"}`} />
+                  <span className="relative z-10">{lang === "ur" ? "کچن قطار" : "Kitchen Queue"}</span>
+                  {vm.activeItemsCount > 0 && (
+                    <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-bold font-mono ${
+                      vm.activeTab === "active" ? "bg-white/25 text-white" : "bg-[#D98A3C] text-white"
+                    }`}>
+                      {vm.activeItemsCount}
+                    </span>
+                  )}
+                </button>
               )}
-              <span className="truncate">
-                {vm.formattedSeatingLabel} • {vm.guestName || "Guest"}
-              </span>
-              <FaPen className="w-2 h-2 opacity-60 group-hover:opacity-100 transition-opacity ml-0.5 shrink-0" />
-            </button>
+            </div>
           </div>
         </div>
 
-        {/* Center: Desktop Segmented Navigation (Pill container) */}
-        <div className="hidden lg:flex items-center bg-[#F4EFEA] dark:bg-[#1A2234] p-1.5 rounded-full border-0 shadow-none gap-1.5">
-          {/* 1. Menu Tab */}
+        {/* Right: Guest Badge + Language Switcher */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             type="button"
             onClick={() => {
               playTapSound();
-              vm.setActiveTab("menu");
+              setShowProfileModal(true);
             }}
-            className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer border-0 ${
-              vm.activeTab === "menu"
-                ? "bg-[#D98A3C] text-white shadow-none font-black"
-                : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
-            }`}
+            className="flex items-center gap-1.5 bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-stone-200/70 dark:hover:bg-zinc-800 px-3 h-8 sm:h-9 rounded-full text-xs font-bold border-0 text-[#24180A] dark:text-stone-200 transition cursor-pointer"
+            title="View Preferences / Change Table"
           >
-            <FaUtensils className="w-3.5 h-3.5" />
-            <span>{t.menu || "Menu"}</span>
-          </button>
-
-          {/* 2. Today Orders / My Orders Tab (Comes before Queue) */}
-          <button
-            type="button"
-            onClick={() => {
-              if (vm.hasOrders) {
-                playTapSound();
-                vm.setActiveTab("history");
-              }
-            }}
-            className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer border-0 ${
-              !vm.hasOrders
-                ? "text-stone-300 dark:text-zinc-600 cursor-not-allowed opacity-50"
-                : vm.activeTab === "history"
-                ? "bg-[#D98A3C] text-white shadow-none font-black"
-                : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
-            }`}
-          >
-            <FaReceipt className="w-3.5 h-3.5 opacity-80" />
-            <span>{lang === "ur" ? "میرے آرڈرز و بل" : "My Orders & Bill"}</span>
-            {vm.hasOrders && (
-              <span className={`text-[10px] rounded-full px-2 py-0.5 font-bold font-mono ${
-                vm.activeTab === "history" ? "bg-white/20 text-white" : "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
-              }`}>
-                {vm.myOrders!.length}
-              </span>
-            )}
-          </button>
-
-          {/* 3. Live Kitchen Queue Tab */}
-          <button
-            type="button"
-            onClick={() => {
-              playTapSound();
-              vm.setActiveTab("active");
-            }}
-            className={`px-4 py-2 text-xs font-bold rounded-full transition flex items-center gap-2 cursor-pointer border-0 ${
-              vm.activeTab === "active"
-                ? "bg-[#D98A3C] text-white shadow-none font-black"
-                : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/50"
-            }`}
-          >
-            <FaFire
-              className={`w-3.5 h-3.5 ${
-                vm.activeTab === "active" ? "text-white" : vm.hasActiveOrders ? "text-[#D98A3C]" : "text-stone-400"
-              }`}
-            />
-            <span>{lang === "ur" ? "کچن قطار" : "Kitchen Queue"}</span>
-            {vm.activeItemsCount > 0 && (
-              <span className={`text-[10px] rounded-full px-2 py-0.5 font-bold font-mono ${
-                vm.activeTab === "active" ? "bg-white/20 text-white" : "bg-[#D98A3C] text-white"
-              }`}>
-                {vm.activeItemsCount}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Right: Guest Badge & Language Switcher */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="hidden sm:flex items-center gap-2 bg-[#F4EFEA] dark:bg-[#1A2234] px-3.5 py-1.5 rounded-full text-xs border-0">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-bold text-[#24180A] dark:text-white">{vm.guestName || "Guest"}</span>
+            <span className="font-bold text-[#24180A] dark:text-white truncate max-w-[90px] sm:max-w-[130px]">
+              {vm.guestName || "Guest"}
+            </span>
             <span className="text-[10px] font-extrabold text-[#D98A3C] uppercase bg-amber-500/15 px-2 py-0.5 rounded-full">
               {vm.formattedSeatingLabel}
             </span>
-          </div>
+          </button>
 
-          <LangSwitcher />
+          <LangSwitcher variant="compact" />
         </div>
       </header>
 
@@ -287,7 +318,7 @@ export function CustomerPortalView() {
         {vm.activeTab === "menu" && (
           <div className="h-full flex flex-col overflow-hidden space-y-2.5">
             {/* Tonal Floating Notice for Active Non-Served Orders (Hidden on mobile) */}
-            {vm.hasActiveOrders && (
+            {vm.showCustomerQueue && vm.hasActiveOrders && (
               <button
                 type="button"
                 onClick={() => {
@@ -298,7 +329,7 @@ export function CustomerPortalView() {
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="w-10 h-10 rounded-2xl bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center shrink-0">
-                    <FaFire className="w-5 h-5 text-[#D98A3C] animate-pulse" />
+                    <Flame className="w-5 h-5 text-[#D98A3C] animate-pulse" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-black text-[#24180A] dark:text-white truncate">
@@ -311,7 +342,7 @@ export function CustomerPortalView() {
                 </div>
                 <span className="h-9 px-4 rounded-full bg-[#D98A3C] text-white font-extrabold text-xs flex items-center gap-1.5 shrink-0 shadow-none group-hover:scale-[0.98] transition-transform">
                   <span>{t.trackOrderBtn || "Track"}</span>
-                  <FaArrowRight className="w-3 h-3 rtl:rotate-180" />
+                  <ArrowRight className="w-3 h-3 rtl:rotate-180" />
                 </span>
               </button>
             )}
@@ -350,7 +381,7 @@ export function CustomerPortalView() {
         )}
 
         {/* 2. Active Orders (Live Kitchen Queue with Ahead Tracking) */}
-        {vm.activeTab === "active" && (
+        {vm.showCustomerQueue && vm.activeTab === "active" && (
           <div className="h-full max-w-2xl mx-auto overflow-hidden">
             <ActiveOrdersTab
               orders={vm.myOrders || []}
@@ -372,7 +403,7 @@ export function CustomerPortalView() {
           <div className="h-full max-w-2xl mx-auto overflow-y-auto pr-1 py-1.5 space-y-2.5 no-scrollbar">
             {vm.ordersLoading ? (
               <div className="flex justify-center py-20">
-                <FaSpinner className="animate-spin h-8 w-8 text-[#D98A3C]" />
+                <Loader2 className="animate-spin h-8 w-8 text-[#D98A3C]" />
               </div>
             ) : vm.myOrders && vm.myOrders.length > 0 ? (
               <>
@@ -400,7 +431,7 @@ export function CustomerPortalView() {
               </>
             ) : (
               <div className="text-center py-24 bg-white dark:bg-[#121824] rounded-[28px] border-0 text-[#786B5D] dark:text-zinc-400">
-                <FaUtensils className="w-10 h-10 mx-auto mb-3 opacity-30 text-[#D98A3C]" />
+                <Utensils className="w-10 h-10 mx-auto mb-3 opacity-30 text-[#D98A3C]" />
                 <p className="text-sm font-black text-[#24180A] dark:text-white">{t.noPastOrders}</p>
                 <p className="text-xs text-[#786B5D] dark:text-zinc-400 mt-1 font-medium">
                   {t.placeOrderPrompt}
@@ -444,7 +475,7 @@ export function CustomerPortalView() {
                 : "bg-transparent text-current"
             }`}
           >
-            <FaUtensils className="w-3.5 h-3.5" />
+            <Utensils className="w-3.5 h-3.5" />
           </div>
           <span className="text-[11px] font-bold leading-none">
             {t.menu || "Menu"}
@@ -474,7 +505,7 @@ export function CustomerPortalView() {
                 : "bg-transparent text-current"
             }`}
           >
-            <FaReceipt className="w-3.5 h-3.5" />
+            <Receipt className="w-3.5 h-3.5" />
             {vm.hasOrders && (
               <span className="absolute -top-1.5 -right-2 bg-stone-700 text-white text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full ring-2 ring-white dark:ring-[#121824]">
                 {vm.myOrders!.length}
@@ -486,35 +517,37 @@ export function CustomerPortalView() {
           </span>
         </button>
 
-        {/* Destination 3: Live Kitchen Queue */}
-        <button
-          type="button"
-          onClick={() => {
-            playTapSound();
-            vm.setActiveTab("active");
-          }}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 cursor-pointer transition-all relative ${
-            vm.activeTab === "active" ? "text-[#D98A3C]" : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
-          }`}
-        >
-          <div
-            className={`w-10 h-6 rounded-full flex items-center justify-center transition-all relative ${
-              vm.activeTab === "active"
-                ? "bg-[#D98A3C] text-white"
-                : "bg-transparent text-current"
+        {/* Destination 3: Live Kitchen Queue (Admin Configurable) */}
+        {vm.showCustomerQueue && (
+          <button
+            type="button"
+            onClick={() => {
+              playTapSound();
+              vm.setActiveTab("active");
+            }}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 cursor-pointer transition-all relative ${
+              vm.activeTab === "active" ? "text-[#D98A3C]" : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
             }`}
           >
-            <FaFire className="w-3.5 h-3.5" />
-            {vm.activeItemsCount > 0 && (
-              <span className="absolute -top-1.5 -right-2 bg-[#D98A3C] text-white text-[9px] font-black font-mono px-1.5 py-0.2 rounded-full ring-2 ring-white dark:ring-[#121824]">
-                {vm.activeItemsCount}
-              </span>
-            )}
-          </div>
-          <span className="text-[11px] font-bold leading-none">
-            {lang === "ur" ? "کچن قطار" : "Queue"}
-          </span>
-        </button>
+            <div
+              className={`w-10 h-6 rounded-full flex items-center justify-center transition-all relative ${
+                vm.activeTab === "active"
+                  ? "bg-[#D98A3C] text-white"
+                  : "bg-transparent text-current"
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5" />
+              {vm.activeItemsCount > 0 && (
+                <span className="absolute -top-1.5 -right-2 bg-[#D98A3C] text-white text-[9px] font-black font-mono px-1.5 py-0.2 rounded-full ring-2 ring-white dark:ring-[#121824]">
+                  {vm.activeItemsCount}
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] font-bold leading-none">
+              {lang === "ur" ? "کچن قطار" : "Queue"}
+            </span>
+          </button>
+        )}
 
         {/* Destination 4: Settings / Preferences */}
         <button
@@ -536,7 +569,7 @@ export function CustomerPortalView() {
                 : "bg-transparent text-current"
             }`}
           >
-            <FaGear className="w-3.5 h-3.5" />
+            <Settings className="w-3.5 h-3.5" />
           </div>
           <span className="text-[11px] font-bold leading-none truncate max-w-[65px]">
             {lang === "ur" ? "ترتیبات" : "Settings"}
@@ -554,7 +587,7 @@ export function CustomerPortalView() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-white dark:bg-[#121824] rounded-t-[32px] sm:rounded-[28px] p-5 sm:p-6 space-y-4 border-0 shadow-2xl animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-2 duration-200 cursor-default max-h-[90vh] overflow-y-auto pb-safe"
+            className="w-full max-w-md bg-white dark:bg-[#121824] rounded-t-[32px] sm:rounded-[28px] p-5 sm:p-6 space-y-4 border-0 shadow-2xl animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-2 duration-200 cursor-default max-h-[90vh] overflow-y-auto no-scrollbar pb-safe"
           >
             {/* Top Sheet Drag Handle on mobile */}
             <div className="w-12 h-1.5 rounded-full bg-stone-300 dark:bg-zinc-700 mx-auto -mt-1 mb-2 sm:hidden shrink-0" />
@@ -563,14 +596,14 @@ export function CustomerPortalView() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center font-bold shrink-0">
-                  <FaGear className="w-4 h-4" />
+                  <Settings className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-[#24180A] dark:text-white leading-tight">
                     {lang === "ur" ? "ترتیبات و معلومات" : "Settings & Preferences"}
                   </h3>
                   <p className="text-[11px] font-bold text-stone-500 dark:text-zinc-400">
-                    {t.hotelName || "Smart Quetta Hotel"}
+                    {t.hotelName || "Smart Hotel"}
                   </p>
                 </div>
               </div>
@@ -582,7 +615,7 @@ export function CustomerPortalView() {
                 }}
                 className="w-8 h-8 rounded-full bg-stone-100 dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-[#222C42] text-stone-500 dark:text-zinc-300 flex items-center justify-center transition cursor-pointer active:scale-90"
               >
-                <FaXmark className="w-4 h-4" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -606,7 +639,7 @@ export function CustomerPortalView() {
                   }}
                   className="px-3.5 py-1.5 rounded-full bg-[#D98A3C] hover:bg-[#C27930] text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-none active:scale-95"
                 >
-                  <FaPen className="w-2.5 h-2.5" />
+                  <Pencil className="w-2.5 h-2.5" />
                   <span>{lang === "ur" ? "تبدیل کریں" : "Change"}</span>
                 </button>
               </div>
@@ -616,7 +649,7 @@ export function CustomerPortalView() {
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-stone-700 dark:text-zinc-300">
                 <div className="flex items-center gap-2">
-                  <FaGlobe className="w-3.5 h-3.5 text-[#D98A3C]" />
+                  <Globe className="w-3.5 h-3.5 text-[#D98A3C]" />
                   <span>{lang === "ur" ? "زبان منتخب کریں" : "Select Language"}</span>
                 </div>
                 <span className="text-[10px] font-mono text-stone-400 font-bold">
@@ -652,7 +685,7 @@ export function CustomerPortalView() {
                           {opt.englishName}
                         </span>
                       </div>
-                      {isSelected && <FaCheck className="w-3 h-3 shrink-0 ml-1 rtl:mr-1" />}
+                      {isSelected && <Check className="w-3 h-3 shrink-0 ml-1 rtl:mr-1" />}
                     </button>
                   );
                 })}

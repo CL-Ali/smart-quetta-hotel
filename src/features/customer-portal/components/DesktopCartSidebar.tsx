@@ -30,43 +30,22 @@ interface DesktopCartSidebarProps {
   onCheckout: () => void;
 }
 
-// Smart upsell finder (Zero Emojis)
+// Smart upsell finder (100% Dynamic & Data-driven)
 function getSmartMenuUpsells(menu: MenuItem[] = [], cart: CartItem[] = []): MenuItem[] {
   if (!menu || menu.length === 0) return [];
 
   const cartIds = new Set(cart.map((i) => i.id));
+  const cartDeptIds = new Set(cart.map((i) => (i as any).departmentId).filter(Boolean));
   const candidates = menu.filter((m) => m.isAvailable !== false && !cartIds.has(m.id));
   if (candidates.length === 0) return [];
 
-  const cartText = cart
-    .map((i) => `${i.name} ${i.description || ""} ${i.name}`)
-    .join(" ")
-    .toLowerCase();
-
-  const hasChai = /chai|tea|chaye|چائے|doodh patti|karak/i.test(cartText);
-  const hasParatha = /paratha|lacha|roti|naan|پراٹھا|روٹی/i.test(cartText);
-  const hasEgg = /anda|egg|omelette|fry/i.test(cartText);
-
-  const matched: MenuItem[] = [];
-
-  const findCandidate = (regex: RegExp) => {
-    const found = candidates.find(
-      (c) =>
-        regex.test(`${c.name} ${c.description || ""} ${c.category || ""}`) &&
-        !matched.some((m) => m.id === c.id)
-    );
-    if (found) matched.push(found);
-  };
-
-  if (hasParatha && !hasChai) findCandidate(/chai|doodh patti|tea/i);
-  if (hasParatha && !hasEgg) findCandidate(/anda|egg|omelette|fry/i);
-  if (hasChai && !hasParatha) findCandidate(/paratha|roti|samosa/i);
-
-  if (matched.length === 0) {
-    matched.push(...candidates.slice(0, 2));
+  // Recommend complementary items from other departments not yet in the cart
+  const crossDeptCandidates = candidates.filter((m) => m.departmentId && !cartDeptIds.has(m.departmentId));
+  if (crossDeptCandidates.length > 0) {
+    return crossDeptCandidates.slice(0, 2);
   }
 
-  return matched.slice(0, 2);
+  return candidates.slice(0, 2);
 }
 
 export function DesktopCartSidebar({

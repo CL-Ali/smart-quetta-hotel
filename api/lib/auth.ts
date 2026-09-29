@@ -16,7 +16,7 @@ export interface StaffTokenPayload {
   email: string;
   role: "admin" | "cashier" | "waiter" | "kitchen";
   stationName?: string | null;
-  assignedCashierId?: number | null;
+  assignedCashierIds?: number[] | null;
   permissions?: string[] | null;
   allowedIp?: string | null;
   iat?: number;
@@ -133,7 +133,7 @@ export async function generateStaffToken(
     email: payload.email,
     role: payload.role,
     stationName: payload.stationName || null,
-    assignedCashierId: payload.assignedCashierId || null,
+    assignedCashierIds: payload.assignedCashierIds || null,
     permissions: payload.permissions || null,
     allowedIp: payload.allowedIp || null,
   })
@@ -157,13 +157,18 @@ export async function verifyStaffToken(
     if (!payload.staffId || !payload.role) {
       return null;
     }
+    let cashierIds: number[] | null = null;
+    if (Array.isArray(payload.assignedCashierIds)) {
+      cashierIds = payload.assignedCashierIds.map(Number);
+    }
+
     return {
       staffId: Number(payload.staffId),
       name: String(payload.name || ""),
       email: String(payload.email || ""),
       role: payload.role as StaffTokenPayload["role"],
       stationName: (payload.stationName as string) || null,
-      assignedCashierId: payload.assignedCashierId ? Number(payload.assignedCashierId) : null,
+      assignedCashierIds: cashierIds,
       permissions: (payload.permissions as string[]) || null,
       allowedIp: (payload.allowedIp as string) || null,
       iat: payload.iat,

@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { fmtTime } from "@/lib/time";
 import { useLang } from "@/contexts/LangContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { OrderWithDetails } from "@/types/hotel";
 
 type FilterKey = "all" | "unpaid" | "pending" | "ready" | "paid";
@@ -74,6 +75,7 @@ export function OrdersTab({
   onCancelOrder,
 }: OrdersTabProps) {
   const { t } = useLang();
+  const { permissions } = useAuth();
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
 
@@ -222,7 +224,7 @@ export function OrdersTab({
             </div>
 
             <div className="flex gap-2 justify-end">
-              {order.status !== "cancelled" && order.paymentStatus !== "paid" && (
+              {order.status !== "cancelled" && order.paymentStatus !== "paid" && (permissions.canSettleKhata || permissions.canCashier) && (
                 <button
                   type="button"
                   onClick={() => onPayOrder(order)}
@@ -232,7 +234,7 @@ export function OrdersTab({
                   {t.payment}
                 </button>
               )}
-              {order.status !== "cancelled" && order.status !== "paid" && (
+              {order.status !== "cancelled" && order.status !== "paid" && permissions.canVoidOrder && (
                 <button
                   type="button"
                   onClick={() => onCancelOrder(order.id)}

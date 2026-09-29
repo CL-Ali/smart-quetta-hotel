@@ -10,7 +10,7 @@ export interface StaffUser {
   email: string;
   role: "admin" | "cashier" | "waiter" | "kitchen";
   stationName?: string | null;
-  assignedCashierId?: number | null;
+  assignedCashierIds?: number[] | null;
   permissions?: string[] | null;
   allowedIp?: string | null;
   currentIp?: string | null;
@@ -19,8 +19,14 @@ export interface StaffUser {
 export interface Permissions {
   canAdmin: boolean;
   canCashier: boolean;
+  canPos: boolean;
   canKitchen: boolean;
   canWaiter: boolean;
+  canDiscount: boolean;
+  canSettleKhata: boolean;
+  canVoidOrder: boolean;
+  canViewReports: boolean;
+  customPermissions?: string[];
 }
 
 interface AuthContextType {
@@ -37,8 +43,14 @@ interface AuthContextType {
 const defaultPermissions: Permissions = {
   canAdmin: false,
   canCashier: false,
+  canPos: false,
   canKitchen: false,
   canWaiter: false,
+  canDiscount: false,
+  canSettleKhata: false,
+  canVoidOrder: false,
+  canViewReports: false,
+  customPermissions: [],
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -66,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: meQuery.data.staff.email,
           role: meQuery.data.staff.role,
           stationName: meQuery.data.staff.stationName ?? null,
-          assignedCashierId: meQuery.data.staff.assignedCashierId ?? null,
+          assignedCashierIds: meQuery.data.staff.assignedCashierIds ?? null,
           permissions: meQuery.data.staff.permissions ?? [],
           allowedIp: meQuery.data.staff.allowedIp,
           currentIp: meQuery.data.clientIp,
@@ -95,22 +107,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [staff, refreshMutation]);
 
   const userPerms = staff?.permissions || meQuery.data?.staff?.permissions || [];
+  const hasExplicitPerms = Array.isArray(userPerms) && userPerms.length > 0;
+  const role = staff?.role;
+
   const permissions: Permissions = {
-    canAdmin: meQuery.data?.permissions?.canAdmin ?? (staff?.role === "admin"),
+    canAdmin:
+      meQuery.data?.permissions?.canAdmin ??
+      (hasExplicitPerms ? userPerms.includes("can_access_admin") : role === "admin"),
     canCashier:
       meQuery.data?.permissions?.canCashier ??
-      (staff?.role === "admin" ||
-        staff?.role === "cashier" ||
-        userPerms.includes("can_access_cashier")),
+      (hasExplicitPerms
+        ? userPerms.includes("can_access_cashier")
+        : role === "admin" || role === "cashier"),
+    canPos:
+      meQuery.data?.permissions?.canPos ??
+      (hasExplicitPerms
+        ? userPerms.includes("can_access_pos")
+        : role === "admin" || role === "cashier" || role === "waiter"),
     canKitchen:
       meQuery.data?.permissions?.canKitchen ??
-      (staff?.role === "admin" ||
-        staff?.role === "cashier" ||
-        staff?.role === "kitchen" ||
-        userPerms.includes("can_access_kitchen")),
+      (hasExplicitPerms
+        ? userPerms.includes("can_access_kitchen")
+        : role === "admin" || role === "kitchen"),
     canWaiter:
       meQuery.data?.permissions?.canWaiter ??
-      (staff != null || userPerms.includes("can_access_waiter")),
+      (hasExplicitPerms
+        ? userPerms.includes("can_access_waiter")
+        : role === "admin" || role === "waiter"),
+    canDiscount:
+      meQuery.data?.permissions?.canDiscount ??
+      (hasExplicitPerms
+        ? userPerms.includes("can_discount")
+        : role === "admin" || role === "cashier"),
+    canSettleKhata:
+      meQuery.data?.permissions?.canSettleKhata ??
+      (hasExplicitPerms
+        ? userPerms.includes("can_settle_khata")
+        : role === "admin" || role === "cashier"),
+    canVoidOrder:
+      meQuery.data?.permissions?.canVoidOrder ??
+      (hasExplicitPerms
+        ? userPerms.includes("can_void_order")
+        : role === "admin"),
+    canViewReports:
+      meQuery.data?.permissions?.canViewReports ??
+      (hasExplicitPerms
+        ? userPerms.includes("can_view_reports")
+        : role === "admin"),
+    customPermissions: userPerms,
   };
 
   const login = useCallback(

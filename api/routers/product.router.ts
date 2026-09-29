@@ -15,6 +15,7 @@ export const productRouter = router({
         category: z.string().optional(),
         imageUrl: z.string().optional(),
         departmentId: z.number(),
+        options: z.string().optional(),
         isAvailable: z.boolean().optional().default(true),
       })
     )
@@ -29,6 +30,7 @@ export const productRouter = router({
           category: input.category ?? null,
           imageUrl: input.imageUrl ?? null,
           departmentId: input.departmentId,
+          options: input.options ?? null,
           isAvailable: input.isAvailable,
         })
         .run();
@@ -54,6 +56,7 @@ export const productRouter = router({
           imageUrl: menuItems.imageUrl,
           isAvailable: menuItems.isAvailable,
           departmentId: menuItems.departmentId,
+          options: menuItems.options,
           departmentName: departments.name,
         })
         .from(menuItems)
@@ -87,6 +90,7 @@ export const productRouter = router({
         category: z.string().optional(),
         imageUrl: z.string().optional(),
         departmentId: z.number().optional(),
+        options: z.string().optional(),
         isAvailable: z.boolean().optional(),
       })
     )

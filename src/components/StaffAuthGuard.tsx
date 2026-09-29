@@ -10,7 +10,7 @@ import Link from "next/link";
 interface Props {
   children: React.ReactNode;
   allowedRoles?: Array<"admin" | "cashier" | "waiter" | "kitchen">;
-  requiredPermission?: "canAdmin" | "canCashier" | "canKitchen" | "canWaiter";
+  requiredPermission?: "canAdmin" | "canCashier" | "canPos" | "canKitchen" | "canWaiter";
 }
 
 export function StaffAuthGuard({
@@ -46,12 +46,22 @@ export function StaffAuthGuard({
     return null; // Will redirect in useEffect
   }
 
-  // Check Role Permissions
-  let isAuthorized = true;
-  if (allowedRoles && allowedRoles.length > 0) {
-    isAuthorized = allowedRoles.includes(staff.role);
+  // Check Dynamic Role & Workspace Permissions
+  let isAuthorized = false;
+  if (staff.role === "admin" || permissions.canAdmin) {
+    isAuthorized = true;
   } else if (requiredPermission) {
     isAuthorized = !!permissions[requiredPermission];
+  } else if (allowedRoles && allowedRoles.length > 0) {
+    isAuthorized = allowedRoles.some((role) => {
+      if (role === "admin") return permissions.canAdmin;
+      if (role === "cashier") return permissions.canCashier;
+      if (role === "kitchen") return permissions.canKitchen;
+      if (role === "waiter") return permissions.canWaiter;
+      return staff.role === role;
+    });
+  } else {
+    isAuthorized = true;
   }
 
   if (!isAuthorized) {

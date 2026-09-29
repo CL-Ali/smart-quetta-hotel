@@ -67,7 +67,7 @@ async function startServer() {
     return handle(req, res);
   });
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
+  const preferredPort = parseInt(process.env.PORT || "4000");
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {

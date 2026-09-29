@@ -18,8 +18,6 @@ const LS_COOKIE_HASH = "qh_cookie_hash";
 const LS_TICKET_NO = "qh_ticket_no";
 const LS_PEOPLE_COUNT = "qh_people_count";
 const LS_SEAT_OR_TABLE = "qh_seat_or_table";
-const LS_LEGACY_NAME = "qh_customer_name";
-const LS_LEGACY_ID = "qh_customer_id";
 
 function readStoredInt(key: string): number | null {
   if (typeof window === "undefined") return null;
@@ -49,8 +47,6 @@ function clearStoredSession() {
     LS_PREV_NAME,
     LS_PEOPLE_COUNT,
     LS_SEAT_OR_TABLE,
-    LS_LEGACY_NAME,
-    LS_LEGACY_ID,
   ].forEach((k) => localStorage.removeItem(k));
 }
 
@@ -102,9 +98,7 @@ export function useCustomerViewModel() {
   );
   const [guestPhone, setGuestPhone] = useState("");
   const [previousName, setPreviousName] = useState(() =>
-    typeof window !== "undefined"
-      ? localStorage.getItem(LS_PREV_NAME) ?? localStorage.getItem(LS_LEGACY_NAME) ?? ""
-      : ""
+    typeof window !== "undefined" ? localStorage.getItem(LS_PREV_NAME) ?? "" : ""
   );
 
   // Seating and Party Size State
@@ -148,6 +142,15 @@ export function useCustomerViewModel() {
     langSelected,
     step,
   });
+
+  const showCustomerQueue = service.showCustomerQueue;
+
+  // Fallback to menu tab if queue is disabled by admin while user is on queue tab
+  useEffect(() => {
+    if (!showCustomerQueue && activeTab === "active") {
+      setActiveTab("menu");
+    }
+  }, [showCustomerQueue, activeTab]);
 
   // URL Ticket / Cookie Resume Effect
   useEffect(() => {
@@ -365,6 +368,8 @@ export function useCustomerViewModel() {
           quantity: addQty,
           description: item.description,
           imageUrl: item.imageUrl,
+          departmentId: item.departmentId,
+          options: item.options,
         },
       ];
     });
@@ -384,7 +389,7 @@ export function useCustomerViewModel() {
     setCart((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (orderNotes?: string) => {
     if (cart.length === 0 || !guestId || !visitId) return;
     unlockAudio();
     setPlacing(true);
@@ -397,6 +402,7 @@ export function useCustomerViewModel() {
         seatingNo: seatOrTableNo.trim() || undefined,
         peopleCount,
         seatingType: peopleCount > 1 ? "table" : "seat",
+        remarks: orderNotes?.trim() || undefined,
         items: cart.map((i) => ({
           menuItemId: i.id,
           quantity: i.quantity,
@@ -480,6 +486,7 @@ export function useCustomerViewModel() {
     cartTotal,
     cartCount,
     activeTab,
+    showCustomerQueue,
     confirmPlace,
     showSuccessModal,
     lastOrderTotal,

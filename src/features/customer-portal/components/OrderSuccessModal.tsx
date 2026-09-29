@@ -33,8 +33,9 @@ export function OrderSuccessModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in-50">
-      <div className="bg-white dark:bg-[#121824] rounded-[28px] sm:rounded-[32px] p-6 sm:p-8 max-w-sm w-full border-0 shadow-none flex flex-col items-center text-center relative overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in-50 duration-200">
+      <div className="bg-white dark:bg-[#121824] rounded-t-[32px] sm:rounded-[32px] p-6 sm:p-8 max-w-sm w-full border-0 shadow-none flex flex-col items-center text-center relative overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+        <div className="w-12 h-1.5 bg-stone-300 dark:bg-stone-600 rounded-full mx-auto mb-2 sm:hidden shrink-0" />
         
         {/* Clean Success Icon */}
         <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center my-2 border-0">

@@ -81,6 +81,15 @@ export const authRouter = router({
         }
       }
 
+      let parsedCashierIds: number[] = [];
+      if (member.assignedCashierIds) {
+        try {
+          parsedCashierIds = JSON.parse(member.assignedCashierIds);
+        } catch {
+          parsedCashierIds = member.assignedCashierIds.split(",").map((s) => Number(s.trim())).filter(Boolean);
+        }
+      }
+
       // Issue 24-hour JWT token
       const tokenPayload = {
         staffId: member.id,
@@ -88,7 +97,7 @@ export const authRouter = router({
         email: member.email,
         role: member.role as any,
         stationName: member.stationName || null,
-        assignedCashierId: member.assignedCashierId ? Number(member.assignedCashierId) : null,
+        assignedCashierIds: parsedCashierIds.length > 0 ? parsedCashierIds : null,
         permissions: parsedPerms,
         allowedIp: member.allowedIp,
       };
@@ -106,7 +115,7 @@ export const authRouter = router({
           email: member.email,
           role: member.role,
           stationName: member.stationName || null,
-          assignedCashierId: member.assignedCashierId ? Number(member.assignedCashierId) : null,
+          assignedCashierIds: parsedCashierIds,
           permissions: parsedPerms,
           allowedIp: member.allowedIp,
           currentIp: ctx.clientIp,
@@ -116,32 +125,51 @@ export const authRouter = router({
 
   me: publicProcedure.query(async ({ ctx }) => {
     const userPerms = ctx.staff?.permissions || [];
+    const hasExplicitPerms = Array.isArray(userPerms) && userPerms.length > 0;
+    const role = ctx.staff?.role;
+
+    const canAdmin = hasExplicitPerms
+      ? userPerms.includes("can_access_admin")
+      : role === "admin";
+    const canCashier = hasExplicitPerms
+      ? userPerms.includes("can_access_cashier")
+      : role === "admin" || role === "cashier";
+    const canPos = hasExplicitPerms
+      ? userPerms.includes("can_access_pos")
+      : role === "admin" || role === "cashier" || role === "waiter";
+    const canKitchen = hasExplicitPerms
+      ? userPerms.includes("can_access_kitchen")
+      : role === "admin" || role === "kitchen";
+    const canWaiter = hasExplicitPerms
+      ? userPerms.includes("can_access_waiter")
+      : role === "admin" || role === "waiter";
+    const canDiscount = hasExplicitPerms
+      ? userPerms.includes("can_discount")
+      : role === "admin" || role === "cashier";
+    const canSettleKhata = hasExplicitPerms
+      ? userPerms.includes("can_settle_khata")
+      : role === "admin" || role === "cashier";
+    const canVoidOrder = hasExplicitPerms
+      ? userPerms.includes("can_void_order")
+      : role === "admin";
+    const canViewReports = hasExplicitPerms
+      ? userPerms.includes("can_view_reports")
+      : role === "admin";
+
     return {
       isAuthenticated: !!ctx.staff,
       staff: ctx.staff,
       clientIp: ctx.clientIp,
       permissions: {
-        canAdmin: ctx.staff?.role === "admin",
-        canCashier:
-          ctx.staff?.role === "admin" ||
-          ctx.staff?.role === "cashier" ||
-          userPerms.includes("can_access_cashier"),
-        canKitchen:
-          ctx.staff?.role === "admin" ||
-          ctx.staff?.role === "cashier" ||
-          ctx.staff?.role === "kitchen" ||
-          userPerms.includes("can_access_kitchen"),
-        canWaiter: !!ctx.staff || userPerms.includes("can_access_waiter"),
-        canDiscount:
-          ctx.staff?.role === "admin" ||
-          userPerms.includes("can_discount") ||
-          ctx.staff?.role === "cashier",
-        canSettleKhata:
-          ctx.staff?.role === "admin" ||
-          userPerms.includes("can_settle_khata") ||
-          ctx.staff?.role === "cashier",
-        canVoidOrder:
-          ctx.staff?.role === "admin" || userPerms.includes("can_void_order"),
+        canAdmin,
+        canCashier,
+        canPos,
+        canKitchen,
+        canWaiter,
+        canDiscount,
+        canSettleKhata,
+        canVoidOrder,
+        canViewReports,
         customPermissions: userPerms,
       },
     };

@@ -144,10 +144,15 @@ export const ProductsTab = () => {
                   {p.description && (
                     <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.description}</p>
                   )}
-                  {p.department && (
-                    <span className="inline-block mt-1 text-[10px] font-semibold text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
-                      {p.department.name}
+                  {(p.departmentName || p.department?.name) && (
+                    <span className="inline-block mt-1 text-[10px] font-semibold text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                      {p.departmentName || p.department?.name}
                     </span>
+                  )}
+                  {p.options && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium line-clamp-1 mt-1">
+                      ⚙️ {p.options}
+                    </p>
                   )}
                 </div>
 

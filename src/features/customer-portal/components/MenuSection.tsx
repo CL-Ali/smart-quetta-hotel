@@ -38,12 +38,10 @@ function getLiveDeptDisplayName(deptName: string, lang: string = "en"): string {
   if (!deptName) return "";
   const n = deptName.toLowerCase().trim();
   if (lang === "ur") {
-    if (n === "tea" || n.includes("chai")) return "چائے (Tea)";
-    if (n === "drinks" || n.includes("drink") || n.includes("lassi")) return "مشروبات (Drinks)";
-    if (n === "paratha" || n.includes("tandoor")) return "پراٹھا (Paratha)";
-    if (n === "appetizer") return "ایپیٹائزر (Appetizer)";
-    if (n.includes("snack")) return "سنیکس (Snacks)";
-    if (n.includes("kitchen") || n.includes("salan") || n.includes("karahi")) return "کچن و سالن";
+    if (n === "tea") return "چائے و قہوہ";
+    if (n === "drinks") return "مشروبات و لسی";
+    if (n === "paratha") return "پراٹھا و نان";
+    if (n === "kitchen") return "کچن و سالن";
     return deptName;
   }
   return deptName;
@@ -71,13 +69,10 @@ function resolveItemDepartment(
     }
   }
 
-  // 2. Category matching with Live Departments from DB
+  // 2. Category name matching with Live Departments from DB
   if (item.category && liveDepts.length > 0) {
     const catLower = item.category.toLowerCase().trim();
-    const matched = liveDepts.find((d) => {
-      const dLower = (d.name || "").toLowerCase().trim();
-      return dLower === catLower || dLower.includes(catLower) || catLower.includes(dLower);
-    });
+    const matched = liveDepts.find((d) => (d.name || "").toLowerCase().trim() === catLower);
     if (matched) {
       return {
         key: `dept-${matched.id}`,
@@ -87,39 +82,7 @@ function resolveItemDepartment(
     }
   }
 
-  // 3. Match item name / keywords against Live Departments from DB
-  const nameLower = (item.name || "").toLowerCase().trim();
-  if (liveDepts.length > 0) {
-    for (const d of liveDepts) {
-      const dLower = (d.name || "").toLowerCase().trim();
-      if (
-        (dLower.includes("tea") || dLower.includes("chai")) &&
-        (nameLower.includes("chai") || nameLower.includes("tea") || nameLower.includes("patti") || nameLower.includes("kahwa") || nameLower.includes("qehwa") || nameLower.includes("karak") || nameLower.includes("matka"))
-      ) {
-        return { key: `dept-${d.id}`, name: d.name, label: getLiveDeptDisplayName(d.name, lang) };
-      }
-      if (
-        (dLower.includes("paratha") || dLower.includes("tandoor") || dLower.includes("bread")) &&
-        (nameLower.includes("paratha") || nameLower.includes("roti") || nameLower.includes("naan") || nameLower.includes("kulcha") || nameLower.includes("puri"))
-      ) {
-        return { key: `dept-${d.id}`, name: d.name, label: getLiveDeptDisplayName(d.name, lang) };
-      }
-      if (
-        (dLower.includes("drink") || dLower.includes("beverage") || dLower.includes("lassi")) &&
-        (nameLower.includes("lassi") || nameLower.includes("drink") || nameLower.includes("water") || nameLower.includes("soda") || nameLower.includes("juice"))
-      ) {
-        return { key: `dept-${d.id}`, name: d.name, label: getLiveDeptDisplayName(d.name, lang) };
-      }
-      if (
-        (dLower.includes("appetizer") || dLower.includes("snack") || dLower.includes("fry")) &&
-        (nameLower.includes("samosa") || nameLower.includes("pakora") || nameLower.includes("appetizer") || nameLower.includes("snack") || nameLower.includes("egg") || nameLower.includes("anda") || nameLower.includes("fry"))
-      ) {
-        return { key: `dept-${d.id}`, name: d.name, label: getLiveDeptDisplayName(d.name, lang) };
-      }
-    }
-  }
-
-  // 4. Fallback category or item name
+  // 3. Fallback category or item name
   const fallback = item.category?.trim() || item.name;
   return {
     key: `cat-${fallback.toLowerCase()}`,
@@ -128,14 +91,10 @@ function resolveItemDepartment(
   };
 }
 
-// Clean Minimal Badge (Zero Emojis)
+// Clean Minimal Badge
 function getItemBadge(name: string, category: string | null | undefined, lang: string): { text: string } | null {
-  const lower = name.toLowerCase();
-  if (lower.includes("chai") || lower.includes("doodh patti") || lower.includes("karak")) {
-    return { text: lang === "ur" ? "مقبول" : "Popular" };
-  }
-  if (lower.includes("paratha") || lower.includes("anda")) {
-    return { text: lang === "ur" ? "مقبول" : "Popular" };
+  if (category) {
+    return { text: getLiveDeptDisplayName(category, lang) };
   }
   return null;
 }

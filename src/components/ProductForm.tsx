@@ -24,6 +24,7 @@ export interface ProductFormProps {
     price: number;
     category?: string | null;
     departmentId: number;
+    options?: string | null;
     imageUrl?: string | null;
   };
 }
@@ -35,6 +36,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
   const [price, setPrice] = useState(initialData?.price?.toString() ?? "");
   const [category, setCategory] = useState(initialData?.category ?? "");
   const [departmentId, setDepartmentId] = useState<number | undefined>(initialData?.departmentId);
+  const [options, setOptions] = useState(initialData?.options ?? "");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>(initialData?.imageUrl ?? "");
   const [isUploading, setIsUploading] = useState(false);
@@ -54,6 +56,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
       setPrice(initialData.price.toString());
       setCategory(initialData.category ?? "");
       setDepartmentId(initialData.departmentId);
+      setOptions(initialData.options ?? "");
       setPreviewUrl(initialData.imageUrl ?? "");
       setImageFile(null);
     } else {
@@ -61,6 +64,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
       setPrice("");
       setCategory("");
       setDepartmentId(undefined);
+      setOptions("");
       setPreviewUrl("");
       setImageFile(null);
     }
@@ -74,6 +78,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
     setPrice("");
     setCategory("");
     setDepartmentId(undefined);
+    setOptions("");
     setPreviewUrl("");
     setImageFile(null);
     onClose();
@@ -117,6 +122,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
           price: parseFloat(price),
           category: category.trim(),
           departmentId,
+          options: options.trim() || undefined,
           imageUrl: uploadedUrl || undefined,
         });
         toast.success("Product updated");
@@ -126,6 +132,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
           price: parseFloat(price),
           category: category.trim(),
           departmentId,
+          options: options.trim() || undefined,
           imageUrl: uploadedUrl || undefined,
         });
         toast.success("Product created");
@@ -197,6 +204,21 @@ export const ProductForm: React.FC<ProductFormProps> = ({ open, onClose, onSucce
         </div>
 
         <DepartmentSelect selectedId={departmentId} onSelect={setDepartmentId} />
+
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide block">
+            Preparation Options / Special Requests (Optional)
+          </label>
+          <Input
+            placeholder="e.g. Less Sugar, Extra Karak, Sugar Free, Extra Hot"
+            value={options}
+            onChange={e => setOptions(e.target.value)}
+            className="h-11"
+          />
+          <p className="text-[11px] text-gray-400 dark:text-gray-500">
+            Comma-separated choices shown to customers on order confirmation.
+          </p>
+        </div>
 
         <div className="space-y-1">
           <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide block">

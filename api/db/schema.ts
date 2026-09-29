@@ -1,39 +1,7 @@
 import { int, sqliteTable, text, real } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
-/**
- * Menus
- */
-export const menus = sqliteTable("menus", {
-  id: int("id").primaryKey({ autoIncrement: true }),
-  title: text("title").notNull(),
-  isActive: int("isActive", { mode: "boolean" }).default(true).notNull(),
-  createdAt: text("createdAt")
-    .default(sql`(datetime('now'))`)
-    .notNull(),
-  updatedAt: text("updatedAt")
-    .default(sql`(datetime('now'))`)
-    .notNull(),
-});
 
-export type Menu = typeof menus.$inferSelect;
-export type InsertMenu = typeof menus.$inferInsert;
-
-/**
- * Categories
- */
-export const categories = sqliteTable("categories", {
-  id: int("id").primaryKey({ autoIncrement: true }),
-  menuId: int("menuId")
-    .references(() => menus.id)
-    .notNull(),
-  name: text("name").notNull(),
-  sortOrder: int("sortOrder").default(0).notNull(),
-  isActive: int("isActive", { mode: "boolean" }).default(true).notNull(),
-});
-
-export type Category = typeof categories.$inferSelect;
-export type InsertCategory = typeof categories.$inferInsert;
 
 /**
  * Staff
@@ -47,7 +15,7 @@ export const staff = sqliteTable("staff", {
   passwordHash: text("passwordHash").notNull(),
   role: text("role").notNull(), // 'admin' | 'cashier' | 'waiter' | 'kitchen'
   stationName: text("stationName"), // e.g. "Counter 1", "Counter 2", "Takeaway Desk", "Floor Section"
-  assignedCashierId: int("assignedCashierId"), // For waiters assigned to a specific cashier/counter
+  assignedCashierIds: text("assignedCashierIds"), // JSON array string of assigned cashier IDs e.g. "[1, 2]"
   permissions: text("permissions"), // JSON string of granted permission codes
   allowedIp: text("allowedIp"),
   currentIp: text("currentIp"),
@@ -156,6 +124,7 @@ export const menuItems = sqliteTable("menu_items", {
   category: text("category"),
   imageUrl: text("imageUrl"),
   departmentId: int("departmentId").references(() => departments.id),
+  options: text("options"),
   isAvailable: int("isAvailable", { mode: "boolean" }).default(true).notNull(),
   createdAt: text("createdAt")
     .default(sql`(datetime('now'))`)
@@ -253,6 +222,7 @@ export const orders = sqliteTable("orders", {
   // cash | bank | pending
   paymentMethod: text("paymentMethod").default("pending"),
   paidAmount: real("paidAmount").default(0),
+  remarks: text("remarks"),
   createdAt: text("createdAt")
     .default(sql`(datetime('now'))`)
     .notNull(),
@@ -374,15 +344,7 @@ export const stock = sqliteTable("stock", {
 export type Stock = typeof stock.$inferSelect;
 export type InsertStock = typeof stock.$inferInsert;
 
-/**
- * Recipes - For auto-deduction of inventory
- */
-export const recipes = sqliteTable("recipes", {
-  id: int("id").primaryKey({ autoIncrement: true }),
-  menuItemId: int("menuItemId").references(() => menuItems.id),
-  inventoryItemId: int("inventoryItemId").references(() => inventory.id),
-  quantityNeeded: real("quantityNeeded").notNull(),
-});
+
 
 /**
  * Payments
@@ -409,16 +371,4 @@ export const payments = sqliteTable("payments", {
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = typeof payments.$inferInsert;
 
-// Stub User type for auth compatibility (not stored in SQLite)
-export type User = {
-  id: number;
-  openId: string;
-  name: string | null;
-  email: string | null;
-  loginMethod: string | null;
-  role: "user" | "admin";
-  createdAt: Date;
-  updatedAt: Date;
-  lastSignedIn: Date;
-};
-export type InsertUser = Partial<User> & { openId: string };
+
