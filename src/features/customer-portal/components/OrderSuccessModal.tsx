@@ -10,6 +10,7 @@ interface OrderSuccessModalProps {
   ticketNo?: string | null;
   guestName: string;
   orderTotal: number;
+  showCustomerQueue?: boolean;
   onClose: () => void;
   onViewOrders: () => void;
 }
@@ -19,10 +20,11 @@ export function OrderSuccessModal({
   ticketNo,
   guestName,
   orderTotal,
+  showCustomerQueue = true,
   onClose,
   onViewOrders,
 }: OrderSuccessModalProps) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
 
   useEffect(() => {
     if (open) {
@@ -89,7 +91,11 @@ export function OrderSuccessModal({
             }}
             className="w-full h-12 bg-[#D98A3C] hover:bg-[#C27930] text-white text-xs font-black rounded-full flex items-center justify-center gap-2 transition cursor-pointer shadow-none active:scale-[0.98]"
           >
-            <span>{t.myOrders || "Track Kitchen Progress"}</span>
+            <span>
+              {showCustomerQueue
+                ? (t.myOrders || "Track Kitchen Progress")
+                : (lang === "ur" ? "میرے آرڈرز و بل دیکھیں" : "View My Orders & Bill")}
+            </span>
             <FaArrowRight className="w-3 h-3 rtl:rotate-180" />
           </button>
 

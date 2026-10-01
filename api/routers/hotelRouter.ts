@@ -28,7 +28,7 @@ import { getIo, SOCKET_EVENT } from "../lib/socket";
 import { getCurrentTicketVersion } from "../lib/ticketVersion";
 
 export const hotelRouter = router({
-  // ── Public System Configuration (Queue visibility, etc.) ───────────────────
+  // ── Public System Configuration (Queue visibility, allowed languages, etc.) ───────────────────
   getSystemConfig: publicProcedure.query(async () => {
     const db = getDb();
     const queueRow = db
@@ -41,10 +41,41 @@ export const hotelRouter = router({
       .from(systemSettings)
       .where(eq(systemSettings.key, "operationMode"))
       .all()[0];
+    const allowedLangsRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "allowedLanguages"))
+      .all()[0];
+    const defaultLangRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "defaultLanguage"))
+      .all()[0];
+    const soundRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "soundEnabled"))
+      .all()[0];
+    const posAccessRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "defaultPosAccess"))
+      .all()[0];
+
+    let allowedLanguages: string[] = ["ur", "en", "ps", "bal", "brh", "sd", "pa", "fa"];
+    if (allowedLangsRow?.value) {
+      try {
+        allowedLanguages = JSON.parse(allowedLangsRow.value);
+      } catch {}
+    }
 
     return {
       showCustomerQueue: queueRow ? queueRow.value === "true" : true,
       operationMode: (modeRow?.value as "unified" | "segregated") || "unified",
+      allowedLanguages,
+      defaultLanguage: defaultLangRow?.value || "ur",
+      soundEnabled: soundRow ? soundRow.value === "true" : true,
+      defaultPosAccess: posAccessRow ? posAccessRow.value === "true" : true,
     };
   }),
 

@@ -142,6 +142,22 @@ export type Department = typeof departments.$inferSelect;
 export type InsertDepartment = typeof departments.$inferInsert;
 
 /**
+ * Counters (کاؤنٹرز اور پوائنٹ آف سیل ٹرمینلز)
+ */
+export const counters = sqliteTable("counters", {
+  id: int("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(), // e.g. "Counter 1", "Counter 2", "Takeaway Desk", "Rooftop Counter"
+  code: text("code"), // e.g. "C-1", "C-2", "TA"
+  description: text("description"),
+  isActive: int("isActive", { mode: "boolean" }).default(true).notNull(),
+  createdAt: text("createdAt").default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text("updatedAt").default(sql`(datetime('now'))`).notNull(),
+});
+
+export type Counter = typeof counters.$inferSelect;
+export type InsertCounter = typeof counters.$inferInsert;
+
+/**
  * Seating Areas
  */
 export const seatingAreas = sqliteTable("seating_areas", {

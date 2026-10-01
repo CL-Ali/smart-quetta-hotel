@@ -151,7 +151,7 @@ export const ProductsTab = () => {
                   )}
                   {p.options && (
                     <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium line-clamp-1 mt-1">
-                      ⚙️ {p.options}
+                      Options: {p.options}
                     </p>
                   )}
                 </div>

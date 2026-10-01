@@ -13,6 +13,9 @@ import {
   ticketSessionLogs,
   orderItems,
   tickets,
+  menuItems,
+  departments,
+  counters,
 } from "../db/schema";
 import { hashPassword } from "../lib/auth";
 import {
@@ -34,10 +37,41 @@ export const adminRouter = router({
       .from(systemSettings)
       .where(eq(systemSettings.key, "showCustomerQueue"))
       .all()[0];
+    const allowedLangsRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "allowedLanguages"))
+      .all()[0];
+    const defaultLangRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "defaultLanguage"))
+      .all()[0];
+    const soundRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "soundEnabled"))
+      .all()[0];
+    const posAccessRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "defaultPosAccess"))
+      .all()[0];
+
+    let allowedLanguages: string[] = ["ur", "en", "ps", "bal", "brh", "sd", "pa", "fa"];
+    if (allowedLangsRow?.value) {
+      try {
+        allowedLanguages = JSON.parse(allowedLangsRow.value);
+      } catch {}
+    }
 
     return {
       operationMode: (modeRow?.value as "unified" | "segregated") || "unified",
       showCustomerQueue: queueRow ? queueRow.value === "true" : true,
+      allowedLanguages,
+      defaultLanguage: defaultLangRow?.value || "ur",
+      soundEnabled: soundRow ? soundRow.value === "true" : true,
+      defaultPosAccess: posAccessRow ? posAccessRow.value === "true" : true,
     };
   }),
 
@@ -46,6 +80,10 @@ export const adminRouter = router({
       z.object({
         operationMode: z.enum(["unified", "segregated"]).optional(),
         showCustomerQueue: z.boolean().optional(),
+        allowedLanguages: z.array(z.string()).optional(),
+        defaultLanguage: z.string().optional(),
+        soundEnabled: z.boolean().optional(),
+        defaultPosAccess: z.boolean().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -91,10 +129,93 @@ export const adminRouter = router({
         }
       }
 
+      if (input.allowedLanguages !== undefined) {
+        const strVal = JSON.stringify(input.allowedLanguages);
+        const existing = db
+          .select()
+          .from(systemSettings)
+          .where(eq(systemSettings.key, "allowedLanguages"))
+          .all()[0];
+
+        if (existing) {
+          db.update(systemSettings)
+            .set({ value: strVal, updatedAt: nowIso })
+            .where(eq(systemSettings.key, "allowedLanguages"))
+            .run();
+        } else {
+          db.insert(systemSettings)
+            .values({ key: "allowedLanguages", value: strVal, updatedAt: nowIso })
+            .run();
+        }
+      }
+
+      if (input.defaultLanguage !== undefined) {
+        const existing = db
+          .select()
+          .from(systemSettings)
+          .where(eq(systemSettings.key, "defaultLanguage"))
+          .all()[0];
+
+        if (existing) {
+          db.update(systemSettings)
+            .set({ value: input.defaultLanguage, updatedAt: nowIso })
+            .where(eq(systemSettings.key, "defaultLanguage"))
+            .run();
+        } else {
+          db.insert(systemSettings)
+            .values({ key: "defaultLanguage", value: input.defaultLanguage, updatedAt: nowIso })
+            .run();
+        }
+      }
+
+      if (input.soundEnabled !== undefined) {
+        const strVal = input.soundEnabled ? "true" : "false";
+        const existing = db
+          .select()
+          .from(systemSettings)
+          .where(eq(systemSettings.key, "soundEnabled"))
+          .all()[0];
+
+        if (existing) {
+          db.update(systemSettings)
+            .set({ value: strVal, updatedAt: nowIso })
+            .where(eq(systemSettings.key, "soundEnabled"))
+            .run();
+        } else {
+          db.insert(systemSettings)
+            .values({ key: "soundEnabled", value: strVal, updatedAt: nowIso })
+            .run();
+        }
+      }
+
+      if (input.defaultPosAccess !== undefined) {
+        const strVal = input.defaultPosAccess ? "true" : "false";
+        const existing = db
+          .select()
+          .from(systemSettings)
+          .where(eq(systemSettings.key, "defaultPosAccess"))
+          .all()[0];
+
+        if (existing) {
+          db.update(systemSettings)
+            .set({ value: strVal, updatedAt: nowIso })
+            .where(eq(systemSettings.key, "defaultPosAccess"))
+            .run();
+        } else {
+          db.insert(systemSettings)
+            .values({ key: "defaultPosAccess", value: strVal, updatedAt: nowIso })
+            .run();
+        }
+      }
+
       return {
         success: true,
         operationMode: input.operationMode,
         showCustomerQueue: input.showCustomerQueue,
+        allowedLanguages: input.allowedLanguages,
+        defaultLanguage: input.defaultLanguage,
+        soundEnabled: input.soundEnabled,
+        defaultPosAccess: input.defaultPosAccess,
       };
     }),
 
@@ -115,6 +236,13 @@ export const adminRouter = router({
       .where(eq(systemSettings.key, "showCustomerQueue"))
       .all()[0];
     const showCustomerQueue = queueRow ? queueRow.value === "true" : true;
+
+    const soundRow = db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "soundEnabled"))
+      .all()[0];
+    const soundEnabled = soundRow ? soundRow.value === "true" : true;
 
     // 2. Financial Metrics
     const todayStr = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
@@ -200,19 +328,38 @@ export const adminRouter = router({
       return name;
     };
 
-    // Ensure default Counter 1 exists in map
-    counterMap.set("Counter 1", {
-      counterName: "Counter 1",
-      cashiers: [],
-      waiters: [],
-      todayRevenue: 0,
-      todayCash: 0,
-      todayBank: 0,
-      totalRevenue: 0,
-      activeOrdersCount: 0,
-      unpaidOrdersCount: 0,
-      unpaidAmount: 0,
-    });
+    // Initialize all created counters from DB
+    const allDbCounters = db.select().from(counters).all();
+    if (allDbCounters.length === 0) {
+      counterMap.set("Counter 1", {
+        counterName: "Counter 1",
+        cashiers: [],
+        waiters: [],
+        todayRevenue: 0,
+        todayCash: 0,
+        todayBank: 0,
+        totalRevenue: 0,
+        activeOrdersCount: 0,
+        unpaidOrdersCount: 0,
+        unpaidAmount: 0,
+      });
+    } else {
+      for (const cnt of allDbCounters) {
+        if (!cnt.isActive) continue;
+        counterMap.set(cnt.name, {
+          counterName: cnt.name,
+          cashiers: [],
+          waiters: [],
+          todayRevenue: 0,
+          todayCash: 0,
+          todayBank: 0,
+          totalRevenue: 0,
+          activeOrdersCount: 0,
+          unpaidOrdersCount: 0,
+          unpaidAmount: 0,
+        });
+      }
+    }
 
     // Initialize counters from Cashiers with assigned stations
     for (const c of cashiers) {
@@ -327,6 +474,7 @@ export const adminRouter = router({
     return {
       operationMode,
       showCustomerQueue,
+      soundEnabled,
       financials: {
         todayRevenue,
         todayCash,
@@ -760,22 +908,124 @@ export const adminRouter = router({
       .filter((p) => p.method !== "cash" && p.status !== "failed")
       .reduce((sum, p) => sum + p.amount, 0);
 
-    // Item sales snapshot
-    const itemMap = new Map<string, { name: string; quantity: number; total: number }>();
+    // Fetch all menu items & departments to resolve product names and categories
+    const allMenu = db.select().from(menuItems).all();
+    const menuLookup = new Map<number, { name: string; price: number; departmentId?: number | null }>();
+    for (const m of allMenu) {
+      menuLookup.set(m.id, { name: m.name, price: m.price, departmentId: m.departmentId });
+    }
+
+    const allDepts = db.select().from(departments).all();
+    const deptLookup = new Map<number, string>();
+    for (const d of allDepts) {
+      deptLookup.set(d.id, d.name);
+    }
+
+    // Item sales snapshot with complete names and performance
+    const itemMap = new Map<string, {
+      menuItemId?: number;
+      name: string;
+      departmentName: string;
+      quantityOrdered: number;
+      quantityServed: number;
+      quantityCancelled: number;
+      quantity: number;
+      unitPrice: number;
+      total: number;
+      isSold: boolean;
+    }>();
+
+    for (const m of allMenu) {
+      const deptName = m.departmentId ? deptLookup.get(m.departmentId) || "General" : "General";
+      itemMap.set(m.name, {
+        menuItemId: m.id,
+        name: m.name,
+        departmentName: deptName,
+        quantityOrdered: 0,
+        quantityServed: 0,
+        quantityCancelled: 0,
+        quantity: 0,
+        unitPrice: m.price,
+        total: 0,
+        isSold: false,
+      });
+    }
+
+    const orderStatusMap = new Map<number, string>();
+    for (const o of currentOrders) {
+      orderStatusMap.set(o.id, o.status);
+    }
+
     for (const it of allItems) {
-      const name = it.nameSnapshot || "Item";
-      const existing = itemMap.get(name) || { name, quantity: 0, total: 0 };
-      existing.quantity += it.quantity;
-      existing.total += it.unitPrice * it.quantity;
+      const menuItem = it.menuItemId ? menuLookup.get(it.menuItemId) : null;
+      const name = it.nameSnapshot || menuItem?.name || (it.menuItemId ? `Item #${it.menuItemId}` : "Item");
+      const unitPrice = it.unitPrice || menuItem?.price || 0;
+      const deptName = menuItem?.departmentId ? deptLookup.get(menuItem.departmentId) || "General" : "General";
+
+      const existing = itemMap.get(name) || {
+        menuItemId: it.menuItemId || undefined,
+        name,
+        departmentName: deptName,
+        quantityOrdered: 0,
+        quantityServed: 0,
+        quantityCancelled: 0,
+        quantity: 0,
+        unitPrice,
+        total: 0,
+        isSold: false,
+      };
+
+      const ordStatus = (it.orderId ? orderStatusMap.get(it.orderId) : undefined) || "pending";
+      const isCancelled = ordStatus === "cancelled" || ordStatus === "voided" || it.status === "cancelled";
+      const isServed = ordStatus === "served" || ordStatus === "paid" || ordStatus === "completed" || it.kitchenStatus === "served" || it.status === "served";
+
+      existing.quantityOrdered += it.quantity;
+      if (isCancelled) {
+        existing.quantityCancelled += it.quantity;
+      } else if (isServed) {
+        const servedQty = (it.servedQty && it.servedQty > 0) ? it.servedQty : it.quantity;
+        existing.quantityServed += servedQty;
+        existing.quantity += servedQty;
+        existing.total += (unitPrice * servedQty);
+        if (existing.quantity > 0) existing.isSold = true;
+      } else {
+        // Pending / In Kitchen (NOT served yet)
+        const partialServed = it.servedQty || 0;
+        if (partialServed > 0) {
+          existing.quantityServed += partialServed;
+          existing.quantity += partialServed;
+          existing.total += (unitPrice * partialServed);
+          if (existing.quantity > 0) existing.isSold = true;
+        }
+      }
       itemMap.set(name, existing);
     }
     const itemsSnapshot = JSON.stringify(Array.from(itemMap.values()));
 
-    // Orders full snapshot
-    const enrichedOrders = currentOrders.map((ord) => ({
-      ...ord,
-      items: allItems.filter((it) => it.orderId === ord.id),
-    }));
+    // Orders full snapshot with resolved item names & calculated totals
+    const enrichedOrders = currentOrders.map((ord) => {
+      const ordItems = allItems.filter((it) => it.orderId === ord.id).map((it) => {
+        const menuItem = it.menuItemId ? menuLookup.get(it.menuItemId) : null;
+        const resolvedName = it.nameSnapshot || menuItem?.name || (it.menuItemId ? `Item #${it.menuItemId}` : "Item");
+        const resolvedPrice = it.unitPrice || menuItem?.price || 0;
+        return {
+          ...it,
+          nameSnapshot: resolvedName,
+          name: resolvedName,
+          unitPrice: resolvedPrice,
+        };
+      });
+
+      const itemsSum = ordItems.reduce((acc, it) => acc + (it.unitPrice * it.quantity), 0);
+      const computedTotal = (ord.total && ord.total > 0) ? ord.total : (ord.totalAmount && ord.totalAmount > 0 ? ord.totalAmount : itemsSum);
+
+      return {
+        ...ord,
+        total: computedTotal,
+        subtotal: ord.subtotal || computedTotal,
+        items: ordItems,
+      };
+    });
     const ordersSnapshot = JSON.stringify(enrichedOrders);
 
     const firstOrderTime = currentOrders[0]?.createdAt || nowIso;
@@ -862,5 +1112,436 @@ export const adminRouter = router({
         .all()[0];
       if (!log) throw new TRPCError({ code: "NOT_FOUND", message: `Session log for version ${input.ticketVersion} not found` });
       return log;
+    }),
+
+  // Comprehensive Item-by-Item Sales & Unsold Report for any Session (Live or Historical)
+  getSessionItemSalesReport: adminProcedure
+    .input(z.object({ ticketVersion: z.number().optional() }))
+    .query(async ({ input }) => {
+      const db = getDb();
+      const currentTicketVersion = getCurrentTicketVersion(db);
+      const targetVersion = input.ticketVersion ?? currentTicketVersion;
+      const isLive = targetVersion === currentTicketVersion;
+
+      const allMenu = db.select().from(menuItems).all();
+      const menuLookup = new Map<number, typeof allMenu[0]>();
+      for (const m of allMenu) {
+        menuLookup.set(m.id, m);
+      }
+
+      const allDepts = db.select().from(departments).all();
+      const deptLookup = new Map<number, string>();
+      for (const d of allDepts) {
+        deptLookup.set(d.id, d.name);
+      }
+
+      // Initialize all items with 0 sales
+      const itemsMap = new Map<string, {
+        menuItemId?: number;
+        name: string;
+        departmentName: string;
+        unitPrice: number;
+        quantityOrdered: number;
+        quantityServed: number;
+        quantityCancelled: number;
+        quantitySold: number;
+        revenue: number;
+        isSold: boolean;
+      }>();
+
+      for (const m of allMenu) {
+        const deptName = m.departmentId ? deptLookup.get(m.departmentId) || "General" : "General";
+        itemsMap.set(m.name, {
+          menuItemId: m.id,
+          name: m.name,
+          departmentName: deptName,
+          unitPrice: m.price,
+          quantityOrdered: 0,
+          quantityServed: 0,
+          quantityCancelled: 0,
+          quantitySold: 0,
+          revenue: 0,
+          isSold: false,
+        });
+      }
+
+      let ordersAuditList: any[] = [];
+      let totalOrdersCount = 0;
+      let servedOrdersCount = 0;
+      let cancelledOrdersCount = 0;
+      let pendingOrdersCount = 0;
+
+      // 1. Direct check in orders table for targetVersion (applies to both live and closed orders in DB)
+      const directOrders = db
+        .select()
+        .from(orders)
+        .where(eq(orders.ticketVersion, targetVersion))
+        .all();
+
+      if (directOrders.length > 0) {
+        totalOrdersCount = directOrders.length;
+        const allOrderIds = directOrders.map((o) => o.id);
+
+        const allItems = allOrderIds.length > 0
+          ? db.select().from(orderItems).where(inArray(orderItems.orderId, allOrderIds)).all()
+          : [];
+
+        const orderStatusMap = new Map<number, string>();
+        for (const o of directOrders) {
+          orderStatusMap.set(o.id, o.status);
+          if (o.status === "cancelled") cancelledOrdersCount++;
+          else if (o.status === "served" || o.status === "paid" || o.paymentStatus === "paid") servedOrdersCount++;
+          else pendingOrdersCount++;
+        }
+
+        for (const it of allItems) {
+          const menuItem = it.menuItemId ? menuLookup.get(it.menuItemId) : null;
+          const name = it.nameSnapshot || menuItem?.name || (it.menuItemId ? `Item #${it.menuItemId}` : "Item");
+          const unitPrice = it.unitPrice || menuItem?.price || 0;
+          const deptName = menuItem?.departmentId ? deptLookup.get(menuItem.departmentId) || "General" : "General";
+
+          const existing = itemsMap.get(name) || {
+            menuItemId: it.menuItemId || undefined,
+            name,
+            departmentName: deptName,
+            unitPrice,
+            quantityOrdered: 0,
+            quantityServed: 0,
+            quantityCancelled: 0,
+            quantitySold: 0,
+            revenue: 0,
+            isSold: false,
+          };
+
+          const ordStatus = (it.orderId ? orderStatusMap.get(it.orderId) : undefined) || "pending";
+          const isCancelled = ordStatus === "cancelled" || ordStatus === "voided" || it.status === "cancelled";
+          const isServed = ordStatus === "served" || ordStatus === "paid" || ordStatus === "completed" || it.kitchenStatus === "served" || it.status === "served";
+
+          existing.quantityOrdered += it.quantity;
+
+          if (isCancelled) {
+            existing.quantityCancelled += it.quantity;
+          } else if (isServed) {
+            const soldUnits = (it.servedQty && it.servedQty > 0) ? it.servedQty : it.quantity;
+            existing.quantityServed += soldUnits;
+            existing.quantitySold += soldUnits;
+            existing.revenue += (unitPrice * soldUnits);
+            if (existing.quantitySold > 0) existing.isSold = true;
+          } else {
+            // Pending / In Kitchen (NOT served yet)
+            const partialServed = it.servedQty || 0;
+            if (partialServed > 0) {
+              existing.quantityServed += partialServed;
+              existing.quantitySold += partialServed;
+              existing.revenue += (unitPrice * partialServed);
+              if (existing.quantitySold > 0) existing.isSold = true;
+            }
+          }
+          itemsMap.set(name, existing);
+        }
+
+        ordersAuditList = directOrders.map((ord) => {
+          const ordItems = allItems.filter((it) => it.orderId === ord.id).map((it) => {
+            const menuItem = it.menuItemId ? menuLookup.get(it.menuItemId) : null;
+            const resolvedName = it.nameSnapshot || menuItem?.name || (it.menuItemId ? `Item #${it.menuItemId}` : "Item");
+            const resolvedPrice = it.unitPrice || menuItem?.price || 0;
+            return {
+              ...it,
+              nameSnapshot: resolvedName,
+              name: resolvedName,
+              unitPrice: resolvedPrice,
+            };
+          });
+
+          const itemsSum = ordItems.reduce((acc, it) => acc + (it.unitPrice * it.quantity), 0);
+          const computedTotal = (ord.total && ord.total > 0) ? ord.total : (ord.totalAmount && ord.totalAmount > 0 ? ord.totalAmount : itemsSum);
+
+          return {
+            ...ord,
+            total: computedTotal,
+            subtotal: ord.subtotal || computedTotal,
+            items: ordItems,
+          };
+        });
+      } else {
+        // Fallback to archived log if orders were pruned or loaded from snapshot
+        const log = db
+          .select()
+          .from(ticketSessionLogs)
+          .where(eq(ticketSessionLogs.ticketVersion, targetVersion))
+          .all()[0];
+
+        if (log) {
+          let parsedOrders: any[] = [];
+          try {
+            parsedOrders = JSON.parse(log.ordersSnapshot || "[]");
+          } catch {}
+
+          totalOrdersCount = parsedOrders.length || log.totalOrders;
+
+          if (parsedOrders.length > 0) {
+            ordersAuditList = parsedOrders.map((ord: any) => {
+              const ordStatus = ord.status || "pending";
+              if (ordStatus === "cancelled" || ordStatus === "voided") cancelledOrdersCount++;
+              else if (ordStatus === "served" || ordStatus === "paid" || ordStatus === "completed" || ord.paymentStatus === "paid") servedOrdersCount++;
+              else pendingOrdersCount++;
+
+              let ordItems: any[] = [];
+              if (Array.isArray(ord.items)) {
+                ordItems = ord.items.map((it: any) => {
+                  const menuItem = it.menuItemId ? menuLookup.get(it.menuItemId) : null;
+                  const resolvedName = it.nameSnapshot || it.name || menuItem?.name || (it.menuItemId ? `Item #${it.menuItemId}` : "Item");
+                  const resolvedPrice = it.unitPrice || menuItem?.price || 0;
+                  return {
+                    ...it,
+                    nameSnapshot: resolvedName,
+                    name: resolvedName,
+                    unitPrice: resolvedPrice,
+                  };
+                });
+              }
+
+              const itemsSum = ordItems.reduce((acc, it) => acc + (it.unitPrice * (Number(it.quantity) || 1)), 0);
+              const computedTotal = (ord.total && ord.total > 0) ? ord.total : (ord.totalAmount && ord.totalAmount > 0 ? ord.totalAmount : itemsSum);
+
+              // Update item sales aggregate
+              for (const it of ordItems) {
+                const name = it.name || "Item";
+                const unitPrice = it.unitPrice || 0;
+                const existing = itemsMap.get(name) || {
+                  menuItemId: it.menuItemId || undefined,
+                  name,
+                  departmentName: "General",
+                  unitPrice,
+                  quantityOrdered: 0,
+                  quantityServed: 0,
+                  quantityCancelled: 0,
+                  quantitySold: 0,
+                  revenue: 0,
+                  isSold: false,
+                };
+
+                const isCancelled = ordStatus === "cancelled" || ordStatus === "voided" || it.status === "cancelled";
+                const isServed = ordStatus === "served" || ordStatus === "paid" || ordStatus === "completed" || ord.paymentStatus === "paid" || it.kitchenStatus === "served" || it.status === "served";
+
+                existing.quantityOrdered += (Number(it.quantity) || 0);
+                if (isCancelled) {
+                  existing.quantityCancelled += (Number(it.quantity) || 0);
+                } else if (isServed) {
+                  const soldUnits = (Number(it.servedQty) > 0) ? Number(it.servedQty) : (Number(it.quantity) || 0);
+                  existing.quantityServed += soldUnits;
+                  existing.quantitySold += soldUnits;
+                  existing.revenue += (unitPrice * soldUnits);
+                  if (existing.quantitySold > 0) existing.isSold = true;
+                } else {
+                  // Pending / In Kitchen (NOT served yet)
+                  const partialServed = Number(it.servedQty) || 0;
+                  if (partialServed > 0) {
+                    existing.quantityServed += partialServed;
+                    existing.quantitySold += partialServed;
+                    existing.revenue += (unitPrice * partialServed);
+                    if (existing.quantitySold > 0) existing.isSold = true;
+                  }
+                }
+                itemsMap.set(name, existing);
+              }
+
+              return {
+                ...ord,
+                total: computedTotal,
+                items: ordItems,
+              };
+            });
+          } else {
+            let parsedItems: any[] = [];
+            try {
+              parsedItems = JSON.parse(log.itemsSnapshot || "[]");
+            } catch {}
+
+            for (const it of parsedItems) {
+              const name = it.name || "Item";
+              const existing = itemsMap.get(name) || {
+                menuItemId: it.menuItemId || undefined,
+                name,
+                departmentName: it.departmentName || "General",
+                unitPrice: it.unitPrice || 0,
+                quantityOrdered: 0,
+                quantityServed: 0,
+                quantityCancelled: 0,
+                quantitySold: 0,
+                revenue: 0,
+                isSold: false,
+              };
+              const soldUnits = (Number(it.quantity) || Number(it.quantitySold) || 0);
+              existing.quantityOrdered += (Number(it.quantityOrdered) || soldUnits);
+              existing.quantityServed += (Number(it.quantityServed) || soldUnits);
+              existing.quantitySold += soldUnits;
+              existing.revenue += (Number(it.total) || Number(it.revenue) || 0);
+              if (existing.quantitySold > 0) existing.isSold = true;
+              itemsMap.set(name, existing);
+            }
+          }
+        }
+      }
+
+      const allItemsList = Array.from(itemsMap.values()).sort((a, b) => {
+        if (a.isSold && !b.isSold) return -1;
+        if (!a.isSold && b.isSold) return 1;
+        if (a.isSold && b.isSold) return b.quantitySold - a.quantitySold;
+        return a.name.localeCompare(b.name);
+      });
+
+      const soldItems = allItemsList.filter((i) => i.isSold);
+      const unsoldItems = allItemsList.filter((i) => !i.isSold);
+      const totalRevenue = soldItems.reduce((acc, i) => acc + i.revenue, 0);
+      const totalQuantitySold = soldItems.reduce((acc, i) => acc + i.quantitySold, 0);
+
+      return {
+        ticketVersion: targetVersion,
+        isLive,
+        totalRevenue,
+        totalQuantitySold,
+        totalMenuItems: allItemsList.length,
+        soldCount: soldItems.length,
+        unsoldCount: unsoldItems.length,
+        totalOrdersCount,
+        servedOrdersCount,
+        cancelledOrdersCount,
+        pendingOrdersCount,
+        items: allItemsList,
+        ordersAudit: ordersAuditList,
+      };
+    }),
+
+  // ── Counter Management (Create, Edit, Delete, List) ──────────────────────
+  listCounters: adminProcedure.query(async () => {
+    const db = getDb();
+    return db.select().from(counters).orderBy(counters.id).all();
+  }),
+
+  createCounter: adminProcedure
+    .input(
+      z.object({
+        name: z.string().min(1),
+        code: z.string().optional(),
+        description: z.string().optional(),
+        isActive: z.boolean().default(true),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const existing = db
+        .select()
+        .from(counters)
+        .where(eq(counters.name, input.name.trim()))
+        .all()[0];
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "A counter with this name already exists",
+        });
+      }
+      const nowIso = new Date().toISOString();
+      const inserted = db
+        .insert(counters)
+        .values({
+          name: input.name.trim(),
+          code: input.code?.trim() || null,
+          description: input.description?.trim() || null,
+          isActive: input.isActive ?? true,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        })
+        .returning()
+        .all()[0];
+      return { success: true, counter: inserted };
+    }),
+
+  updateCounter: adminProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        name: z.string().min(1),
+        code: z.string().optional(),
+        description: z.string().optional(),
+        isActive: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const existing = db
+        .select()
+        .from(counters)
+        .where(eq(counters.id, input.id))
+        .all()[0];
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Counter not found" });
+      }
+
+      const oldName = existing.name;
+      const newName = input.name.trim();
+
+      // If renaming, check conflict
+      if (oldName !== newName) {
+        const conflict = db
+          .select()
+          .from(counters)
+          .where(eq(counters.name, newName))
+          .all()[0];
+        if (conflict) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "A counter with this name already exists",
+          });
+        }
+      }
+
+      const nowIso = new Date().toISOString();
+      db.update(counters)
+        .set({
+          name: newName,
+          code: input.code?.trim() || null,
+          description: input.description?.trim() || null,
+          isActive: input.isActive ?? existing.isActive,
+          updatedAt: nowIso,
+        })
+        .where(eq(counters.id, input.id))
+        .run();
+
+      // If renamed, update staff stationName & orders counterName
+      if (oldName !== newName) {
+        db.update(staff)
+          .set({ stationName: newName, updatedAt: nowIso })
+          .where(eq(staff.stationName, oldName))
+          .run();
+        db.update(orders)
+          .set({ counterName: newName, updatedAt: nowIso })
+          .where(eq(orders.counterName, oldName))
+          .run();
+      }
+      return { success: true };
+    }),
+
+  deleteCounter: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const existing = db
+        .select()
+        .from(counters)
+        .where(eq(counters.id, input.id))
+        .all()[0];
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Counter not found" });
+      }
+      const nowIso = new Date().toISOString();
+      // Detach staff from deleted counter
+      db.update(staff)
+        .set({ stationName: null, updatedAt: nowIso })
+        .where(eq(staff.stationName, existing.name))
+        .run();
+
+      db.delete(counters).where(eq(counters.id, input.id)).run();
+      return { success: true };
     }),
 });

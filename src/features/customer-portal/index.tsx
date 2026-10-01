@@ -318,12 +318,12 @@ export function CustomerPortalView() {
         {vm.activeTab === "menu" && (
           <div className="h-full flex flex-col overflow-hidden space-y-2.5">
             {/* Tonal Floating Notice for Active Non-Served Orders (Hidden on mobile) */}
-            {vm.showCustomerQueue && vm.hasActiveOrders && (
+            {vm.hasActiveOrders && (
               <button
                 type="button"
                 onClick={() => {
                   playTapSound();
-                  vm.setActiveTab("active");
+                  vm.setActiveTab(vm.showCustomerQueue ? "active" : "history");
                 }}
                 className="hidden sm:flex w-full bg-white dark:bg-[#121824] hover:bg-[#F8F3EC] dark:hover:bg-[#1A2232] rounded-[24px] sm:rounded-[26px] p-3.5 sm:p-4 items-center justify-between gap-3 transition cursor-pointer text-left shrink-0 border-0 shadow-none group"
               >
@@ -336,12 +336,14 @@ export function CustomerPortalView() {
                       <span>{vm.activeItemsCount} {t.nonServedItems || "items being cooked in kitchen"}</span>
                     </div>
                     <div className="text-[11px] text-[#786B5D] dark:text-zinc-400 truncate mt-0.5">
-                      {t.trackOrderRealtime || (lang === "ur" ? "لائیو کچن تفصیلات دیکھیں" : "Live Kitchen Tracking")}
+                      {vm.showCustomerQueue
+                        ? (t.trackOrderRealtime || (lang === "ur" ? "لائیو کچن تفصیلات دیکھیں" : "Live Kitchen Tracking"))
+                        : (lang === "ur" ? "میرے آرڈرز اور بل کی رسید دیکھیں" : "View My Orders & Bill")}
                     </div>
                   </div>
                 </div>
                 <span className="h-9 px-4 rounded-full bg-[#D98A3C] text-white font-extrabold text-xs flex items-center gap-1.5 shrink-0 shadow-none group-hover:scale-[0.98] transition-transform">
-                  <span>{t.trackOrderBtn || "Track"}</span>
+                  <span>{vm.showCustomerQueue ? (t.trackOrderBtn || "Track") : (lang === "ur" ? "آرڈرز" : "View Bill")}</span>
                   <ArrowRight className="w-3 h-3 rtl:rotate-180" />
                 </span>
               </button>
@@ -725,10 +727,11 @@ export function CustomerPortalView() {
         ticketNo={vm.ticketNo}
         guestName={vm.guestName}
         orderTotal={vm.lastOrderTotal}
+        showCustomerQueue={vm.showCustomerQueue}
         onClose={() => vm.setShowSuccessModal(false)}
         onViewOrders={() => {
           vm.setShowSuccessModal(false);
-          vm.setActiveTab("active");
+          vm.setActiveTab(vm.showCustomerQueue ? "active" : "history");
         }}
       />
     </div>

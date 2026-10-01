@@ -1,6 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react";
+import { trpc } from "@/lib/trpc";
+import { setGlobalSoundEnabled } from "@/lib/sound";
 
 export type Lang = "en" | "ur" | "ps" | "bal" | "brh" | "fa" | "pa" | "sd";
 
@@ -91,7 +93,7 @@ const T = {
     searchPlaceholder: "Search products...",
     customerNameLabel: "Customer / Account Name",
     enterCustomerName: "Customer name or table #...",
-    addNewShopkeeper:  "+ Add Shopkeeper",
+    addNewShopkeeper:  "Add Shopkeeper",
     newShopModalTitle: "Register Market Shopkeeper Account",
     shopNameLabel:     "Shop Name *",
     ownerNameLabel:    "Owner / Contact Name",
@@ -192,7 +194,7 @@ const T = {
     cashiers:          "Cashiers",
     kitchenStaff:      "Kitchen Staff",
     waiters:           "Waiters",
-    addStaff:          "+ Add Staff Member",
+    addStaff:          "Add Staff Member",
     staffMember:       "Staff Member",
     role:              "Role",
     permissions:       "Permissions",
@@ -1354,23 +1356,85 @@ const T = {
 
 export type Translations = typeof T["en"];
 
-const LangContext = createContext<{ lang: Lang; t: Translations; setLang: (l: Lang) => void; langSelected: boolean }>({
-  lang: "en",
-  t: T.en,
+export interface LangOption {
+  value: Lang;
+  label: string;
+  nativeName: string;
+  englishName: string;
+  dir: "ltr" | "rtl";
+  shortCode: string;
+}
+
+export const LANG_OPTIONS: LangOption[] = [
+  { value: "ur",  label: "اردو",     nativeName: "اردو",     englishName: "Urdu",    dir: "rtl", shortCode: "UR" },
+  { value: "en",  label: "English",  nativeName: "English",  englishName: "English", dir: "ltr", shortCode: "EN" },
+  { value: "ps",  label: "پښتو",     nativeName: "پښتو",     englishName: "Pashto",  dir: "rtl", shortCode: "PS" },
+  { value: "bal", label: "بلوچی",    nativeName: "بلوچی",    englishName: "Balochi", dir: "rtl", shortCode: "BAL" },
+  { value: "brh", label: "براہوئی",  nativeName: "براہوئی",  englishName: "Brahui",  dir: "rtl", shortCode: "BRH" },
+  { value: "sd",  label: "سنڌي",     nativeName: "سنڌي",     englishName: "Sindhi",  dir: "rtl", shortCode: "SD" },
+  { value: "pa",  label: "پنجابی",   nativeName: "پنجابی",   englishName: "Punjabi", dir: "rtl", shortCode: "PA" },
+  { value: "fa",  label: "فارسی",    nativeName: "فارسی",    englishName: "Farsi",   dir: "rtl", shortCode: "FA" },
+];
+
+export interface LangContextType {
+  lang: Lang;
+  t: Translations;
+  setLang: (l: Lang) => void;
+  langSelected: boolean;
+  allowedLanguages: Lang[];
+  defaultLanguage: Lang;
+  availableOptions: LangOption[];
+}
+
+const LangContext = createContext<LangContextType>({
+  lang: "ur",
+  t: T.ur,
   setLang: () => {},
   langSelected: false,
+  allowedLanguages: ["ur", "en", "ps", "bal", "brh", "sd", "pa", "fa"],
+  defaultLanguage: "ur",
+  availableOptions: LANG_OPTIONS,
 });
 
 export function LangProvider({ children }: { children: ReactNode }) {
+  const { data: systemConfig } = trpc.hotel.getSystemConfig.useQuery(undefined, {
+    refetchInterval: 20000,
+    staleTime: 15000,
+  });
+
+  // Sync global audio sound feedback across all devices & sessions
+  useEffect(() => {
+    if (systemConfig?.soundEnabled !== undefined) {
+      setGlobalSoundEnabled(systemConfig.soundEnabled);
+    }
+  }, [systemConfig?.soundEnabled]);
+
+  const allowedLanguages = useMemo<Lang[]>(() => {
+    if (
+      systemConfig?.allowedLanguages &&
+      Array.isArray(systemConfig.allowedLanguages) &&
+      systemConfig.allowedLanguages.length > 0
+    ) {
+      return systemConfig.allowedLanguages as Lang[];
+    }
+    return ["ur", "en", "ps", "bal", "brh", "sd", "pa", "fa"];
+  }, [systemConfig?.allowedLanguages]);
+
+  const defaultLanguage = (systemConfig?.defaultLanguage as Lang) || "ur";
+
+  const availableOptions = useMemo(() => {
+    return LANG_OPTIONS.filter((opt) => allowedLanguages.includes(opt.value));
+  }, [allowedLanguages]);
+
   const [lang, setLangState] = useState<Lang>(() => {
     if (typeof window !== "undefined") {
-      return (localStorage.getItem("qh_lang") as Lang) ?? "en";
+      const saved = localStorage.getItem("qh_lang") as Lang;
+      if (saved) return saved;
     }
-    return "en";
+    return "ur";
   });
 
   // True if the user has explicitly picked a language at least once.
-  // Used by Home to decide whether to show the language-selection step.
   const [langSelected, setLangSelectedState] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       return !!localStorage.getItem("qh_lang");
@@ -1395,6 +1459,16 @@ export function LangProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Fallback if current language is not in allowed languages
+  useEffect(() => {
+    if (allowedLanguages.length > 0 && !allowedLanguages.includes(lang)) {
+      const fallback = allowedLanguages.includes(defaultLanguage)
+        ? defaultLanguage
+        : allowedLanguages[0];
+      setLang(fallback);
+    }
+  }, [allowedLanguages, defaultLanguage, lang]);
+
   useEffect(() => {
     const isRtl = lang !== "en";
     document.documentElement.dir = isRtl ? "rtl" : "ltr";
@@ -1404,7 +1478,17 @@ export function LangProvider({ children }: { children: ReactNode }) {
   const currentTranslations = { ...T.en, ...(T[lang] || {}) } as unknown as Translations;
 
   return (
-    <LangContext.Provider value={{ lang, t: currentTranslations, setLang, langSelected }}>
+    <LangContext.Provider
+      value={{
+        lang,
+        t: currentTranslations,
+        setLang,
+        langSelected,
+        allowedLanguages,
+        defaultLanguage,
+        availableOptions,
+      }}
+    >
       {children}
     </LangContext.Provider>
   );
@@ -1413,23 +1497,3 @@ export function LangProvider({ children }: { children: ReactNode }) {
 export function useLang() {
   return useContext(LangContext);
 }
-
-export interface LangOption {
-  value: Lang;
-  label: string;
-  nativeName: string;
-  englishName: string;
-  dir: "ltr" | "rtl";
-  shortCode: string;
-}
-
-export const LANG_OPTIONS: LangOption[] = [
-  { value: "ur",  label: "اردو",     nativeName: "اردو",     englishName: "Urdu",    dir: "rtl", shortCode: "UR" },
-  { value: "en",  label: "English",  nativeName: "English",  englishName: "English", dir: "ltr", shortCode: "EN" },
-  { value: "ps",  label: "پښتو",     nativeName: "پښتو",     englishName: "Pashto",  dir: "rtl", shortCode: "PS" },
-  { value: "bal", label: "بلوچی",    nativeName: "بلوچی",    englishName: "Balochi", dir: "rtl", shortCode: "BAL" },
-  { value: "brh", label: "براہوئی",  nativeName: "براہوئی",  englishName: "Brahui",  dir: "rtl", shortCode: "BRH" },
-  { value: "sd",  label: "سنڌي",     nativeName: "سنڌي",     englishName: "Sindhi",  dir: "rtl", shortCode: "SD" },
-  { value: "pa",  label: "پنجابی",   nativeName: "پنجابی",   englishName: "Punjabi", dir: "rtl", shortCode: "PA" },
-  { value: "fa",  label: "فارسی",    nativeName: "فارسی",    englishName: "Farsi",   dir: "rtl", shortCode: "FA" },
-];

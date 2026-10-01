@@ -175,6 +175,31 @@ export function ShiftSessionManager() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Live Item Sales Report Button */}
+            <button
+              type="button"
+              onClick={() => {
+                playTapSound();
+                setShowDetailsModal({
+                  ticketVersion: sessionInfo?.ticketVersion ?? 1,
+                  isLive: true,
+                  shiftStatus: sessionInfo?.shiftStatus ?? "active",
+                  closedBy: "Live Shift",
+                  closedDate: new Date().toISOString(),
+                  totalRevenue: sessionInfo?.todayRevenue ?? 0,
+                  totalCash: sessionInfo?.todayCash ?? 0,
+                  totalBank: sessionInfo?.todayBank ?? 0,
+                  totalKhata: sessionInfo?.todayUnpaid ?? 0,
+                  totalTickets: sessionInfo?.todayTicketsCount ?? 0,
+                  totalDiscount: sessionInfo?.todayDiscount ?? 0,
+                });
+              }}
+              className="px-4 py-2.5 rounded-full bg-[#F8F3EC] dark:bg-[#1A2232] hover:bg-[#EFE7DC] dark:hover:bg-[#253046] text-[#24180A] dark:text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border-0 shadow-none"
+            >
+              <FileText className="w-3.5 h-3.5 text-[#D98A3C]" />
+              <span>Live Item Sales Report</span>
+            </button>
+
             {sessionInfo?.shiftStatus === "verifying" ? (
               <>
                 <button
@@ -349,7 +374,10 @@ export function ShiftSessionManager() {
                     <td className="py-3 px-3 text-right">
                       <button
                         type="button"
-                        onClick={() => setShowDetailsModal(log)}
+                        onClick={() => {
+                          playTapSound();
+                          setShowDetailsModal(log);
+                        }}
                         className="px-3 py-1 rounded-full bg-[#F8F3EC] dark:bg-[#1A2232] hover:bg-[#D98A3C] hover:text-white font-bold text-[11px] transition cursor-pointer"
                       >
                         View Z-Report
@@ -590,94 +618,599 @@ export function ShiftSessionManager() {
         </div>
       )}
 
-      {/* ── MODAL 3: HISTORICAL SESSION Z-REPORT DETAILS ────────────── */}
+      {/* ── MODAL 3: HISTORICAL SESSION Z-REPORT & COMPREHENSIVE ITEM SALES REPORT ────────────── */}
       {showDetailsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#121824] rounded-[28px] p-5 sm:p-6 max-w-2xl w-full border-0 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-            <div className="flex justify-between items-center pb-3 border-b border-stone-100 dark:border-white/5 shrink-0">
-              <div>
-                <h3 className="text-base font-black text-[#24180A] dark:text-white">
-                  Z-Report — Version #{showDetailsModal.ticketVersion}
-                </h3>
-                <p className="text-xs text-stone-500 dark:text-zinc-400">
-                  Closed on {fmtTime(showDetailsModal.closedDate)} by {showDetailsModal.closedBy}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowDetailsModal(null)}
-                className="p-1 rounded-full text-stone-400 hover:text-stone-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Content Breakdown */}
-            <div className="flex-1 overflow-y-auto py-3 space-y-4 no-scrollbar min-h-0 text-xs">
-              {/* Top Financial Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="bg-[#F8F3EC] dark:bg-[#1A2232] p-2.5 rounded-xl">
-                  <span className="text-[10px] text-stone-400 font-bold block uppercase">Gross Sales</span>
-                  <span className="text-sm font-black font-mono text-[#D98A3C]">
-                    Rs. {showDetailsModal.totalRevenue.toLocaleString()}
-                  </span>
-                </div>
-                <div className="bg-[#F8F3EC] dark:bg-[#1A2232] p-2.5 rounded-xl">
-                  <span className="text-[10px] text-stone-400 font-bold block uppercase">Cash In Drawer</span>
-                  <span className="text-sm font-black font-mono text-emerald-600">
-                    Rs. {showDetailsModal.totalCash.toLocaleString()}
-                  </span>
-                </div>
-                <div className="bg-[#F8F3EC] dark:bg-[#1A2232] p-2.5 rounded-xl">
-                  <span className="text-[10px] text-stone-400 font-bold block uppercase">Bank / QR</span>
-                  <span className="text-sm font-black font-mono text-blue-600">
-                    Rs. {showDetailsModal.totalBank.toLocaleString()}
-                  </span>
-                </div>
-                <div className="bg-[#F8F3EC] dark:bg-[#1A2232] p-2.5 rounded-xl">
-                  <span className="text-[10px] text-stone-400 font-bold block uppercase">Khata Credit</span>
-                  <span className="text-sm font-black font-mono text-orange-600">
-                    Rs. {showDetailsModal.totalKhata.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              {/* Items Sold Breakdown */}
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-black uppercase text-stone-400 block">
-                  Items Sold Breakdown
-                </span>
-                <div className="bg-[#F8F3EC] dark:bg-[#1A2232] rounded-2xl p-3 divide-y divide-stone-200/40 dark:divide-white/5 max-h-48 overflow-y-auto no-scrollbar">
-                  {(() => {
-                    try {
-                      const items = JSON.parse(showDetailsModal.itemsSnapshot || "[]");
-                      if (items.length === 0) return <p className="text-stone-400">No item details.</p>;
-                      return items.map((it: any, idx: number) => (
-                        <div key={idx} className="py-1.5 flex justify-between font-bold">
-                          <span>{it.name} <strong className="text-[#D98A3C]">×{it.quantity}</strong></span>
-                          <span className="font-mono">Rs. {it.total}</span>
-                        </div>
-                      ));
-                    } catch {
-                      return <p className="text-stone-400">Snapshot format error.</p>;
-                    }
-                  })()}
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-stone-100 dark:border-white/5 flex justify-end shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowDetailsModal(null)}
-                className="px-5 py-2 rounded-full bg-stone-100 dark:bg-[#1A2232] font-bold text-xs"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <SessionDetailsModal
+          session={showDetailsModal}
+          onClose={() => setShowDetailsModal(null)}
+        />
       )}
     </div>
   );
 }
+
+// ── COMPREHENSIVE Z-REPORT & ITEM SALES REPORT MODAL ─────────────────────────
+function SessionDetailsModal({
+  session,
+  onClose,
+}: {
+  session: any;
+  onClose: () => void;
+}) {
+  const [activeTab, setActiveTab] = useState<"items" | "orders">("items");
+  const [filterType, setFilterType] = useState<"all" | "sold" | "unsold">("all");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | "served" | "cancelled" | "pending">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const { data: itemReport, isLoading: loadingReport } =
+    trpc.admin.getSessionItemSalesReport.useQuery(
+      { ticketVersion: session.ticketVersion },
+      { refetchInterval: session.isLive ? 5000 : false }
+    );
+
+  const rawOrdersSnapshot = React.useMemo(() => {
+    try {
+      if (session.ordersSnapshot) {
+        return JSON.parse(session.ordersSnapshot);
+      }
+    } catch {}
+    return [];
+  }, [session.ordersSnapshot]);
+
+  // Combined orders list: prefer detailed ordersAudit from server, fallback to rawOrdersSnapshot
+  const ordersList = React.useMemo(() => {
+    if (itemReport?.ordersAudit && itemReport.ordersAudit.length > 0) {
+      return itemReport.ordersAudit;
+    }
+    return rawOrdersSnapshot.map((ord: any) => ({
+      ...ord,
+      itemsSummary: ord.items?.map((it: any) => `${it.nameSnapshot || it.name || "Item"} ×${it.quantity}`).join(", ") || "",
+    }));
+  }, [itemReport?.ordersAudit, rawOrdersSnapshot]);
+
+  // Filter Items
+  const filteredItems = React.useMemo(() => {
+    if (!itemReport?.items) return [];
+    return itemReport.items.filter((item) => {
+      // Filter by sold / unsold
+      if (filterType === "sold" && !item.isSold) return false;
+      if (filterType === "unsold" && item.isSold) return false;
+
+      // Filter by search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return (
+          item.name.toLowerCase().includes(q) ||
+          item.departmentName.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [itemReport?.items, filterType, searchQuery]);
+
+  // Filter Orders
+  const filteredOrders = React.useMemo(() => {
+    return ordersList.filter((ord: any) => {
+      const status = (ord.orderStatus || ord.status || "").toLowerCase();
+      if (orderStatusFilter === "served" && status !== "completed" && status !== "served") return false;
+      if (orderStatusFilter === "cancelled" && status !== "cancelled" && status !== "voided") return false;
+      if (orderStatusFilter === "pending" && (status === "completed" || status === "served" || status === "cancelled" || status === "voided")) return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const orderNo = (ord.orderNo || `TKT-${ord.id}`).toLowerCase();
+        const cust = (ord.customerName || "").toLowerCase();
+        const itemsStr = (ord.itemsSummary || "").toLowerCase();
+        return orderNo.includes(q) || cust.includes(q) || itemsStr.includes(q);
+      }
+      return true;
+    });
+  }, [ordersList, orderStatusFilter, searchQuery]);
+
+  const handlePrint = () => {
+    playTapSound();
+    window.print();
+  };
+
+  const totalRevenue = itemReport?.totalRevenue ?? session.totalRevenue ?? 0;
+  const totalUnits = itemReport?.totalQuantitySold ?? 0;
+  const soldCount = itemReport?.soldCount ?? 0;
+  const unsoldCount = itemReport?.unsoldCount ?? 0;
+  const totalMenu = itemReport?.totalMenuItems ?? 0;
+
+  const totalOrdersCount = itemReport?.totalOrdersCount ?? ordersList.length;
+  const servedOrdersCount = itemReport?.servedOrdersCount ?? ordersList.filter((o: any) => ["completed", "served"].includes((o.orderStatus || o.status || "").toLowerCase())).length;
+  const cancelledOrdersCount = itemReport?.cancelledOrdersCount ?? ordersList.filter((o: any) => ["cancelled", "voided"].includes((o.orderStatus || o.status || "").toLowerCase())).length;
+  const pendingOrdersCount = itemReport?.pendingOrdersCount ?? (totalOrdersCount - servedOrdersCount - cancelledOrdersCount);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200 print:p-0 print:bg-white print:fixed print:inset-0">
+      <div className="bg-white dark:bg-[#121824] rounded-[28px] p-4 sm:p-6 max-w-4xl w-full border-0 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden print:max-h-none print:shadow-none print:rounded-none print:w-full">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-100 dark:border-white/5 shrink-0 print:pb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center font-black shrink-0">
+              <Receipt className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base sm:text-lg font-black text-[#24180A] dark:text-white">
+                  Z-Report & Sales Report — Version #{session.ticketVersion}
+                </h3>
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    session.isLive
+                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 animate-pulse"
+                      : "bg-[#D98A3C]/15 text-[#D98A3C]"
+                  }`}
+                >
+                  {session.isLive ? "Live Shift (لائیو سیشن)" : "Closed Archive (بند شدہ سیشن)"}
+                </span>
+              </div>
+              <p className="text-xs text-stone-500 dark:text-zinc-400 font-medium">
+                {session.isLive
+                  ? `Active real-time shift performance`
+                  : `Closed on ${fmtTime(session.closedDate)} by ${session.closedBy}`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 print:hidden">
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="px-3.5 py-1.5 rounded-full bg-[#F8F3EC] dark:bg-[#1A2232] hover:bg-[#EFE7DC] text-[#24180A] dark:text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer border-0"
+              title="Print Z-Report"
+            >
+              <Printer className="w-3.5 h-3.5 text-[#D98A3C]" />
+              <span>Print</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-full text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Financial KPI Summary Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-3 shrink-0">
+          <div className="bg-[#F8F3EC] dark:bg-[#1A2232] p-3 rounded-2xl">
+            <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wider">
+              Gross Revenue (کل سیلز)
+            </span>
+            <span className="text-base sm:text-lg font-black font-mono text-[#D98A3C]">
+              Rs. {totalRevenue.toLocaleString()}
+            </span>
+          </div>
+          <div className="bg-[#F8F3EC] dark:bg-[#1A2232] p-3 rounded-2xl">
+            <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wider">
+              Cash in Drawer (کیش)
+            </span>
+            <span className="text-base sm:text-lg font-black font-mono text-emerald-600 dark:text-emerald-400">
+              Rs. {(session.totalCash ?? 0).toLocaleString()}
+            </span>
+          </div>
+          <div className="bg-[#F8F3EC] dark:bg-[#1A2232] p-3 rounded-2xl">
+            <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wider">
+              Online / QR (بینک)
+            </span>
+            <span className="text-base sm:text-lg font-black font-mono text-blue-600 dark:text-blue-400">
+              Rs. {(session.totalBank ?? 0).toLocaleString()}
+            </span>
+          </div>
+          <div className="bg-[#F8F3EC] dark:bg-[#1A2232] p-3 rounded-2xl">
+            <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wider">
+              Market Khata (ادھار)
+            </span>
+            <span className="text-base sm:text-lg font-black font-mono text-orange-600 dark:text-orange-400">
+              Rs. {(session.totalKhata ?? 0).toLocaleString()}
+            </span>
+          </div>
+        </div>
+
+        {/* Order Lifecycle Status Banner */}
+        <div className="grid grid-cols-4 gap-2 pb-3 shrink-0 text-center">
+          <div className="bg-[#F8F3EC]/70 dark:bg-[#1A2232]/70 p-2 rounded-xl">
+            <span className="text-[10px] text-stone-400 font-bold block uppercase">Total Orders (کل)</span>
+            <span className="text-sm font-black font-mono text-[#24180A] dark:text-white">{totalOrdersCount}</span>
+          </div>
+          <div className="bg-emerald-500/10 dark:bg-emerald-950/40 p-2 rounded-xl">
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block uppercase">Served / Paid (سرو شدہ)</span>
+            <span className="text-sm font-black font-mono text-emerald-700 dark:text-emerald-300">{servedOrdersCount}</span>
+          </div>
+          <div className="bg-rose-500/10 dark:bg-rose-950/40 p-2 rounded-xl">
+            <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold block uppercase">Cancelled (منسوخ)</span>
+            <span className="text-sm font-black font-mono text-rose-700 dark:text-rose-300">{cancelledOrdersCount}</span>
+          </div>
+          <div className="bg-amber-500/10 dark:bg-amber-950/40 p-2 rounded-xl">
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block uppercase">Pending (جاری)</span>
+            <span className="text-sm font-black font-mono text-amber-700 dark:text-amber-300">{pendingOrdersCount > 0 ? pendingOrdersCount : 0}</span>
+          </div>
+        </div>
+
+        {/* Navigation Tabs (Items Performance vs Individual Orders) */}
+        <div className="flex items-center justify-between gap-2 pb-2 border-b border-stone-100 dark:border-white/5 shrink-0 print:hidden">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                playTapSound();
+                setActiveTab("items");
+                setSearchQuery("");
+              }}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-black transition cursor-pointer border-0 ${
+                activeTab === "items"
+                  ? "bg-[#D98A3C] text-white shadow-xs"
+                  : "bg-[#F8F3EC] dark:bg-[#1A2232] text-stone-600 dark:text-zinc-300 hover:bg-[#EFE7DC]"
+              }`}
+            >
+              Item Sales Breakdown (آئٹم وائز رپورٹ)
+            </button>
+            {ordersList.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  playTapSound();
+                  setActiveTab("orders");
+                  setSearchQuery("");
+                }}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-black transition cursor-pointer border-0 ${
+                  activeTab === "orders"
+                    ? "bg-[#D98A3C] text-white shadow-xs"
+                    : "bg-[#F8F3EC] dark:bg-[#1A2232] text-stone-600 dark:text-zinc-300 hover:bg-[#EFE7DC]"
+                }`}
+              >
+                Orders Audit ({ordersList.length} Tickets)
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Tab 1: Full Item-by-Item Sales & Unsold Performance */}
+        {activeTab === "items" && (
+          <div className="flex-1 flex flex-col min-h-0 pt-2 space-y-3">
+            {/* Filter Bar & KPI Badges */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
+              {/* Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    setFilterType("all");
+                  }}
+                  className={`px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer border-0 ${
+                    filterType === "all"
+                      ? "bg-[#24180A] dark:bg-white text-white dark:text-[#24180A]"
+                      : "bg-[#F8F3EC] dark:bg-[#1A2232] text-stone-500"
+                  }`}
+                >
+                  All Items ({totalMenu})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    setFilterType("sold");
+                  }}
+                  className={`px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer border-0 flex items-center gap-1 ${
+                    filterType === "sold"
+                      ? "bg-emerald-600 text-white"
+                      : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  }`}
+                >
+                  <Check className="w-3 h-3 stroke-[3]" />
+                  <span>Sold / Served ({soldCount})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    setFilterType("unsold");
+                  }}
+                  className={`px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer border-0 flex items-center gap-1 ${
+                    filterType === "unsold"
+                      ? "bg-stone-700 text-white"
+                      : "bg-stone-200 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400"
+                  }`}
+                >
+                  <X className="w-3 h-3 stroke-[3]" />
+                  <span>Unsold Items ({unsoldCount})</span>
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative w-full sm:w-56 print:hidden">
+                <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search item or category..."
+                  className="w-full pl-8 pr-3 py-1 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full text-xs font-semibold text-[#24180A] dark:text-white placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-[#D98A3C] border-0"
+                />
+              </div>
+            </div>
+
+            {/* Performance Summary Banner */}
+            <div className="bg-[#F8F3EC] dark:bg-[#1A2232] p-2.5 rounded-2xl flex items-center justify-between text-xs font-bold text-stone-600 dark:text-zinc-300 shrink-0">
+              <div className="flex items-center gap-3">
+                <span>
+                  Total Units Served / Sold: <strong className="text-[#D98A3C] font-mono text-sm">{totalUnits}</strong>
+                </span>
+                <span>•</span>
+                <span>
+                  Active Varieties: <strong className="text-[#24180A] dark:text-white">{soldCount} / {totalMenu}</strong>
+                </span>
+              </div>
+              <span className="text-[11px] text-stone-400 font-medium">
+                {filterType === "unsold" ? "Showing items with 0 sales" : "Sorted by highest quantity sold"}
+              </span>
+            </div>
+
+            {/* Items Table */}
+            <div className="flex-1 overflow-y-auto no-scrollbar rounded-2xl border border-stone-100 dark:border-white/5 min-h-0">
+              {loadingReport ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-2 text-stone-400">
+                  <Loader2 className="w-5 h-5 animate-spin text-[#D98A3C]" />
+                  <span className="text-xs font-semibold">Generating comprehensive item report...</span>
+                </div>
+              ) : filteredItems.length === 0 ? (
+                <div className="py-12 text-center text-stone-400 text-xs font-semibold">
+                  No items match the selected filter.
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="sticky top-0 bg-[#F8F3EC] dark:bg-[#1A2232] text-[10px] font-black uppercase text-stone-400 z-10">
+                    <tr>
+                      <th className="py-2 px-3 w-8">#</th>
+                      <th className="py-2 px-3">Item Name & Category</th>
+                      <th className="py-2 px-3 text-right">Unit Price</th>
+                      <th className="py-2 px-2.5 text-center">Ordered (کل)</th>
+                      <th className="py-2 px-2.5 text-center">Served / Sold (سرو)</th>
+                      <th className="py-2 px-2.5 text-center">Cancelled (منسوخ)</th>
+                      <th className="py-2 px-3 text-right">Total Revenue</th>
+                      <th className="py-2 px-3 text-right">Share</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100 dark:divide-white/5">
+                    {filteredItems.map((item, idx) => {
+                      const sharePercent = totalRevenue > 0 ? ((item.revenue / totalRevenue) * 100).toFixed(1) : "0";
+                      return (
+                        <tr
+                          key={idx}
+                          className={`hover:bg-stone-50 dark:hover:bg-[#1A2232]/50 transition ${
+                            !item.isSold ? "opacity-60 bg-stone-50/30 dark:bg-[#1A2232]/20" : ""
+                          }`}
+                        >
+                          <td className="py-2 px-3 text-stone-400 font-mono text-[11px] font-bold">
+                            {idx + 1}
+                          </td>
+                          <td className="py-2 px-3">
+                            <div className="font-black text-[#24180A] dark:text-white">
+                              {item.name}
+                            </div>
+                            <div className="text-[10px] text-stone-400 font-medium">
+                              {item.departmentName}
+                            </div>
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono font-bold text-stone-600 dark:text-zinc-300">
+                            Rs. {item.unitPrice}
+                          </td>
+                          <td className="py-2 px-2.5 text-center font-mono font-bold text-stone-500">
+                            {item.quantityOrdered ?? item.quantitySold}
+                          </td>
+                          <td className="py-2 px-2.5 text-center font-mono">
+                            {item.isSold ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                                ×{item.quantitySold}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 dark:bg-zinc-800 text-stone-400">
+                                0 Sold
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-2.5 text-center font-mono">
+                            {(item.quantityCancelled ?? 0) > 0 ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400">
+                                ×{item.quantityCancelled}
+                              </span>
+                            ) : (
+                              <span className="text-stone-300 dark:text-zinc-600">-</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono font-black text-sm text-[#D98A3C]">
+                            Rs. {item.revenue.toLocaleString()}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono text-[11px] font-bold text-stone-500">
+                            {sharePercent}%
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 2: Orders Snapshot List */}
+        {activeTab === "orders" && (
+          <div className="flex-1 flex flex-col min-h-0 pt-2 space-y-2.5">
+            {/* Orders Filter & Search */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    setOrderStatusFilter("all");
+                  }}
+                  className={`px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer border-0 ${
+                    orderStatusFilter === "all"
+                      ? "bg-[#24180A] dark:bg-white text-white dark:text-[#24180A]"
+                      : "bg-[#F8F3EC] dark:bg-[#1A2232] text-stone-500"
+                  }`}
+                >
+                  All ({ordersList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    setOrderStatusFilter("served");
+                  }}
+                  className={`px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer border-0 ${
+                    orderStatusFilter === "served"
+                      ? "bg-emerald-600 text-white"
+                      : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  }`}
+                >
+                  Served / Completed ({servedOrdersCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    setOrderStatusFilter("cancelled");
+                  }}
+                  className={`px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer border-0 ${
+                    orderStatusFilter === "cancelled"
+                      ? "bg-rose-600 text-white"
+                      : "bg-rose-500/10 text-rose-700 dark:text-rose-400"
+                  }`}
+                >
+                  Cancelled ({cancelledOrdersCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    setOrderStatusFilter("pending");
+                  }}
+                  className={`px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer border-0 ${
+                    orderStatusFilter === "pending"
+                      ? "bg-amber-600 text-white"
+                      : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                  }`}
+                >
+                  Active / Pending ({pendingOrdersCount > 0 ? pendingOrdersCount : 0})
+                </button>
+              </div>
+
+              {/* Order Search */}
+              <div className="relative w-full sm:w-56 print:hidden">
+                <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search ticket # or items..."
+                  className="w-full pl-8 pr-3 py-1 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full text-xs font-semibold text-[#24180A] dark:text-white placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-[#D98A3C] border-0"
+                />
+              </div>
+            </div>
+
+            {/* Orders List */}
+            <div className="flex-1 overflow-y-auto no-scrollbar space-y-2.5 min-h-0">
+              {filteredOrders.length === 0 ? (
+                <div className="py-12 text-center text-stone-400 text-xs font-semibold">
+                  No orders match this status.
+                </div>
+              ) : (
+                filteredOrders.map((ord: any) => {
+                  const isCancelled = ["cancelled", "voided"].includes((ord.orderStatus || ord.status || "").toLowerCase());
+                  const isServed = ["completed", "served"].includes((ord.orderStatus || ord.status || "").toLowerCase());
+                  const isPaid = (ord.paymentStatus || "").toLowerCase() === "paid";
+
+                  return (
+                    <div
+                      key={ord.id}
+                      className={`bg-[#F8F3EC] dark:bg-[#1A2232] rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs transition ${
+                        isCancelled ? "opacity-60 bg-rose-50/40 dark:bg-rose-950/20" : ""
+                      }`}
+                    >
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-black text-[#24180A] dark:text-white">
+                            {ord.orderNo || `TKT-${ord.id}`}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white dark:bg-[#121824] text-stone-700 dark:text-zinc-300">
+                            {ord.customerName || "Walk-in"}
+                          </span>
+                          {ord.tableName && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#D98A3C]/10 text-[#D98A3C]">
+                              {ord.tableName}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-stone-400">({fmtTime(ord.createdAt)})</span>
+                          
+                          {/* Order Status Badge */}
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
+                              isCancelled
+                                ? "bg-rose-500/15 text-rose-600"
+                                : isServed
+                                ? "bg-emerald-500/15 text-emerald-600"
+                                : "bg-amber-500/15 text-amber-600"
+                            }`}
+                          >
+                            {ord.orderStatus || ord.status || "Order"}
+                          </span>
+
+                          {/* Payment Status Badge */}
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
+                              isPaid
+                                ? "bg-emerald-500/15 text-emerald-600"
+                                : "bg-amber-500/15 text-amber-600"
+                            }`}
+                          >
+                            {ord.paymentStatus || "unpaid"}
+                          </span>
+                        </div>
+
+                        {/* Resolved Dishes & Quantities */}
+                        <p className="text-[11px] text-stone-600 dark:text-zinc-300 font-medium truncate">
+                          {ord.itemsSummary ||
+                            ord.items?.map((it: any) => `${it.name || it.nameSnapshot || "Item"} ×${it.quantity}`).join(", ") ||
+                            "No items"}
+                        </p>
+                      </div>
+
+                      <div className={`text-right font-mono font-black text-sm shrink-0 ${
+                        isCancelled ? "text-stone-400 line-through" : "text-[#D98A3C]"
+                      }`}>
+                        Rs. {(ord.total ?? 0).toLocaleString()}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="pt-3 border-t border-stone-100 dark:border-white/5 flex items-center justify-between shrink-0 print:hidden">
+          <div className="text-xs text-stone-500 dark:text-zinc-400 font-medium">
+            Total Menu Items: <strong>{totalMenu}</strong> • Sold: <strong className="text-emerald-600 font-bold">{soldCount}</strong> • Unsold: <strong className="text-stone-400">{unsoldCount}</strong>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-2 rounded-full bg-[#D98A3C] hover:bg-[#C27930] text-white font-black text-xs transition cursor-pointer border-0 shadow-none active:scale-95"
+          >
+            Close Report
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

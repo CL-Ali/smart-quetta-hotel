@@ -12,6 +12,7 @@ import {
   Ban,
   Wallet,
   Store,
+  ShoppingBag,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { fmtTime } from "@/lib/time";
@@ -19,7 +20,7 @@ import { useLang } from "@/contexts/LangContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { OrderWithDetails } from "@/types/hotel";
 
-type FilterKey = "all" | "unpaid" | "pending" | "ready" | "paid";
+type FilterKey = "all" | "unpaid" | "pending" | "ready" | "paid" | "parcel";
 
 const STATUS_BG: Record<string, string> = {
   pending: "border-amber-200 bg-amber-50",
@@ -74,10 +75,17 @@ export function OrdersTab({
   onPayOrder,
   onCancelOrder,
 }: OrdersTabProps) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { permissions } = useAuth();
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
+
+  const parcelCount = orders.filter(
+    (o) =>
+      o.seatingType === "takeaway" ||
+      (o.seatingNo && o.seatingNo.toLowerCase().includes("parcel")) ||
+      (o.customerName && o.customerName.toLowerCase().includes("parcel"))
+  ).length;
 
   const FILTERS: { key: FilterKey; label: string }[] = [
     { key: "all", label: t.all },
@@ -85,6 +93,7 @@ export function OrdersTab({
     { key: "pending", label: t.queueFilter },
     { key: "ready", label: t.readyFilter },
     { key: "paid", label: t.paidFilter },
+    { key: "parcel", label: lang === "ur" ? "پارسل" : (t.parcelTakeaway || "Parcel") },
   ];
 
   const filtered = orders.filter((o) => {
@@ -98,6 +107,13 @@ export function OrdersTab({
     if (filter === "pending") return o.status === "pending" || o.status === "preparing";
     if (filter === "ready") return o.status === "ready" || o.status === "served";
     if (filter === "paid") return o.paymentStatus === "paid";
+    if (filter === "parcel") {
+      return (
+        o.seatingType === "takeaway" ||
+        (o.seatingNo && o.seatingNo.toLowerCase().includes("parcel")) ||
+        (o.customerName && o.customerName.toLowerCase().includes("parcel"))
+      );
+    }
     return true;
   });
 
@@ -149,6 +165,11 @@ export function OrdersTab({
             {f.key === "ready" && readyCount > 0 && (
               <span className="ml-1.5 bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold">
                 {readyCount}
+              </span>
+            )}
+            {f.key === "parcel" && parcelCount > 0 && (
+              <span className="ml-1.5 bg-[#D98A3C] text-white text-xs rounded-full px-1.5 py-0.5 font-bold">
+                {parcelCount}
               </span>
             )}
           </button>

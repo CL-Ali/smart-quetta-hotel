@@ -145,13 +145,6 @@ export function useCustomerViewModel() {
 
   const showCustomerQueue = service.showCustomerQueue;
 
-  // Fallback to menu tab if queue is disabled by admin while user is on queue tab
-  useEffect(() => {
-    if (!showCustomerQueue && activeTab === "active") {
-      setActiveTab("menu");
-    }
-  }, [showCustomerQueue, activeTab]);
-
   // URL Ticket / Cookie Resume Effect
   useEffect(() => {
     if (step === "menu") return;
@@ -212,6 +205,13 @@ export function useCustomerViewModel() {
 
   // Derived Calculations
   const hasOrders = (service.myOrders?.length ?? 0) > 0;
+
+  // Fallback to history (My Orders & Bill) or menu tab if queue is disabled by admin while user is on queue tab
+  useEffect(() => {
+    if (!showCustomerQueue && activeTab === "active") {
+      setActiveTab(hasOrders ? "history" : "menu");
+    }
+  }, [showCustomerQueue, activeTab, hasOrders]);
 
   // Non-served active items count (Recent active session)
   const activeItemsCount = useMemo(() => {

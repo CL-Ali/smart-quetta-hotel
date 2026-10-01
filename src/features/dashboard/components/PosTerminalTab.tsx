@@ -29,6 +29,7 @@ import {
   LayoutGrid,
   List,
   ChevronDown,
+  Armchair,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -90,9 +91,11 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
     }
   }, []);
   const [cart, setCart] = useState<PosCartItem[]>([]);
-  const [customerName, setCustomerName] = useState("T-1");
+  const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [accountType, setAccountType] = useState<"tables" | "shopkeepers">("tables");
+  const [accountType, setAccountType] = useState<"tables" | "parcel" | "shopkeepers">("tables");
+  const [parcelSubTab, setParcelSubTab] = useState<"new" | "list">("new");
+  const [parcelStatusFilter, setParcelStatusFilter] = useState<string>("all");
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const isMobile = useIsMobile();
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
@@ -103,6 +106,7 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
   const [selectedArea, setSelectedArea] = useState<string>("all");
   const [selectedSeatingType, setSelectedSeatingType] = useState<"table" | "seat" | "takeaway">("table");
   const [selectedSeatingAreaId, setSelectedSeatingAreaId] = useState<number | null>(null);
+  const [customSeatNo, setCustomSeatNo] = useState<string>("");
   const [peopleCount, setPeopleCount] = useState<number>(4);
 
   // Modals state
@@ -129,6 +133,41 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
   const getOrCreateCustomer = trpc.hotel.getOrCreateCustomer.useMutation();
   const placeOrder = trpc.hotel.placeOrder.useMutation();
   const recordPayment = trpc.hotel.recordPayment.useMutation();
+
+  // Selected table object
+  const selectedTable = useMemo(() => {
+    return seatingTables.find((t: any) => t.id === selectedSeatingAreaId);
+  }, [seatingTables, selectedSeatingAreaId]);
+
+  // Today's / Active Takeaway Orders list
+  const activeTakeawayOrders = useMemo(() => {
+    return allOrders.filter((o: any) => {
+      const isTakeaway =
+        o.seatingType === "takeaway" ||
+        (o.seatingNo && o.seatingNo.toLowerCase().includes("parcel")) ||
+        (o.customerName && o.customerName.toLowerCase().includes("parcel"));
+      return isTakeaway;
+    });
+  }, [allOrders]);
+
+  // Active label for display across cart, modal, and receipts
+  const activeTargetLabel = useMemo(() => {
+    if (accountType === "shopkeepers") {
+      return customerName || (lang === "ur" ? "دکاندار منتخب کریں" : "Select Shopkeeper");
+    }
+    if (accountType === "parcel") {
+      return customerName.trim()
+        ? `${lang === "ur" ? "پارسل" : "Parcel"}: ${customerName.trim()}`
+        : (lang === "ur" ? "پارسل آرڈر" : "Parcel Order");
+    }
+    if (selectedTable) {
+      return customerName.trim() ? `${selectedTable.name} (${customerName.trim()})` : selectedTable.name;
+    }
+    if (customSeatNo.trim()) {
+      return customerName.trim() ? `${customSeatNo.trim()} (${customerName.trim()})` : customSeatNo.trim();
+    }
+    return customerName.trim() || (selectedSeatingType === "seat" ? (lang === "ur" ? "عام نشست" : "Solo Seat") : (t.walkInCustomer || "Walk-in Guest"));
+  }, [accountType, customerName, selectedTable, customSeatNo, selectedSeatingType, t, lang]);
 
   // Selected shopkeeper object
   const selectedShop = useMemo(() => {
@@ -350,16 +389,35 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
 
     setIsPlacing(true);
     try {
-      const cName = customerName.trim() || t.walkInCustomer || "Walk-in Guest";
+      const defaultName =
+        accountType === "parcel"
+          ? (lang === "ur" ? "پارسل کسٹمر" : "Parcel Guest")
+          : selectedTable
+          ? selectedTable.name
+          : customSeatNo.trim()
+          ? customSeatNo.trim()
+          : selectedSeatingType === "seat"
+          ? (lang === "ur" ? "عام نشست" : "Solo Seat")
+          : t.walkInCustomer || "Walk-in Guest";
+      const cName = customerName.trim() || defaultName;
       const cPhone = customerPhone.trim() || undefined;
+      const sType = accountType === "parcel" ? "takeaway" : selectedSeatingType;
+      const sAreaId = accountType === "parcel" ? undefined : (selectedSeatingAreaId || undefined);
+      const sNo =
+        accountType === "parcel"
+          ? "Parcel"
+          : selectedTable
+          ? selectedTable.name
+          : customSeatNo.trim() || (selectedSeatingType === "seat" ? "Seat" : "Walk-in");
+
       const customer = await getOrCreateCustomer.mutateAsync({ name: cName, phone: cPhone });
       const result = await placeOrder.mutateAsync({
         customerName: cName,
         customerId: customer.id,
-        seatingAreaId: selectedSeatingAreaId || undefined,
-        seatingNo: cName,
-        peopleCount: peopleCount,
-        seatingType: selectedSeatingType,
+        seatingAreaId: sAreaId,
+        seatingNo: sNo,
+        peopleCount: accountType === "parcel" ? 1 : peopleCount,
+        seatingType: sType,
         items: cart.map((i) => ({
           menuItemId: i.id,
           quantity: i.quantity,
@@ -372,6 +430,8 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
 
       setShowConfirmModal(false);
       clearCart();
+      setSelectedSeatingAreaId(null);
+      setCustomSeatNo("");
       await refetchOrders();
 
       if (result && result.orderId) {
@@ -403,23 +463,54 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
       <div className="flex-1 lg:col-span-7 xl:col-span-8 2xl:col-span-8 flex flex-col overflow-hidden min-h-0 space-y-3">
         {/* Top Customer & Seating Selection Bar */}
         <div className="bg-white dark:bg-[#121824] rounded-[24px] p-3 sm:p-3.5 space-y-2.5 shrink-0 border-0 shadow-none">
-          {/* Account Mode Switcher: Dine-in vs Market Shopkeepers */}
-          <div className="flex items-center bg-[#F8F3EC] dark:bg-[#1A2232] p-1 rounded-full text-xs font-bold border-0">
+          {/* Account Mode Switcher: 3 Clean Tabs */}
+          <div className="grid grid-cols-3 bg-[#F8F3EC] dark:bg-[#1A2232] p-1 rounded-full text-xs font-bold border-0 gap-1">
             <button
               type="button"
               onClick={() => {
                 playTapSound();
                 setAccountType("tables");
-                setCustomerName("T-1");
+                setSelectedSeatingType(peopleCount === 1 ? "seat" : "table");
+                setCustomerName("");
+                setCustomerPhone("");
               }}
-              className={`flex-1 py-1.5 rounded-full transition cursor-pointer text-center ${
+              className={`py-1.5 px-2 rounded-full transition cursor-pointer text-center flex items-center justify-center gap-1.5 ${
                 accountType === "tables"
                   ? "bg-[#D98A3C] text-white shadow-none font-black"
                   : "text-[#4A3E31] dark:text-zinc-300 hover:text-[#24180A]"
               }`}
             >
-              {t.dineInTables || "Dine-in / Parcel"}
+              <Utensils className="w-3.5 h-3.5" />
+              <span className="truncate">{lang === "ur" ? "ڈائن اِن (میز/نشست)" : "Dine-in"}</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                playTapSound();
+                setAccountType("parcel");
+                setSelectedSeatingType("takeaway");
+                setSelectedSeatingAreaId(null);
+                setCustomerName("");
+                setCustomerPhone("");
+              }}
+              className={`py-1.5 px-2 rounded-full transition cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+                accountType === "parcel"
+                  ? "bg-[#D98A3C] text-white shadow-none font-black"
+                  : "text-[#4A3E31] dark:text-zinc-300 hover:text-[#24180A]"
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span className="truncate">{lang === "ur" ? "پارسل" : "Parcel"}</span>
+              {activeTakeawayOrders.length > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  accountType === "parcel" ? "bg-white text-[#D98A3C]" : "bg-[#D98A3C] text-white"
+                }`}>
+                  {activeTakeawayOrders.length}
+                </span>
+              )}
+            </button>
+
             <button
               type="button"
               onClick={() => {
@@ -431,140 +522,179 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
                   if (s.phone) setCustomerPhone(s.phone);
                 }
               }}
-              className={`flex-1 py-1.5 rounded-full transition cursor-pointer text-center ${
+              className={`py-1.5 px-2 rounded-full transition cursor-pointer text-center flex items-center justify-center gap-1.5 ${
                 accountType === "shopkeepers"
                   ? "bg-[#D98A3C] text-white shadow-none font-black"
                   : "text-[#4A3E31] dark:text-zinc-300 hover:text-[#24180A]"
               }`}
             >
-              {t.marketShopkeepers || "Market Khata"}
+              <Store className="w-3.5 h-3.5" />
+              <span className="truncate">{lang === "ur" ? "مارکیٹ کھاتہ" : "Market Khata"}</span>
             </button>
           </div>
 
-          {/* Mode 1: Dine-in Tables & Parcel */}
+          {/* Mode 1: Dine-in Tables & Seats */}
           {accountType === "tables" && (
-            <div className="space-y-2">
-              {/* Row 1: Area Chips */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-                {[
-                  { id: "all", label: t.allAreas || (lang === "ur" ? "تمام ہال" : "All Areas"), Icon: Building2 },
-                  { id: "indoor", label: t.mainHall || (lang === "ur" ? "مین ہال" : "Main Hall"), Icon: Store },
-                  { id: "family", label: t.familyArea || (lang === "ur" ? "فیملی ہال" : "Family"), Icon: Users },
-                  { id: "rooftop", label: t.rooftop || (lang === "ur" ? "روف ٹاپ" : "Rooftop"), Icon: Sun },
-                  { id: "takeaway", label: t.parcelTakeaway || (lang === "ur" ? "پارسل" : "Parcel"), Icon: ShoppingBag },
-                ].map((area) => {
-                  const isSelected = selectedArea === area.id;
-                  const AreaIcon = area.Icon;
-                  return (
-                    <button
-                      key={area.id}
-                      type="button"
-                      onClick={() => {
-                        playTapSound();
-                        setSelectedArea(area.id);
-                      }}
-                      className={`px-3 py-1 rounded-full text-[11px] font-bold shrink-0 transition flex items-center gap-1.5 cursor-pointer border-0 ${
-                        isSelected
-                          ? "bg-[#D98A3C] text-white shadow-none"
-                          : "bg-[#F8F3EC] dark:bg-[#1A2232] text-[#4A3E31] dark:text-zinc-300 hover:bg-[#EFE7DC]"
-                      }`}
-                    >
-                      <AreaIcon className="w-3 h-3" />
-                      <span>{area.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Row 2: Table / Seat Dropdown Selector + Quick Walk-in Button + Name/Phone */}
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                <div className="sm:col-span-6 flex items-center gap-2">
-                  <div className="relative flex-1 min-w-0">
-                    <Utensils className="w-3.5 h-3.5 text-[#D98A3C] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <select
-                      value={
-                        selectedSeatingAreaId
-                          ? String(selectedSeatingAreaId)
-                          : customerName === (t.walkInCustomer || "Walk-in Guest")
-                          ? "walk-in"
-                          : seatingTables.find((t) => t.name === customerName)?.id
-                          ? String(seatingTables.find((t) => t.name === customerName)?.id)
-                          : "walk-in"
-                      }
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        playTapSound();
-                        if (val === "walk-in") {
-                          setCustomerName(t.walkInCustomer || "Walk-in Guest");
-                          setSelectedSeatingAreaId(null);
-                          setSelectedSeatingType("table");
-                        } else {
-                          const tableId = Number(val);
-                          const table = seatingTables.find((t) => t.id === tableId);
-                          if (table) {
-                            setCustomerName(table.name);
-                            setSelectedSeatingAreaId(table.id);
-                            setPeopleCount(table.capacity || 4);
-                            if (table.type === "takeaway") {
-                              setSelectedSeatingType("takeaway");
-                            } else {
-                              setSelectedSeatingType(table.capacity === 1 ? "seat" : "table");
-                            }
-                          }
-                        }
-                      }}
-                      className="w-full pl-9 pr-8 py-2 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full text-xs font-bold text-[#24180A] dark:text-white border-0 shadow-none focus:outline-none focus:ring-2 focus:ring-[#D98A3C] appearance-none cursor-pointer truncate"
-                    >
-                      <option value="walk-in" className="text-black dark:text-white bg-white dark:bg-[#121824]">
-                        {t.walkInCustomer || "Walk-in Guest"} (No Table Assigned)
-                      </option>
-                      {(selectedArea === "all"
-                        ? seatingTables
-                        : seatingTables.filter(
-                            (t) => (t.type || "indoor").toLowerCase() === selectedArea.toLowerCase()
-                          )
-                      ).map((table) => (
-                        <option
-                          key={table.id}
-                          value={table.id}
-                          className="text-black dark:text-white bg-white dark:bg-[#121824]"
-                        >
-                          {table.isOccupied ? "[Occupied]" : "[Available]"} {table.name} ({table.capacity || 4} Seats)
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-3.5 h-3.5 text-stone-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      playTapSound();
-                      setCustomerName(t.walkInCustomer || "Walk-in Guest");
-                      setSelectedSeatingAreaId(null);
-                      setSelectedSeatingType("table");
-                    }}
-                    className={`h-8 px-3 rounded-full text-xs font-bold transition flex items-center gap-1 shrink-0 border-0 cursor-pointer ${
-                      customerName === (t.walkInCustomer || "Walk-in Guest")
-                        ? "bg-[#D98A3C] text-white shadow-none"
-                        : "bg-[#F8F3EC] dark:bg-[#1A2232] text-[#4A3E31] dark:text-zinc-300 hover:bg-[#EFE7DC]"
-                    }`}
-                  >
-                    <User className="w-3 h-3" />
-                    <span>Walk-in</span>
-                  </button>
+            <div className="space-y-2.5">
+              {/* Row 1: Party Size Selector (Left) + Customer Portal-style Quick Presets (Right) */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {/* Party Size Quick Selector (1 to 6+) */}
+                <div className="flex items-center gap-1 bg-[#F8F3EC] dark:bg-[#1A2232] p-1 rounded-full shrink-0">
+                  <span className="text-[10px] font-bold text-[#786B5D] dark:text-zinc-400 px-1.5 flex items-center gap-1">
+                    {peopleCount === 1 ? <Armchair className="w-3 h-3 text-[#D98A3C]" /> : <Users className="w-3 h-3 text-[#D98A3C]" />}
+                    <span>{peopleCount === 1 ? (lang === "ur" ? "نشست (1)" : "1 Person") : `${peopleCount} ${lang === "ur" ? "افراد" : "Persons"}`}</span>
+                  </span>
+                  {[1, 2, 3, 4, 5, 6].map((num) => {
+                    const isSelected = peopleCount === num;
+                    return (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => {
+                          playTapSound();
+                          setPeopleCount(num);
+                          setSelectedSeatingType(num === 1 ? "seat" : "table");
+                        }}
+                        className={`w-6 h-6 rounded-full text-[10px] font-black transition cursor-pointer flex items-center justify-center border-0 ${
+                          isSelected
+                            ? "bg-[#D98A3C] text-white shadow-none font-black"
+                            : "text-[#4A3E31] dark:text-zinc-300 hover:text-[#24180A]"
+                        }`}
+                        title={num === 1 ? "1 Person (Single Seat)" : `${num} People (Table)`}
+                      >
+                        {num === 6 ? "6+" : num}
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* Dual Input: Name & Phone */}
-                <div className="sm:col-span-6 grid grid-cols-2 gap-2">
+                {/* Quick Presets (S-1, S-2, Counter / T-1, T-2, T-3, etc.) */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                  <span className="text-[11px] font-bold text-[#786B5D] dark:text-zinc-400 shrink-0 flex items-center gap-1">
+                    {peopleCount === 1 ? (
+                      <>
+                        <Armchair className="w-3 h-3 text-[#D98A3C]" />
+                        <span>{lang === "ur" ? "فوری نشست:" : "Quick Seat:"}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Utensils className="w-3 h-3 text-[#D98A3C]" />
+                        <span>{lang === "ur" ? "فوری میز:" : "Quick Table:"}</span>
+                      </>
+                    )}
+                  </span>
+                  {(peopleCount === 1
+                    ? ["S-1", "S-2", "S-3", "Counter"]
+                    : ["T-1", "T-2", "T-3", "T-4", "T-5", "Hall"]
+                  ).map((preset) => {
+                    const isMatchingTable =
+                      selectedTable &&
+                      (selectedTable.name.toLowerCase() === preset.toLowerCase() ||
+                        selectedTable.name.toLowerCase().replace(/table\s*/i, "t-") === preset.toLowerCase() ||
+                        selectedTable.name.toLowerCase().replace(/table\s*/i, "t") === preset.toLowerCase());
+                    const isMatchingCustom = customSeatNo.toLowerCase() === preset.toLowerCase();
+                    const isSelected = isMatchingTable || isMatchingCustom;
+
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          playTapSound();
+                          const matched = seatingTables.find(
+                            (t: any) =>
+                              t.name.toLowerCase() === preset.toLowerCase() ||
+                              t.name.toLowerCase().replace(/table\s*/i, "t-") === preset.toLowerCase() ||
+                              t.name.toLowerCase().replace(/table\s*/i, "t") === preset.toLowerCase() ||
+                              t.name.toLowerCase().includes(preset.toLowerCase())
+                          );
+                          if (matched) {
+                            setSelectedSeatingAreaId(matched.id);
+                            setCustomSeatNo(matched.name);
+                          } else {
+                            setSelectedSeatingAreaId(null);
+                            setCustomSeatNo(preset);
+                          }
+                        }}
+                        className={`text-xs font-bold px-3 py-1 rounded-full border-0 transition-all shrink-0 cursor-pointer ${
+                          isSelected
+                            ? "bg-[#D98A3C] text-white shadow-none font-black scale-[1.02]"
+                            : "bg-[#F8F3EC] dark:bg-[#1A2232] text-[#4A3E31] dark:text-zinc-300 hover:bg-[#EFE6DC] dark:hover:bg-[#222C40]"
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Row 2: Dropdown Table/Seat Selector + Optional Customer Name & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                {/* Table / Seat Dropdown */}
+                <div className="sm:col-span-5 relative min-w-0">
+                  {peopleCount === 1 ? (
+                    <Armchair className="w-3.5 h-3.5 text-[#D98A3C] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  ) : (
+                    <Utensils className="w-3.5 h-3.5 text-[#D98A3C] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  )}
+                  <select
+                    value={selectedSeatingAreaId ? String(selectedSeatingAreaId) : (customSeatNo ? "custom" : "walk-in")}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      playTapSound();
+                      if (val === "walk-in") {
+                        setSelectedSeatingAreaId(null);
+                        setCustomSeatNo("");
+                        setSelectedSeatingType(peopleCount === 1 ? "seat" : "table");
+                      } else if (val === "custom") {
+                        setSelectedSeatingAreaId(null);
+                      } else {
+                        const tableId = Number(val);
+                        const table = seatingTables.find((t) => t.id === tableId);
+                        if (table) {
+                          setSelectedSeatingAreaId(table.id);
+                          setCustomSeatNo(table.name);
+                          setPeopleCount(table.capacity || 4);
+                          setSelectedSeatingType(table.capacity === 1 ? "seat" : "table");
+                        }
+                      }
+                    }}
+                    className="w-full pl-9 pr-8 py-2 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full text-xs font-bold text-[#24180A] dark:text-white border-0 shadow-none focus:outline-none focus:ring-2 focus:ring-[#D98A3C] appearance-none cursor-pointer truncate"
+                  >
+                    {customSeatNo && !selectedTable && (
+                      <option value="custom" className="text-black dark:text-white bg-white dark:bg-[#121824]">
+                        {peopleCount === 1 ? `[Seat] ${customSeatNo}` : `[Table] ${customSeatNo}`}
+                      </option>
+                    )}
+                    <option value="walk-in" className="text-black dark:text-white bg-white dark:bg-[#121824]">
+                      {peopleCount === 1
+                        ? (lang === "ur" ? "عام واک اِن نشست (بغیر مخصوص نمبر)" : "Walk-in Seat (Counter / Solo)")
+                        : (lang === "ur" ? "عام واک اِن مہمان (بغیر مخصوص میز)" : "Walk-in Guest (No Table)")}
+                    </option>
+                    {seatingTables.map((table) => (
+                      <option
+                        key={table.id}
+                        value={table.id}
+                        className="text-black dark:text-white bg-white dark:bg-[#121824]"
+                      >
+                        {table.isOccupied ? "[Occupied] " : "[Available] "}{table.name} ({table.capacity || 4} Seats)
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-stone-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+
+                {/* Optional Customer Name & Phone */}
+                <div className="sm:col-span-7 grid grid-cols-2 gap-2">
                   <div className="relative">
                     <User className="w-3 h-3 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="Name / Table"
-                      className="w-full pl-8 pr-2 py-1.5 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full text-xs font-bold text-[#24180A] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#D98A3C] border-0"
+                      placeholder={lang === "ur" ? "کسٹمر کا نام (اختیاری)" : "Customer Name (Optional)"}
+                      className="w-full pl-8 pr-2 py-2 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full text-xs font-bold text-[#24180A] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#D98A3C] border-0"
                     />
                   </div>
                   <div className="relative">
@@ -573,8 +703,8 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
                       type="tel"
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="Phone #"
-                      className="w-full pl-8 pr-2 py-1.5 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full text-xs font-bold text-[#24180A] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#D98A3C] border-0"
+                      placeholder={lang === "ur" ? "فون نمبر (اختیاری)" : "Phone # (Optional)"}
+                      className="w-full pl-8 pr-2 py-2 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full text-xs font-bold text-[#24180A] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#D98A3C] border-0"
                     />
                   </div>
                 </div>
@@ -582,7 +712,200 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
             </div>
           )}
 
-          {/* Mode 2: Market Shopkeepers Khata */}
+          {/* Mode 2: Dedicated Parcel / Takeaway */}
+          {accountType === "parcel" && (
+            <div className="space-y-2.5">
+              {/* Sub-tabs header */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center bg-[#F8F3EC] dark:bg-[#1A2232] p-0.5 rounded-full text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playTapSound();
+                      setParcelSubTab("new");
+                    }}
+                    className={`px-3 py-1 rounded-full transition cursor-pointer flex items-center gap-1.5 ${
+                      parcelSubTab === "new"
+                        ? "bg-[#D98A3C] text-white shadow-none font-black"
+                        : "text-[#4A3E31] dark:text-zinc-300 hover:text-[#24180A]"
+                    }`}
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>{lang === "ur" ? "نیا پارسل آرڈر" : "New Parcel"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playTapSound();
+                      setParcelSubTab("list");
+                    }}
+                    className={`px-3 py-1 rounded-full transition cursor-pointer flex items-center gap-1.5 ${
+                      parcelSubTab === "list"
+                        ? "bg-[#D98A3C] text-white shadow-none font-black"
+                        : "text-[#4A3E31] dark:text-zinc-300 hover:text-[#24180A]"
+                    }`}
+                  >
+                    <ShoppingBag className="w-3 h-3" />
+                    <span>{lang === "ur" ? "تمام پارسل آرڈرز" : "All Parcels"}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      parcelSubTab === "list" ? "bg-white text-[#D98A3C]" : "bg-[#D98A3C] text-white"
+                    }`}>
+                      {activeTakeawayOrders.length}
+                    </span>
+                  </button>
+                </div>
+
+                <span className="text-[10px] text-[#786B5D] dark:text-zinc-400 font-semibold hidden sm:inline">
+                  {lang === "ur" ? "پارسل کاؤنٹر" : "Takeaway Counter"}
+                </span>
+              </div>
+
+              {/* Sub-tab 1: New Parcel Form */}
+              {parcelSubTab === "new" && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                    <div className="relative">
+                      <User className="w-3.5 h-3.5 text-[#D98A3C] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder={lang === "ur" ? "کسٹمر کا نام (اختیاری)" : "Customer Name (e.g. Aslam / Parcel)"}
+                        className="w-full pl-9 pr-3 py-2 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full text-xs font-bold text-[#24180A] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#D98A3C] border-0 placeholder:text-stone-400"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Phone className="w-3.5 h-3.5 text-[#D98A3C] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="tel"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        placeholder={lang === "ur" ? "کسٹمر فون نمبر (03xx-xxxxxxx)" : "Phone # (03xx-xxxxxxx)"}
+                        className="w-full pl-9 pr-3 py-2 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-full text-xs font-bold text-[#24180A] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#D98A3C] border-0 placeholder:text-stone-400"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick name presets */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+                    <span className="text-[10px] text-[#786B5D] dark:text-zinc-400 font-bold shrink-0">
+                      {lang === "ur" ? "کوئیک نام:" : "Quick Name:"}
+                    </span>
+                    {["Parcel 1", "Parcel 2", "Parcel 3", "Takeaway", "Family Packing"].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          playTapSound();
+                          setCustomerName(preset);
+                        }}
+                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border-0 transition cursor-pointer ${
+                          customerName === preset
+                            ? "bg-[#D98A3C] text-white shadow-none"
+                            : "bg-[#F8F3EC] dark:bg-[#1A2232] text-[#4A3E31] dark:text-zinc-300 hover:bg-[#EFE6DC]"
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-tab 2: All Active Parcels List */}
+              {parcelSubTab === "list" && (
+                <div className="space-y-2">
+                  {/* Status filters */}
+                  <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
+                    {["all", "pending", "preparing", "ready", "paid"].map((st) => {
+                      const isMatch = parcelStatusFilter === st;
+                      const count =
+                        st === "all"
+                          ? activeTakeawayOrders.length
+                          : activeTakeawayOrders.filter((o: any) => o.status === st).length;
+                      return (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => {
+                            playTapSound();
+                            setParcelStatusFilter(st);
+                          }}
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full border-0 transition cursor-pointer flex items-center gap-1 ${
+                            isMatch
+                              ? "bg-[#D98A3C] text-white shadow-none"
+                              : "bg-[#F8F3EC] dark:bg-[#1A2232] text-[#4A3E31] dark:text-zinc-300 hover:bg-[#EFE6DC]"
+                          }`}
+                        >
+                          <span className="capitalize">{st === "all" ? (lang === "ur" ? "تمام" : "All") : st}</span>
+                          {count > 0 && (
+                            <span className={`text-[9px] px-1 py-0.2 rounded-full font-black ${
+                              isMatch ? "bg-white text-[#D98A3C]" : "bg-[#D98A3C] text-white"
+                            }`}>
+                              {count}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Parcels List */}
+                  {activeTakeawayOrders.length === 0 ? (
+                    <div className="text-center py-3 bg-[#F8F3EC] dark:bg-[#1A2232] rounded-2xl text-xs text-[#786B5D] dark:text-zinc-400 font-medium">
+                      {lang === "ur" ? "ابھی کوئی پارسل آرڈر پائپ لائن میں نہیں ہے" : "No takeaway parcels in the pipeline"}
+                    </div>
+                  ) : (
+                    <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
+                      {(parcelStatusFilter === "all"
+                        ? activeTakeawayOrders
+                        : activeTakeawayOrders.filter((o: any) => o.status === parcelStatusFilter)
+                      ).map((ord: any) => (
+                        <div
+                          key={ord.id}
+                          className="bg-[#F8F3EC] dark:bg-[#1A2232] p-2 rounded-xl flex items-center justify-between gap-2 text-xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center font-black text-xs shrink-0">
+                              #{ord.id}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-bold text-[#24180A] dark:text-white truncate">
+                                {ord.customerName}
+                              </span>
+                              <span className="text-[10px] text-stone-400 font-mono">
+                                {fmtTime(ord.createdAt)} {ord.customerPhone ? `• ${ord.customerPhone}` : ""}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-black text-[#D98A3C] font-mono">
+                              Rs. {(ord.totalAmount ?? ord.total ?? 0).toLocaleString()}
+                            </span>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
+                              ord.status === "ready"
+                                ? "bg-green-100 text-green-700"
+                                : ord.status === "preparing"
+                                ? "bg-blue-100 text-blue-700"
+                                : ord.status === "paid"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}>
+                              {ord.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Mode 3: Market Shopkeepers Khata */}
           {accountType === "shopkeepers" && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -629,7 +952,7 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
                   title="Register New Shopkeeper"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>+ New</span>
+                  <span>New</span>
                 </button>
               </div>
 
@@ -981,8 +1304,8 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
               <h3 className="text-sm font-black text-[#24180A] dark:text-white leading-tight">
                 {accountType === "shopkeepers" ? "Market Khata Tab" : "Current Sale"}
               </h3>
-              <p className="text-[10px] text-[#786B5D] dark:text-zinc-400 font-bold">
-                {accountType === "shopkeepers" ? customerName : `Seating: ${customerName}`}
+              <p className="text-[10px] text-[#786B5D] dark:text-zinc-400 font-bold truncate max-w-[180px]">
+                {activeTargetLabel}
               </p>
             </div>
           </div>
@@ -1208,8 +1531,8 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
                 <h3 className="text-sm font-black text-[#24180A] dark:text-white leading-tight">
                   {accountType === "shopkeepers" ? "Market Khata Tab" : "Current Order Ticket"}
                 </h3>
-                <p className="text-[10px] text-[#786B5D] dark:text-zinc-400 font-bold">
-                  {accountType === "shopkeepers" ? customerName : `Seating: ${customerName}`}
+                <p className="text-[10px] text-[#786B5D] dark:text-zinc-400 font-bold truncate max-w-[200px]">
+                  {activeTargetLabel}
                 </p>
               </div>
             </div>
@@ -1407,7 +1730,7 @@ export function PosTerminalTab({ onOrderCreated }: PosTerminalTabProps) {
                     {t.confirmOrderTitle || "Confirm Order"}
                   </h3>
                   <p className="text-[11px] text-[#786B5D] dark:text-zinc-400 font-bold">
-                    Account: <strong className="text-[#D98A3C]">{customerName}</strong>
+                    Target: <strong className="text-[#D98A3C]">{activeTargetLabel}</strong>
                   </p>
                 </div>
               </div>

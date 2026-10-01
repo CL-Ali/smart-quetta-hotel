@@ -4,6 +4,15 @@
  */
 
 let audioCtx: AudioContext | null = null;
+let isSoundEnabled = true;
+
+export function setGlobalSoundEnabled(enabled: boolean) {
+  isSoundEnabled = enabled;
+}
+
+export function isGlobalSoundEnabled(): boolean {
+  return isSoundEnabled;
+}
 
 export function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -22,6 +31,7 @@ export function getAudioContext(): AudioContext | null {
 
 /** Pre-unlock audio context on user interaction to avoid browser autoplay restrictions */
 export function unlockAudio() {
+  if (!isSoundEnabled) return;
   const ctx = getAudioContext();
   if (ctx && ctx.state === "suspended") {
     ctx.resume().catch(() => {});
@@ -30,6 +40,7 @@ export function unlockAudio() {
 
 /** Crisp tactile tap sound for quick food selection & buttons */
 export function playTapSound() {
+  if (!isSoundEnabled) return;
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
@@ -58,6 +69,7 @@ export function playTapSound() {
 
 /** Upbeat melodic cart addition pop sound */
 export function playCartAddSound() {
+  if (!isSoundEnabled) return;
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
@@ -98,6 +110,7 @@ export function playCartAddSound() {
  * Plays a triumphant 4-note ascending chord arpeggio with warm harmonics and shimmering decay
  */
 export function playOrderSuccessSound() {
+  if (!isSoundEnabled) return;
   try {
     // Trigger tactile haptic vibration on mobile devices
     if (typeof navigator !== "undefined" && navigator.vibrate) {

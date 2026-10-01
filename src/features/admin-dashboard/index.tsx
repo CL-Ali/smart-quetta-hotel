@@ -4,13 +4,14 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
-import { useLang } from "@/contexts/LangContext";
+import { useLang, LANG_OPTIONS, Lang } from "@/contexts/LangContext";
 import { StaffHeaderBar } from "@/components/StaffHeaderBar";
 import { StaffBottomNav } from "@/components/StaffBottomNav";
 import { StaffDrawerSheet } from "@/components/StaffDrawerSheet";
 import { StaffAuthGuard } from "@/components/StaffAuthGuard";
-import { playTapSound, playOrderSuccessSound } from "@/lib/sound";
+import { playTapSound, playOrderSuccessSound, unlockAudio } from "@/lib/sound";
 import { ShiftSessionManager } from "./components/ShiftSessionManager";
+import { SettingsTab } from "./components/SettingsTab";
 import {
   Hotel,
   Users,
@@ -41,6 +42,7 @@ import {
   CheckSquare,
   Square,
   Settings,
+  Globe,
   Store,
   Split,
   Maximize2,
@@ -149,7 +151,7 @@ export function AdminDashboardView() {
   const { staff, clientIp, logout, permissions } = useAuth();
   const { t, lang } = useLang();
 
-  const [activeTab, setActiveTab] = useState<"accounts" | "staff" | "shift_session">(
+  const [activeTab, setActiveTab] = useState<"accounts" | "staff" | "shift_session" | "settings">(
     permissions?.canViewReports !== false ? "accounts" : "staff"
   );
 
@@ -199,6 +201,24 @@ export function AdminDashboardView() {
   const [showAssignCashiersModal, setShowAssignCashiersModal] = useState<string | null>(null);
   const [selectedCounterCashierIds, setSelectedCounterCashierIds] = useState<number[]>([]);
 
+  // State for Create / Edit Counter Modals
+  const [showAddCounterModal, setShowAddCounterModal] = useState(false);
+  const [newCounterName, setNewCounterName] = useState("");
+  const [newCounterCode, setNewCounterCode] = useState("");
+  const [newCounterDesc, setNewCounterDesc] = useState("");
+  const [editingCounter, setEditingCounter] = useState<{
+    id: number;
+    name: string;
+    code?: string | null;
+    description?: string | null;
+    isActive?: boolean;
+  } | null>(null);
+
+  // Language Control Modal State
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [selectedAllowedLangs, setSelectedAllowedLangs] = useState<string[]>([]);
+  const [selectedDefaultLang, setSelectedDefaultLang] = useState<string>("ur");
+
   // Queries
   const accountsQuery = trpc.admin.getAccountsOverview.useQuery(undefined, {
     refetchInterval: 10000,
@@ -206,7 +226,13 @@ export function AdminDashboardView() {
   const staffQuery = trpc.admin.listStaff.useQuery(undefined, {
     refetchInterval: 10000,
   });
+  const countersQuery = trpc.admin.listCounters.useQuery(undefined, {
+    refetchInterval: 10000,
+  });
   const departmentsQuery = trpc.hotel.getDepartments.useQuery();
+  const systemConfigQuery = trpc.hotel.getSystemConfig.useQuery(undefined, {
+    refetchInterval: 10000,
+  });
 
   // Mutations
   const updateConfigMut = trpc.admin.updateSystemConfig.useMutation();
@@ -214,6 +240,42 @@ export function AdminDashboardView() {
   const updateStaffMut = trpc.admin.updateStaff.useMutation();
   const deleteStaffMut = trpc.admin.deleteStaff.useMutation();
   const assignCounterCashiersMut = trpc.admin.assignCounterCashiers.useMutation();
+  const createCounterMut = trpc.admin.createCounter.useMutation();
+  const updateCounterMut = trpc.admin.updateCounter.useMutation();
+  const deleteCounterMut = trpc.admin.deleteCounter.useMutation();
+
+  const handleOpenLanguageModal = () => {
+    playTapSound();
+    const allowed = (systemConfigQuery.data?.allowedLanguages as string[]) || ["ur", "en", "ps", "bal", "brh", "sd", "pa", "fa"];
+    const def = (systemConfigQuery.data?.defaultLanguage as string) || "ur";
+    setSelectedAllowedLangs(allowed);
+    setSelectedDefaultLang(def);
+    setShowLanguageModal(true);
+  };
+
+  const handleSaveLanguages = async () => {
+    if (selectedAllowedLangs.length === 0) {
+      toast.error(lang === "ur" ? "کم از کم ایک زبان فعال ہونی چاہیے" : "At least one language must be enabled");
+      return;
+    }
+    try {
+      playTapSound();
+      await updateConfigMut.mutateAsync({
+        allowedLanguages: selectedAllowedLangs,
+        defaultLanguage: selectedDefaultLang,
+      });
+      playOrderSuccessSound();
+      toast.success(
+        lang === "ur"
+          ? "زبانوں کی سیٹنگز کامیابی سے محفوظ ہو گئیں!"
+          : "System language permissions saved successfully!"
+      );
+      setShowLanguageModal(false);
+      systemConfigQuery.refetch();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update language settings");
+    }
+  };
 
   const togglePasswordVisibility = (id: number) => {
     playTapSound();
@@ -280,6 +342,143 @@ export function AdminDashboardView() {
     }
   };
 
+  const soundEnabled = (accountsQuery.data as any)?.soundEnabled ?? (systemConfigQuery.data as any)?.soundEnabled ?? true;
+
+  const handleToggleSound = async () => {
+    const nextSound = !soundEnabled;
+    playTapSound();
+    try {
+      await updateConfigMut.mutateAsync({ soundEnabled: nextSound });
+      if (nextSound) {
+        unlockAudio();
+        playOrderSuccessSound();
+      }
+      toast.success(
+        nextSound
+          ? (lang === "ur" ? "تمام ڈیوائسز اور کسٹمرز کے لیے ساؤنڈ آن کر دی گئی ہے!" : "Global Sound Effects are now ENABLED across all devices!")
+          : (lang === "ur" ? "تمام ڈیوائسز اور کسٹمرز کے لیے ساؤنڈ بند کر دی گئی ہے!" : "Global Sound Effects are now MUTED across all devices!")
+      );
+      accountsQuery.refetch();
+      systemConfigQuery.refetch();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update sound setting");
+    }
+  };
+
+  const defaultPosAccess = (systemConfigQuery.data as any)?.defaultPosAccess !== false;
+
+  const getRoleDefaultPerms = (role: string) => {
+    const base = DEFAULT_ROLE_PERMS[role] || [];
+    if (role === "admin") return base;
+    if (!defaultPosAccess) {
+      return base.filter((p) => p !== "can_access_pos");
+    } else {
+      if (["cashier", "waiter"].includes(role) && !base.includes("can_access_pos")) {
+        return ["can_access_pos", ...base];
+      }
+      return base;
+    }
+  };
+
+  const handleToggleDefaultPosAccess = async () => {
+    const nextVal = !defaultPosAccess;
+    playTapSound();
+    try {
+      await updateConfigMut.mutateAsync({ defaultPosAccess: nextVal });
+      playOrderSuccessSound();
+      toast.success(
+        nextVal
+          ? (lang === "ur"
+            ? "نئے عملے کے لیے ڈیفالٹ POS رسائی آن کر دی گئی ہے!"
+            : "Default POS access enabled for newly registered staff!")
+          : (lang === "ur"
+            ? "نئے عملے کے لیے ڈیفالٹ POS رسائی بند کر دی گئی ہے!"
+            : "Default POS access disabled for newly registered staff!")
+      );
+      systemConfigQuery.refetch();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update default POS setting");
+    }
+  };
+
+  // Counter Management Handlers
+  const handleCreateCounter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCounterName.trim()) {
+      toast.error(lang === "ur" ? "کاؤنٹر کا نام درج کریں" : "Please enter a counter name");
+      return;
+    }
+    playTapSound();
+    try {
+      await createCounterMut.mutateAsync({
+        name: newCounterName.trim(),
+        code: newCounterCode.trim() || undefined,
+        description: newCounterDesc.trim() || undefined,
+      });
+      playOrderSuccessSound();
+      toast.success(
+        lang === "ur"
+          ? `نیا کاؤنٹر "${newCounterName}" کامیابی سے بنا دیا گیا!`
+          : `Counter "${newCounterName}" created successfully!`
+      );
+      setShowAddCounterModal(false);
+      setNewCounterName("");
+      setNewCounterCode("");
+      setNewCounterDesc("");
+      countersQuery.refetch();
+      accountsQuery.refetch();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to create counter");
+    }
+  };
+
+  const handleUpdateCounter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCounter || !editingCounter.name.trim()) return;
+    playTapSound();
+    try {
+      await updateCounterMut.mutateAsync({
+        id: editingCounter.id,
+        name: editingCounter.name.trim(),
+        code: editingCounter.code?.trim() || undefined,
+        description: editingCounter.description?.trim() || undefined,
+        isActive: editingCounter.isActive,
+      });
+      playOrderSuccessSound();
+      toast.success(
+        lang === "ur"
+          ? "کاؤنٹر کی ترتیبات تبدیل ہو گئیں!"
+          : "Counter updated successfully!"
+      );
+      setEditingCounter(null);
+      countersQuery.refetch();
+      accountsQuery.refetch();
+      staffQuery.refetch();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update counter");
+    }
+  };
+
+  const handleDeleteCounter = async (id: number, name: string) => {
+    if (!confirm(`Are you sure you want to delete counter "${name}"? Any staff attached to it will be detached.`)) return;
+    playTapSound();
+    try {
+      await deleteCounterMut.mutateAsync({ id });
+      playOrderSuccessSound();
+      toast.success(
+        lang === "ur"
+          ? `کاؤنٹر "${name}" ختم کر دیا گیا!`
+          : `Counter "${name}" deleted.`
+      );
+      countersQuery.refetch();
+      accountsQuery.refetch();
+      staffQuery.refetch();
+      if (selectedCounterTab === name) setSelectedCounterTab("all");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete counter");
+    }
+  };
+
   const allCashiers = (staffQuery.data || []).filter((s) => s.role === "cashier" || s.role === "admin");
 
   const handleOpenAddModal = () => {
@@ -291,14 +490,14 @@ export function AdminDashboardView() {
     setNewStation("Counter 1");
     setNewAssignedCashierIds([]);
     setNewAllowedIp("");
-    setNewPermissions(DEFAULT_ROLE_PERMS.cashier);
+    setNewPermissions(getRoleDefaultPerms("cashier"));
     setFormError("");
     setShowAddModal(true);
   };
 
   const handleRoleChangeForAdd = (role: "admin" | "cashier" | "waiter" | "kitchen") => {
     setNewRole(role);
-    setNewPermissions(DEFAULT_ROLE_PERMS[role] || []);
+    setNewPermissions(getRoleDefaultPerms(role));
     if (role === "cashier") setNewStation(`Counter ${allCashiers.length + 1}`);
     else if (role === "kitchen") setNewStation("Main Kitchen KDS");
     else if (role === "waiter") {
@@ -583,96 +782,35 @@ _Please open the Portal URL on your device to sign in._`;
                 <Layers className="w-3.5 h-3.5 relative z-10" />
                 <span className="relative z-10">{lang === "ur" ? "شفٹ و ڈے کلوز" : "Shift & Day Close"}</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  playTapSound();
+                  setActiveTab("settings");
+                }}
+                className={`relative px-3.5 h-8 text-xs font-extrabold rounded-full inline-flex items-center gap-1.5 transition-colors duration-200 select-none cursor-pointer border-0 ${
+                  activeTab === "settings"
+                    ? "text-white"
+                    : "text-stone-600 dark:text-stone-400 hover:text-[#24180A] dark:hover:text-white"
+                }`}
+              >
+                {activeTab === "settings" && (
+                  <motion.div
+                    layoutId="adminTabIndicator"
+                    className="absolute inset-0 bg-[#D98A3C] rounded-full shadow-xs -z-0"
+                    transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                  />
+                )}
+                <Settings className="w-3.5 h-3.5 relative z-10" />
+                <span className="relative z-10">{lang === "ur" ? "سیٹنگز" : "Settings"}</span>
+              </button>
             </div>
           }
         />
 
         {/* Main Workspace */}
         <main className="flex-1 p-3 sm:p-4 max-w-7xl w-full mx-auto space-y-4">
-          {/* Streamlined Operation Mode & System Settings Floating Bar */}
-          <div className="bg-white dark:bg-[#121824] rounded-[24px] sm:rounded-[26px] p-3.5 sm:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs border-0 shadow-none">
-            {/* Left: Operation Mode */}
-            <div className="flex items-center justify-between md:justify-start gap-2.5 min-w-0">
-              <span className="font-bold text-stone-500 dark:text-stone-400">
-                {lang === "ur" ? "موڈ:" : "Mode:"}
-              </span>
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold ${
-                  operationMode === "segregated"
-                    ? "bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300"
-                    : "bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300"
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full animate-pulse ${
-                    operationMode === "segregated" ? "bg-purple-600" : "bg-[#D98A3C]"
-                  }`}
-                />
-                <span>
-                  {operationMode === "segregated"
-                    ? (lang === "ur" ? "الگ کاؤنٹر سسٹم" : "Counter-Segregated Pods")
-                    : (lang === "ur" ? "مشترکہ رجسٹر سسٹم" : "Unified Shared Register")}
-                </span>
-              </span>
-              <button
-                type="button"
-                onClick={handleToggleMode}
-                disabled={updateConfigMut.isPending}
-                className="px-3.5 py-1.5 bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-amber-100 dark:hover:bg-stone-800 active:scale-[0.98] transition text-stone-800 dark:text-stone-200 text-xs font-bold rounded-full flex items-center gap-1.5 cursor-pointer shrink-0 ml-auto md:ml-0"
-              >
-                <Settings className="w-3.5 h-3.5 text-[#D98A3C]" />
-                <span>
-                  {operationMode === "segregated"
-                    ? (lang === "ur" ? "مشترکہ موڈ منتخب کریں" : "Switch to Unified")
-                    : (lang === "ur" ? "الگ کاؤنٹر موڈ منتخب کریں" : "Switch to Pods")}
-                </span>
-              </button>
-            </div>
-
-            {/* Right: Customer Live Queue Visibility Toggle */}
-            <div className="flex items-center justify-between md:justify-end gap-2.5 min-w-0 pt-2.5 md:pt-0 border-t md:border-t-0 border-stone-100 dark:border-zinc-800/80">
-              <span className="font-bold text-stone-500 dark:text-stone-400">
-                {lang === "ur" ? "گاہک کی قطار:" : "Customer Queue:"}
-              </span>
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold ${
-                  showCustomerQueue
-                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300"
-                    : "bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400"
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    showCustomerQueue ? "bg-emerald-500 animate-pulse" : "bg-stone-400"
-                  }`}
-                />
-                <span>
-                  {showCustomerQueue
-                    ? (lang === "ur" ? "قطار فعال ہے" : "Queue Visible")
-                    : (lang === "ur" ? "قطار غیر فعال ہے" : "Queue Hidden")}
-                </span>
-              </span>
-              <button
-                type="button"
-                onClick={handleToggleCustomerQueue}
-                disabled={updateConfigMut.isPending}
-                className="px-3.5 py-1.5 bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-stone-800 active:scale-[0.98] transition text-stone-800 dark:text-stone-200 text-xs font-bold rounded-full flex items-center gap-1.5 cursor-pointer shrink-0 ml-auto md:ml-0"
-              >
-                {showCustomerQueue ? (
-                  <>
-                    <EyeOff className="w-3.5 h-3.5 text-stone-500" />
-                    <span>{lang === "ur" ? "قطار چھپائیں" : "Hide Queue"}</span>
-                  </>
-                ) : (
-                  <>
-                    <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>{lang === "ur" ? "قطار دکھائیں" : "Show Queue"}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
           {/* TAB 1: TOTAL ACCOUNTS & COUNTER SUB-TABS */}
           {activeTab === "accounts" && (
             <div className="space-y-4">
@@ -815,66 +953,119 @@ _Please open the Portal URL on your device to sign in._`;
 
                   {/* Counter Stations Summary Cards Grid */}
                   <div className="bg-white dark:bg-[#121824] rounded-[26px] p-5 sm:p-6 border-0 shadow-none space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-black text-[#24180A] dark:text-white uppercase tracking-wider flex items-center gap-2">
-                        <Store className="w-4 h-4 text-[#D98A3C]" />
-                        <span>Counter Stations Summary</span>
-                      </h3>
-                      <span className="text-[11px] text-stone-500 dark:text-stone-400 font-bold">
-                        {countersBreakdown.length} Active Stations
-                      </span>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-xs font-black text-[#24180A] dark:text-white uppercase tracking-wider flex items-center gap-2">
+                          <Store className="w-4 h-4 text-[#D98A3C]" />
+                          <span>{lang === "ur" ? "کاؤنٹر اسٹیشنز و پوائنٹ آف سیلز" : "Counter Stations & POS Pods"}</span>
+                        </h3>
+                        <p className="text-[11px] text-stone-500 dark:text-stone-400 font-medium mt-0.5">
+                          {countersBreakdown.length} {lang === "ur" ? "فعال کاؤنٹرز موجود ہیں" : "Active Stations"}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playTapSound();
+                          setNewCounterName("");
+                          setNewCounterCode("");
+                          setNewCounterDesc("");
+                          setShowAddCounterModal(true);
+                        }}
+                        className="px-4 py-2 rounded-full text-xs font-black bg-[#D98A3C] hover:bg-[#C27930] active:scale-95 text-white transition flex items-center gap-1.5 cursor-pointer border-0 shadow-none self-start sm:self-auto"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>{lang === "ur" ? "نیا کاؤنٹر بنائیں" : "Add Counter"}</span>
+                      </button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {countersBreakdown.map((cnt) => (
-                        <div
-                          key={cnt.counterName}
-                          onClick={() => {
-                            playTapSound();
-                            setSelectedCounterTab(cnt.counterName);
-                          }}
-                          className="bg-[#F8F3EC] dark:bg-[#182030] hover:bg-[#F4EFEA] dark:hover:bg-[#1E283C] rounded-[22px] p-4 transition cursor-pointer flex flex-col justify-between space-y-3 border-0 shadow-none"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h4 className="text-xs font-black text-[#24180A] dark:text-white flex items-center gap-1.5">
-                                <span>{cnt.counterName}</span>
-                              </h4>
-                              <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
-                                {cnt.cashiers.length > 0
-                                  ? `Cashier: ${cnt.cashiers.map((c) => c.name).join(", ")}`
-                                  : "No dedicated cashier"}
-                              </p>
-                            </div>
-                            <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[9px] font-extrabold px-2 py-0.5 rounded-full">
-                              Active
-                            </span>
-                          </div>
+                      {countersBreakdown.map((cnt) => {
+                        const dbCounter = countersQuery.data?.find((c) => c.name === cnt.counterName);
+                        return (
+                          <div
+                            key={cnt.counterName}
+                            onClick={() => {
+                              playTapSound();
+                              setSelectedCounterTab(cnt.counterName);
+                            }}
+                            className="bg-[#F8F3EC] dark:bg-[#182030] hover:bg-[#F4EFEA] dark:hover:bg-[#1E283C] rounded-[22px] p-4 transition cursor-pointer flex flex-col justify-between space-y-3 border-0 shadow-none relative group"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="min-w-0 flex-1 mr-2">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <h4 className="text-xs font-black text-[#24180A] dark:text-white truncate">
+                                    {cnt.counterName}
+                                  </h4>
+                                  {dbCounter?.code && (
+                                    <span className="text-[9px] font-mono font-black px-1.5 py-0.2 rounded bg-amber-500/15 text-[#D98A3C]">
+                                      {dbCounter.code}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 truncate">
+                                  {cnt.cashiers.length > 0
+                                    ? `Cashier: ${cnt.cashiers.map((c) => c.name).join(", ")}`
+                                    : "No dedicated cashier"}
+                                </p>
+                              </div>
 
-                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-stone-200/40 dark:border-stone-700/40 text-xs">
-                            <div>
-                              <span className="text-[10px] text-stone-400 block font-semibold">Today</span>
-                              <span className="font-mono font-black text-[#D98A3C] text-sm">
-                                Rs. {cnt.todayRevenue.toLocaleString()}
+                              <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                {dbCounter && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        playTapSound();
+                                        setEditingCounter(dbCounter);
+                                      }}
+                                      className="p-1 rounded-lg text-stone-400 hover:text-[#D98A3C] hover:bg-white dark:hover:bg-[#121824] transition cursor-pointer border-0"
+                                      title="Edit Counter"
+                                    >
+                                      <Edit2 className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteCounter(dbCounter.id, dbCounter.name)}
+                                      className="p-1 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer border-0"
+                                      title="Delete Counter"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </>
+                                )}
+                                <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[9px] font-extrabold px-2 py-0.5 rounded-full">
+                                  Active
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-stone-200/40 dark:border-stone-700/40 text-xs">
+                              <div>
+                                <span className="text-[10px] text-stone-400 block font-semibold">Today</span>
+                                <span className="font-mono font-black text-[#D98A3C] text-sm">
+                                  Rs. {cnt.todayRevenue.toLocaleString()}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-stone-400 block font-semibold">Orders</span>
+                                <span className="font-mono font-black text-[#24180A] dark:text-white text-sm">
+                                  {cnt.activeOrdersCount}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between text-[11px] text-stone-500 dark:text-stone-400 pt-2 border-t border-stone-200/40 dark:border-stone-700/40">
+                              <span>Waiters: {cnt.waiters.length}</span>
+                              <span className="text-[#D98A3C] font-bold flex items-center gap-1">
+                                <span>Details & Staff</span>
+                                <ArrowRight className="w-3 h-3" />
                               </span>
                             </div>
-                            <div>
-                              <span className="text-[10px] text-stone-400 block font-semibold">Orders</span>
-                              <span className="font-mono font-black text-[#24180A] dark:text-white text-sm">
-                                {cnt.activeOrdersCount}
-                              </span>
-                            </div>
                           </div>
-
-                          <div className="flex items-center justify-between text-[11px] text-stone-500 dark:text-stone-400 pt-2 border-t border-stone-200/40 dark:border-stone-700/40">
-                            <span>Waiters: {cnt.waiters.length}</span>
-                            <span className="text-[#D98A3C] font-bold flex items-center gap-1">
-                              <span>Details</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -947,8 +1138,75 @@ _Please open the Portal URL on your device to sign in._`;
               ) : (
                 /* VIEW 1B: SPECIFIC COUNTER BREAKDOWN */
                 <div className="space-y-4">
-                  {selectedCounterData && (
+                  {selectedCounterData && (() => {
+                    const activeDbCounter = countersQuery.data?.find((c) => c.name === selectedCounterData.counterName);
+                    return (
                     <>
+                      {/* Counter Station Details & Actions Bar */}
+                      <div className="bg-white dark:bg-[#121824] rounded-[26px] p-5 sm:p-6 border-0 shadow-none flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-2xl bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center font-black shrink-0">
+                            <Store className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-base font-black text-[#24180A] dark:text-white">
+                                {selectedCounterData.counterName}
+                              </h3>
+                              {activeDbCounter?.code && (
+                                <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded-full bg-amber-500/15 text-[#D98A3C]">
+                                  {activeDbCounter.code}
+                                </span>
+                              )}
+                              <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
+                                Active Station
+                              </span>
+                            </div>
+                            <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                              {activeDbCounter?.description || (lang === "ur" ? "مخصوص پوائنٹ آف سیل کاؤنٹر" : "Dedicated POS & Billing Counter Pod")}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+                          {activeDbCounter && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  playTapSound();
+                                  setEditingCounter(activeDbCounter);
+                                }}
+                                className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#F8F3EC] dark:bg-[#1A2234] hover:bg-[#EFE6DC] text-stone-800 dark:text-stone-200 transition flex items-center gap-1.5 cursor-pointer border-0"
+                              >
+                                <Edit2 className="w-3.5 h-3.5 text-[#D98A3C]" />
+                                <span>{lang === "ur" ? "کاؤنٹر ایڈٹ کریں" : "Edit Counter"}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCounter(activeDbCounter.id, activeDbCounter.name)}
+                                className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-red-50 dark:bg-red-950/40 hover:bg-red-100 text-red-600 dark:text-red-300 transition flex items-center gap-1.5 cursor-pointer border-0"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>{lang === "ur" ? "ڈیلیٹ کریں" : "Delete"}</span>
+                              </button>
+                            </>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              playTapSound();
+                              setSelectedCounterTab("all");
+                            }}
+                            className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300 transition flex items-center gap-1.5 cursor-pointer border-0"
+                          >
+                            <span>{lang === "ur" ? "← تمام کاؤنٹرز" : "← All Counters"}</span>
+                          </button>
+                        </div>
+                      </div>
+
                       {/* Counter Specific Financial Floating Cards */}
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         <div className="bg-white dark:bg-[#121824] rounded-[26px] p-5 sm:p-6 border-0 shadow-none">
@@ -1090,7 +1348,8 @@ _Please open the Portal URL on your device to sign in._`;
                         </div>
                       </div>
                     </>
-                  )}
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -1099,30 +1358,6 @@ _Please open the Portal URL on your device to sign in._`;
           {/* TAB 2: STAFF & DEVICE TERMINAL MANAGEMENT */}
           {activeTab === "staff" && (
             <div className="space-y-4">
-              {/* Header Action Row */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-[#121824] p-5 rounded-[26px] border-0 shadow-none">
-                <div>
-                  <h3 className="text-sm font-black text-[#24180A] dark:text-white flex items-center gap-2">
-                    <Users className="w-4 h-4 text-[#D98A3C]" />
-                    <span>{lang === "ur" ? "عملہ اکاؤنٹس و ملٹی ٹرمینل کنٹرول" : "Staff Accounts & Multi-Terminal Control"}</span>
-                  </h3>
-                  <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
-                    {lang === "ur"
-                      ? "کیشیئرز، فلور ویٹرز، ٹرمینل آئی پی لاک اور اختیارات کا انتظام کریں۔"
-                      : "Manage multi-cashiers, link floor waiters, lock terminal IPs, and configure staff permissions."}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleOpenAddModal}
-                  className="px-5 py-2.5 bg-[#D98A3C] hover:bg-[#c27931] active:scale-[0.98] transition text-white font-bold text-xs rounded-full flex items-center justify-center gap-2 cursor-pointer shrink-0"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>{t.addStaff || (lang === "ur" ? "+ نیا عملہ شامل کریں" : "Add Staff Account")}</span>
-                </button>
-              </div>
-
               {/* Role Category Filter Chips */}
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -1575,22 +1810,23 @@ _Please open the Portal URL on your device to sign in._`;
                         required
                       />
                       <div className="flex flex-wrap gap-1.5 mt-2">
-                        {["Counter 1", "Counter 2", "Counter 3", "Takeaway Desk"].map(
-                          (preset) => (
-                            <button
-                              key={preset}
-                              type="button"
-                              onClick={() => setNewStation(preset)}
-                              className={`text-[10px] px-3 py-1 rounded-full transition font-bold cursor-pointer border-0 ${
-                                newStation === preset
-                                  ? "bg-amber-100 dark:bg-amber-950/60 text-[#D98A3C]"
-                                  : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:bg-stone-200/60"
-                              }`}
-                            >
-                              {preset}
-                            </button>
-                          )
-                        )}
+                        {((countersQuery.data && countersQuery.data.length > 0)
+                          ? countersQuery.data.map((c) => c.name)
+                          : ["Counter 1", "Counter 2", "Takeaway Desk"]
+                        ).map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setNewStation(preset)}
+                            className={`text-[10px] px-3 py-1 rounded-full transition font-bold cursor-pointer border-0 ${
+                              newStation === preset
+                                ? "bg-amber-100 dark:bg-amber-950/60 text-[#D98A3C]"
+                                : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:bg-stone-200/60"
+                            }`}
+                          >
+                            {preset}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   ) : newRole === "kitchen" ? (
@@ -1724,8 +1960,8 @@ _Please open the Portal URL on your device to sign in._`;
                         )}
                         <p className="text-[10px] text-stone-500 dark:text-stone-400 mt-1.5">
                           {newAssignedCashierIds.length === 0
-                            ? "✨ Roaming Mode: Kitchen displays incoming tickets from all active counters."
-                            : `⚡ Restricted Mode: Kitchen receives tickets from ${newAssignedCashierIds.length} selected counter(s).`}
+                            ? "Roaming Mode: Kitchen displays incoming tickets from all active counters."
+                            : `Restricted Mode: Kitchen receives tickets from ${newAssignedCashierIds.length} selected counter(s).`}
                         </p>
                       </div>
                     </div>
@@ -1834,8 +2070,8 @@ _Please open the Portal URL on your device to sign in._`;
                       )}
                       <p className="text-[10px] text-stone-500 dark:text-stone-400 mt-1.5">
                         {newAssignedCashierIds.length === 0
-                          ? "✨ Roaming Mode: Waiter can deliver orders from all counters."
-                          : `⚡ Restricted Mode: Waiter delivers orders for ${newAssignedCashierIds.length} selected counter(s).`}
+                          ? "Roaming Mode: Waiter can deliver orders from all counters."
+                          : `Restricted Mode: Waiter delivers orders for ${newAssignedCashierIds.length} selected counter(s).`}
                       </p>
                     </div>
                   )}
@@ -1869,7 +2105,7 @@ _Please open the Portal URL on your device to sign in._`;
                       </button>
                       <button
                         type="button"
-                        onClick={() => setNewPermissions(DEFAULT_ROLE_PERMS[newRole] || [])}
+                        onClick={() => setNewPermissions(getRoleDefaultPerms(newRole))}
                         className="text-[10px] px-2.5 py-1 rounded-full bg-[#D98A3C]/15 text-[#D98A3C] hover:bg-[#D98A3C]/25 font-bold cursor-pointer border-0 transition"
                       >
                         Reset Preset
@@ -2111,22 +2347,23 @@ _Please open the Portal URL on your device to sign in._`;
                         required
                       />
                       <div className="flex flex-wrap gap-1.5 mt-2">
-                        {["Counter 1", "Counter 2", "Counter 3", "Takeaway Desk"].map(
-                          (preset) => (
-                            <button
-                              key={preset}
-                              type="button"
-                              onClick={() => setEditStation(preset)}
-                              className={`text-[10px] px-3 py-1 rounded-full transition font-bold cursor-pointer border-0 ${
-                                editStation === preset
-                                  ? "bg-amber-100 dark:bg-amber-950/60 text-[#D98A3C]"
-                                  : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:bg-stone-200/60"
-                              }`}
-                            >
-                              {preset}
-                            </button>
-                          )
-                        )}
+                        {((countersQuery.data && countersQuery.data.length > 0)
+                          ? countersQuery.data.map((c) => c.name)
+                          : ["Counter 1", "Counter 2", "Takeaway Desk"]
+                        ).map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setEditStation(preset)}
+                            className={`text-[10px] px-3 py-1 rounded-full transition font-bold cursor-pointer border-0 ${
+                              editStation === preset
+                                ? "bg-amber-100 dark:bg-amber-950/60 text-[#D98A3C]"
+                                : "bg-white dark:bg-[#121824] text-stone-600 dark:text-stone-300 hover:bg-stone-200/60"
+                            }`}
+                          >
+                            {preset}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   ) : editRole === "kitchen" ? (
@@ -2260,8 +2497,8 @@ _Please open the Portal URL on your device to sign in._`;
                         )}
                         <p className="text-[10px] text-stone-500 dark:text-stone-400 mt-1.5">
                           {editAssignedCashierIds.length === 0
-                            ? "✨ Roaming Mode: Kitchen displays incoming tickets from all active counters."
-                            : `⚡ Restricted Mode: Kitchen receives tickets from ${editAssignedCashierIds.length} selected counter(s).`}
+                            ? "Roaming Mode: Kitchen displays incoming tickets from all active counters."
+                            : `Restricted Mode: Kitchen receives tickets from ${editAssignedCashierIds.length} selected counter(s).`}
                         </p>
                       </div>
                     </div>
@@ -2370,8 +2607,8 @@ _Please open the Portal URL on your device to sign in._`;
                       )}
                       <p className="text-[10px] text-stone-500 dark:text-stone-400 mt-1.5">
                         {editAssignedCashierIds.length === 0
-                          ? "✨ Roaming Mode: Waiter can deliver orders from all counters."
-                          : `⚡ Restricted Mode: Waiter delivers orders for ${editAssignedCashierIds.length} selected counter(s).`}
+                          ? "Roaming Mode: Waiter can deliver orders from all counters."
+                          : `Restricted Mode: Waiter delivers orders for ${editAssignedCashierIds.length} selected counter(s).`}
                       </p>
                     </div>
                   )}
@@ -2757,8 +2994,471 @@ _Please open the Portal URL on your device to sign in._`;
             </div>
           </div>
         )}
+
+        {/* MODAL: ADD COUNTER */}
+        {showAddCounterModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in-0 duration-150">
+            <div className="bg-white dark:bg-[#121824] rounded-[28px] max-w-md w-full p-5 sm:p-6 space-y-4 border-0 shadow-2xl relative text-[#24180A] dark:text-white">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-stone-100 dark:border-zinc-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center font-bold">
+                    <Store className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-[#24180A] dark:text-white">
+                      {lang === "ur" ? "نیا کاؤنٹر بنائیں" : "Create New Counter Station"}
+                    </h3>
+                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                      {lang === "ur" ? "پوائنٹ آف سیل (POS) کیش کاؤنٹر شامل کریں" : "Register a new POS terminal pod for cashiers"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddCounterModal(false)}
+                  className="p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-zinc-800 text-stone-400 cursor-pointer border-0"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleCreateCounter} className="space-y-3.5">
+                <div>
+                  <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                    {lang === "ur" ? "کاؤنٹر کا نام *" : "Counter Name *"}
+                  </label>
+                  <input
+                    type="text"
+                    value={newCounterName}
+                    onChange={(e) => setNewCounterName(e.target.value)}
+                    placeholder="e.g. Counter 3, Express Takeaway, Rooftop Counter"
+                    className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-bold"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                      {lang === "ur" ? "مختصر کوڈ (Code)" : "Station Code"}
+                    </label>
+                    <input
+                      type="text"
+                      value={newCounterCode}
+                      onChange={(e) => setNewCounterCode(e.target.value)}
+                      placeholder="e.g. C3, RT1"
+                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono uppercase"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                      {lang === "ur" ? "اسٹیٹس" : "Status"}
+                    </label>
+                    <div className="h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 flex items-center gap-2 text-xs font-bold text-emerald-600">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>{lang === "ur" ? "فعال (Active)" : "Active on Create"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                    {lang === "ur" ? "تفصیل و مقام" : "Description / Location"}
+                  </label>
+                  <input
+                    type="text"
+                    value={newCounterDesc}
+                    onChange={(e) => setNewCounterDesc(e.target.value)}
+                    placeholder="e.g. Second Floor Hall, Main Cash Desk"
+                    className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCounterModal(false)}
+                    className="px-4 py-2.5 rounded-full text-xs font-bold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer border-0"
+                  >
+                    {lang === "ur" ? "منسوخ" : "Cancel"}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={createCounterMut.isPending}
+                    className="px-5 py-2.5 rounded-full text-xs font-black bg-[#D98A3C] hover:bg-[#C27930] active:scale-95 text-white transition cursor-pointer flex items-center gap-1.5 border-0 disabled:opacity-50"
+                  >
+                    {createCounterMut.isPending ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5" />
+                    )}
+                    <span>{lang === "ur" ? "کاؤنٹر بنائیں" : "Create Counter"}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: EDIT COUNTER */}
+        {editingCounter && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in-0 duration-150">
+            <div className="bg-white dark:bg-[#121824] rounded-[28px] max-w-md w-full p-5 sm:p-6 space-y-4 border-0 shadow-2xl relative text-[#24180A] dark:text-white">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-stone-100 dark:border-zinc-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center font-bold">
+                    <Edit2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-[#24180A] dark:text-white">
+                      {lang === "ur" ? "کاؤنٹر ایڈٹ کریں" : "Edit Counter Station"}
+                    </h3>
+                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                      {lang === "ur" ? "کاؤنٹر کا نام، کوڈ یا فعال حیثیت تبدیل کریں" : "Update counter details or rename station"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingCounter(null)}
+                  className="p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-zinc-800 text-stone-400 cursor-pointer border-0"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleUpdateCounter} className="space-y-3.5">
+                <div>
+                  <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                    {lang === "ur" ? "کاؤنٹر کا نام *" : "Counter Name *"}
+                  </label>
+                  <input
+                    type="text"
+                    value={editingCounter.name}
+                    onChange={(e) =>
+                      setEditingCounter({ ...editingCounter, name: e.target.value })
+                    }
+                    placeholder="e.g. Counter 1, Takeaway Desk"
+                    className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-bold"
+                    required
+                  />
+                  <p className="text-[10px] text-stone-400 mt-1">
+                    {lang === "ur"
+                      ? "نام تبدیل کرنے پر عملہ اور آرڈرز خودکار طریقے سے اپڈیٹ ہو جائیں گے"
+                      : "Renaming will automatically update staff station mappings"}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                      {lang === "ur" ? "مختصر کوڈ" : "Station Code"}
+                    </label>
+                    <input
+                      type="text"
+                      value={editingCounter.code || ""}
+                      onChange={(e) =>
+                        setEditingCounter({ ...editingCounter, code: e.target.value })
+                      }
+                      placeholder="e.g. C1"
+                      className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0 font-mono uppercase"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                      {lang === "ur" ? "فعال حیثیت" : "Station Status"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditingCounter({
+                          ...editingCounter,
+                          isActive: editingCounter.isActive !== false ? false : true,
+                        })
+                      }
+                      className={`w-full h-11 rounded-2xl px-3.5 flex items-center justify-between text-xs font-bold cursor-pointer transition border-0 ${
+                        editingCounter.isActive !== false
+                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
+                          : "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300"
+                      }`}
+                    >
+                      <span>
+                        {editingCounter.isActive !== false
+                          ? (lang === "ur" ? "فعال (Active)" : "Active")
+                          : (lang === "ur" ? "غیر فعال (Disabled)" : "Disabled")}
+                      </span>
+                      {editingCounter.isActive !== false ? (
+                        <Check className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <X className="w-4 h-4 text-red-600" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-stone-600 dark:text-stone-300 block mb-1">
+                    {lang === "ur" ? "تفصیل و لوکیشن" : "Description / Location"}
+                  </label>
+                  <input
+                    type="text"
+                    value={editingCounter.description || ""}
+                    onChange={(e) =>
+                      setEditingCounter({ ...editingCounter, description: e.target.value })
+                    }
+                    placeholder="e.g. Front Gate Register"
+                    className="w-full h-11 bg-[#F8F3EC] dark:bg-[#182030] rounded-2xl px-3.5 text-sm text-[#24180A] dark:text-white focus:ring-2 focus:ring-amber-500/30 outline-none border-0"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-between gap-2 border-t border-stone-100 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteCounter(editingCounter.id, editingCounter.name)}
+                    className="px-3.5 py-2 rounded-full text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer border-0 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{lang === "ur" ? "ڈیلیٹ کاؤنٹر" : "Delete"}</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingCounter(null)}
+                      className="px-4 py-2 rounded-full text-xs font-bold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer border-0"
+                    >
+                      {lang === "ur" ? "منسوخ" : "Cancel"}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={updateCounterMut.isPending}
+                      className="px-5 py-2 rounded-full text-xs font-black bg-[#D98A3C] hover:bg-[#C27930] active:scale-95 text-white transition cursor-pointer flex items-center gap-1.5 border-0 disabled:opacity-50"
+                    >
+                      {updateCounterMut.isPending ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Check className="w-3.5 h-3.5" />
+                      )}
+                      <span>{lang === "ur" ? "تبدیلی محفوظ کریں" : "Save Changes"}</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* System Language Management Modal */}
+        {showLanguageModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in-0 duration-150">
+            <div className="bg-white dark:bg-[#121824] rounded-[28px] max-w-xl w-full p-5 sm:p-6 space-y-4 border-0 shadow-2xl relative">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-stone-100 dark:border-zinc-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-[#D98A3C]/15 text-[#D98A3C] flex items-center justify-center font-bold">
+                    <Globe className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-[#24180A] dark:text-white">
+                      {lang === "ur" ? "سسٹم کی زبانوں کا انتظام" : "System Language Permissions"}
+                    </h3>
+                    <p className="text-xs text-[#786B5D] dark:text-zinc-400">
+                      {lang === "ur"
+                        ? "یہاں سے طے کریں کہ کسٹمر اور کیشیر کو کون سی زبانیں دستیاب ہوں گی"
+                        : "Choose which languages are allowed across the entire system header"}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowLanguageModal(false)}
+                  className="p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-zinc-800 text-stone-400 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                <span className="text-xs font-bold text-stone-500 dark:text-stone-400 shrink-0">
+                  {lang === "ur" ? "کوئیک سیٹ:" : "Quick Presets:"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    setSelectedAllowedLangs(["ur", "en", "ps", "bal", "brh", "sd", "pa", "fa"]);
+                  }}
+                  className="px-2.5 py-1 text-xs font-bold rounded-full bg-[#F8F3EC] dark:bg-[#1A2232] text-stone-700 dark:text-stone-200 hover:bg-[#EFE6DC] cursor-pointer"
+                >
+                  {lang === "ur" ? "تمام زبانیں (8)" : "Allow All (8)"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    setSelectedAllowedLangs(["ur", "en"]);
+                    if (!["ur", "en"].includes(selectedDefaultLang)) setSelectedDefaultLang("ur");
+                  }}
+                  className="px-2.5 py-1 text-xs font-bold rounded-full bg-[#F8F3EC] dark:bg-[#1A2232] text-stone-700 dark:text-stone-200 hover:bg-[#EFE6DC] cursor-pointer"
+                >
+                  {lang === "ur" ? "صرف اردو و انگریزی" : "Urdu & English Only"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    setSelectedAllowedLangs(["ur"]);
+                    setSelectedDefaultLang("ur");
+                  }}
+                  className="px-2.5 py-1 text-xs font-bold rounded-full bg-[#F8F3EC] dark:bg-[#1A2232] text-stone-700 dark:text-stone-200 hover:bg-[#EFE6DC] cursor-pointer"
+                >
+                  {lang === "ur" ? "صرف اردو (Urdu Only)" : "Urdu Only"}
+                </button>
+              </div>
+
+              {/* Languages List */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+                {LANG_OPTIONS.map((opt) => {
+                  const isAllowed = selectedAllowedLangs.includes(opt.value);
+                  const isDefault = selectedDefaultLang === opt.value;
+
+                  return (
+                    <div
+                      key={opt.value}
+                      onClick={() => {
+                        playTapSound();
+                        if (isAllowed) {
+                          if (selectedAllowedLangs.length <= 1) {
+                            toast.error(lang === "ur" ? "کم از کم ایک زبان فعال ہونی چاہیے" : "At least one language must remain allowed");
+                            return;
+                          }
+                          const next = selectedAllowedLangs.filter((l) => l !== opt.value);
+                          setSelectedAllowedLangs(next);
+                          if (isDefault) {
+                            setSelectedDefaultLang(next[0] || "ur");
+                          }
+                        } else {
+                          setSelectedAllowedLangs([...selectedAllowedLangs, opt.value]);
+                        }
+                      }}
+                      className={`p-3 rounded-2xl flex items-center justify-between gap-2 border transition cursor-pointer ${
+                        isAllowed
+                          ? "bg-amber-50/40 dark:bg-amber-950/20 border-[#D98A3C]/40 text-[#24180A] dark:text-white"
+                          : "bg-stone-50 dark:bg-zinc-900/60 border-stone-200 dark:border-zinc-800 text-stone-400 opacity-60"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 text-white text-xs ${
+                            isAllowed ? "bg-[#D98A3C]" : "bg-stone-300 dark:bg-zinc-700"
+                          }`}
+                        >
+                          {isAllowed ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : null}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-black text-sm">{opt.nativeName}</span>
+                            <span className="text-[10px] text-stone-500 font-mono font-bold">({opt.englishName})</span>
+                          </div>
+                          <span className="text-[10px] text-stone-400 font-bold uppercase">
+                            {opt.shortCode} • {opt.dir.toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {isAllowed && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playTapSound();
+                            setSelectedDefaultLang(opt.value);
+                          }}
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-full transition cursor-pointer border-0 shrink-0 ${
+                            isDefault
+                              ? "bg-[#D98A3C] text-white"
+                              : "bg-[#F8F3EC] dark:bg-[#1A2232] text-stone-600 dark:text-stone-300 hover:bg-[#EFE6DC]"
+                          }`}
+                        >
+                          {isDefault
+                            ? (lang === "ur" ? "ڈیفالٹ" : "Default")
+                            : (lang === "ur" ? "ڈیفالٹ بنائیں" : "Set Default")}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-100 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setShowLanguageModal(false)}
+                  className="px-4 py-2 rounded-full text-xs font-bold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer border-0"
+                >
+                  {lang === "ur" ? "منسوخ" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveLanguages}
+                  disabled={updateConfigMut.isPending}
+                  className="px-5 py-2 rounded-full text-xs font-black bg-[#D98A3C] hover:bg-[#C27930] active:scale-95 text-white transition cursor-pointer flex items-center gap-1.5 border-0 disabled:opacity-50"
+                >
+                  {updateConfigMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  <span>{lang === "ur" ? "محفوظ کریں" : "Save Language Settings"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
           {/* TAB 3: SHIFT & DAY CLOSE SESSION MANAGER */}
           {activeTab === "shift_session" && <ShiftSessionManager />}
+
+          {/* TAB 4: SYSTEM SETTINGS & CONFIGURATION */}
+          {activeTab === "settings" && (
+            <SettingsTab
+              operationMode={operationMode}
+              showCustomerQueue={showCustomerQueue}
+              soundEnabled={soundEnabled}
+              defaultPosAccess={defaultPosAccess}
+              allowedLanguages={(systemConfigQuery.data?.allowedLanguages as string[]) || ["ur", "en", "ps", "bal", "brh", "sd", "pa", "fa"]}
+              defaultLanguage={(systemConfigQuery.data?.defaultLanguage as string) || "ur"}
+              onToggleMode={handleToggleMode}
+              onToggleCustomerQueue={handleToggleCustomerQueue}
+              onToggleSound={handleToggleSound}
+              onToggleDefaultPosAccess={handleToggleDefaultPosAccess}
+              onSaveLanguages={async (allowed, defLang) => {
+                try {
+                  await updateConfigMut.mutateAsync({
+                    allowedLanguages: allowed,
+                    defaultLanguage: defLang,
+                  });
+                  playOrderSuccessSound();
+                  toast.success(
+                    lang === "ur"
+                      ? "زبانوں کی ترتیبات کامیابی سے محفوظ ہو گئیں!"
+                      : "Language permissions updated successfully!"
+                  );
+                  systemConfigQuery.refetch();
+                } catch (err: any) {
+                  toast.error(err?.message || "Failed to save language settings");
+                }
+              }}
+              isSaving={updateConfigMut.isPending}
+              clientIp={clientIp}
+              staffName={staff?.name || "Admin"}
+            />
+          )}
         </main>
 
         {/* Mobile Bottom Navigation */}
@@ -2768,9 +3468,10 @@ _Please open the Portal URL on your device to sign in._`;
             { key: "accounts", label: lang === "ur" ? "کھاتہ جات" : "Accounts", icon: Building2 },
             { key: "staff", label: lang === "ur" ? "عملہ و اختیارات" : "Staff & Roles", icon: Users, badge: allStaffMembers.length },
             { key: "shift_session", label: lang === "ur" ? "شفٹ و کلوز" : "Shift & Close", icon: Layers },
+            { key: "settings", label: lang === "ur" ? "سیٹنگز" : "Settings", icon: Settings },
           ]}
           activeItem={activeTab}
-          onSelectItem={(k) => setActiveTab(k as "accounts" | "staff" | "shift_session")}
+          onSelectItem={(k) => setActiveTab(k as "accounts" | "staff" | "shift_session" | "settings")}
           onOpenDrawer={() => setDrawerOpen(false)}
         />
 

@@ -84,6 +84,16 @@ function initSchema(sqlite: Database.Database) {
       updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS counters (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      code TEXT,
+      description TEXT,
+      isActive INTEGER NOT NULL DEFAULT 1,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS menu_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -252,15 +262,16 @@ function initSchema(sqlite: Database.Database) {
       INSERT OR IGNORE INTO system_settings (key, value) VALUES ('shiftStatus', 'active');
     `);
 
-    // Seed exactly 2 default shopkeepers (parties) if empty
-    const shopCount = sqlite
-      .prepare("SELECT COUNT(*) as c FROM shopkeepers")
+    // Seed default counters if empty
+    const counterCount = sqlite
+      .prepare("SELECT COUNT(*) as c FROM counters")
       .get() as { c: number };
-    if (shopCount.c === 0) {
+    if (!counterCount || counterCount.c === 0) {
       sqlite.exec(`
-        INSERT INTO shopkeepers (name, shopName, shopNumber, phone, balance) VALUES
-          ('حاجی بشیر صاحب', 'خان کلاتھ ہاؤس', 'Shop #12', '0300-1234567', 0),
-          ('ڈاکٹر عرفان', 'مدینہ میڈیکل اسٹور', 'Shop #4', '0312-9876543', 0);
+        INSERT OR IGNORE INTO counters (name, code, description, isActive) VALUES
+          ('Counter 1', 'C-1', 'Main Hall / Dining POS Station', 1),
+          ('Counter 2', 'C-2', 'Family Hall & Secondary Station', 1),
+          ('Takeaway Desk', 'TA-1', 'Parcel & Fast Takeaway Desk', 1);
       `);
     }
   } catch (_) {}
@@ -435,6 +446,19 @@ function initSchema(sqlite: Database.Database) {
       ('Rooftop 2', 'rooftop', 4),
       ('Takeaway Desk', 'takeaway', 1);`);
   }
+
+  // Ensure default counters exist
+  try {
+    const counterCount = sqlite
+      .prepare("SELECT COUNT(*) as c FROM counters")
+      .get() as { c: number };
+    if (counterCount.c === 0) {
+      sqlite.exec(`INSERT INTO counters (name, code, description, isActive) VALUES
+        ('Counter 1', 'C1', 'Main Entrance Counter', 1),
+        ('Counter 2', 'C2', 'Dining Hall Counter', 1),
+        ('Takeaway Desk', 'TK1', 'Express Parcel & Takeaway Desk', 1);`);
+    }
+  } catch (_) {}
 
     const inventoryCount = sqlite
       .prepare("SELECT COUNT(*) as c FROM inventory")

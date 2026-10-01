@@ -11,11 +11,12 @@ interface LangSwitcherProps {
 }
 
 export function LangSwitcher({ className = "", variant = "pill" }: LangSwitcherProps) {
-  const { lang, setLang } = useLang();
+  const { lang, setLang, availableOptions } = useLang();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const currentOpt = LANG_OPTIONS.find((opt) => opt.value === lang) || LANG_OPTIONS[0];
+  const currentOpt = availableOptions.find((opt) => opt.value === lang) || availableOptions[0] || LANG_OPTIONS[0];
+  const isMultiple = availableOptions.length > 1;
 
   // Close on click outside or Escape
   useEffect(() => {
@@ -56,6 +57,7 @@ export function LangSwitcher({ className = "", variant = "pill" }: LangSwitcherP
   };
 
   const toggleDropdown = () => {
+    if (!isMultiple) return;
     try {
       unlockAudio();
       playTapSound();
@@ -69,6 +71,7 @@ export function LangSwitcher({ className = "", variant = "pill" }: LangSwitcherP
       <button
         type="button"
         onClick={toggleDropdown}
+        disabled={!isMultiple}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className={`flex items-center transition-all cursor-pointer select-none font-bold ${
@@ -81,48 +84,50 @@ export function LangSwitcher({ className = "", variant = "pill" }: LangSwitcherP
           isOpen
             ? "ring-2 ring-[#D98A3C]/30 bg-amber-50/60 dark:bg-amber-950/40"
             : ""
-        }`}
+        } ${!isMultiple ? "cursor-default opacity-90" : ""}`}
       >
         <Globe className={`${variant === "compact" ? "h-3.5 w-3.5" : "h-3.5 w-3.5"} text-[#D98A3C] shrink-0`} />
         {variant === "compact" ? (
           <span className="font-extrabold font-mono uppercase leading-none">
-            {currentOpt.shortCode}
+            {currentOpt?.shortCode || "UR"}
           </span>
         ) : (
           <div className="flex items-center gap-1 min-w-0">
-            <span className="font-bold leading-none truncate">{currentOpt.nativeName}</span>
+            <span className="font-bold leading-none truncate">{currentOpt?.nativeName || "اردو"}</span>
             <span className="text-[10px] text-stone-500 font-extrabold font-mono uppercase bg-stone-100 dark:bg-stone-800 px-1 py-0.5 rounded leading-none">
-              {currentOpt.shortCode}
+              {currentOpt?.shortCode || "UR"}
             </span>
           </div>
         )}
-        <ChevronDown
-          className={`${variant === "compact" ? "h-2.5 w-2.5" : "h-3 w-3"} text-stone-400 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-stone-700" : ""
-          }`}
-        />
+        {isMultiple && (
+          <ChevronDown
+            className={`${variant === "compact" ? "h-2.5 w-2.5" : "h-3 w-3"} text-stone-400 transition-transform duration-200 ${
+              isOpen ? "rotate-180 text-stone-700" : ""
+            }`}
+          />
+        )}
       </button>
 
       {/* Dropdown Menu Popover */}
-      {isOpen && (
+      {isOpen && isMultiple && (
         <div
           role="listbox"
           aria-label="Language selection"
-          className="absolute end-0 mt-1.5 w-56 sm:w-64 bg-white rounded-2xl border border-stone-200 shadow-xl py-2 z-[100] animate-in fade-in-0 zoom-in-95 duration-150 origin-top-right focus:outline-none"
+          className="absolute end-0 mt-1.5 w-56 sm:w-64 bg-white dark:bg-[#121824] rounded-2xl border border-stone-200 dark:border-stone-800 shadow-xl py-2 z-[100] animate-in fade-in-0 zoom-in-95 duration-150 origin-top-right focus:outline-none"
         >
           {/* Header */}
-          <div className="px-3.5 py-1.5 border-b border-stone-100 flex items-center justify-between mb-1">
+          <div className="px-3.5 py-1.5 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between mb-1">
             <span className="text-[11px] font-extrabold text-stone-400 uppercase tracking-wider">
               Language / زبان
             </span>
             <span className="text-[10px] text-stone-400 font-bold">
-              8 Available
+              {availableOptions.length} Available
             </span>
           </div>
 
           {/* Languages List */}
           <div className="max-h-72 overflow-y-auto px-1.5 space-y-1">
-            {LANG_OPTIONS.map((opt) => {
+            {availableOptions.map((opt) => {
               const isSelected = opt.value === lang;
               return (
                 <button
@@ -133,15 +138,15 @@ export function LangSwitcher({ className = "", variant = "pill" }: LangSwitcherP
                   onClick={() => handleSelectLanguage(opt.value)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer text-left select-none ${
                     isSelected
-                      ? "bg-amber-500 text-stone-950 font-black shadow-2xs"
-                      : "text-stone-700 hover:bg-stone-100 hover:text-stone-900 font-medium"
+                      ? "bg-[#D98A3C] text-white font-black shadow-none"
+                      : "text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800/80 font-medium"
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="text-sm font-bold leading-tight">{opt.nativeName}</span>
                     <span
                       className={`text-[11px] ${
-                        isSelected ? "text-stone-900 font-extrabold" : "text-stone-400"
+                        isSelected ? "text-white/80 font-extrabold" : "text-stone-400"
                       }`}
                     >
                       ({opt.englishName})
@@ -149,7 +154,7 @@ export function LangSwitcher({ className = "", variant = "pill" }: LangSwitcherP
                   </div>
 
                   {isSelected && (
-                    <div className="w-5 h-5 rounded-full bg-stone-950 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <div className="w-5 h-5 rounded-full bg-white text-[#D98A3C] flex items-center justify-center shrink-0 shadow-xs">
                       <Check className="h-3 w-3 stroke-[3]" />
                     </div>
                   )}

@@ -101,12 +101,12 @@ export function StaffHeaderBar({
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {rightExtra}
 
-          {/* Quick POS Button in Header (shown on regular workspaces if user has POS access) */}
+          {/* Quick POS Button in Header (shown only on mobile, hidden on desktop and tablet) */}
           {showPosButton && (
             <Link
               href="/pos"
               onClick={() => playTapSound()}
-              className="flex items-center gap-1.5 px-3 h-8 sm:h-9 rounded-full bg-[#D98A3C] hover:bg-[#c27931] text-white text-xs font-black transition cursor-pointer border-0 shadow-xs active:scale-95 shrink-0"
+              className="sm:hidden flex items-center gap-1.5 px-2.5 h-8 rounded-full bg-[#D98A3C] hover:bg-[#c27931] text-white text-xs font-black transition cursor-pointer border-0 shadow-xs active:scale-95 shrink-0"
               title="Open POS Terminal"
             >
               <Zap className="w-3.5 h-3.5 fill-current" />
@@ -114,12 +114,12 @@ export function StaffHeaderBar({
             </Link>
           )}
 
-          {/* Return To Workspace Role Button (shown when user is inside POS view) */}
+          {/* Return To Workspace Role Button (shown only on mobile, hidden on desktop and tablet) */}
           {showReturnButton && (
             <Link
               href={roleHome.href}
               onClick={() => playTapSound()}
-              className="flex items-center gap-1.5 px-3 h-8 sm:h-9 rounded-full bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-[#253147] text-[#24180A] dark:text-white text-xs font-black transition cursor-pointer border-0 shadow-xs active:scale-95 shrink-0"
+              className="sm:hidden flex items-center gap-1.5 px-3 h-8 rounded-full bg-[#F4EFEA] dark:bg-[#1A2234] hover:bg-stone-200 dark:hover:bg-[#253147] text-[#24180A] dark:text-white text-xs font-black transition cursor-pointer border-0 shadow-xs active:scale-95 shrink-0"
               title={`Return to ${roleHome.label}`}
             >
               <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
