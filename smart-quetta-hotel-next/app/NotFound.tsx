@@ -1,23 +1,28 @@
+<<<<<<<< HEAD:smart-quetta-hotel-next/app/NotFound.tsx
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
+========
+"use client";
+
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+>>>>>>>> v1.0.0:src/features/not-found/index.tsx
 import { AlertCircle, Home } from "lucide-react";
-import { useLocation } from "wouter";
+import Link from "next/link";
 
-export default function NotFound() {
-  const [, setLocation] = useLocation();
-
-  const handleGoHome = () => {
-    setLocation("/");
-  };
-
+/**
+ * 404 Not Found Feature View
+ */
+export function NotFoundView() {
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
       <Card className="w-full max-w-lg mx-4 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
         <CardContent className="pt-8 pb-8 text-center">
           <div className="flex justify-center mb-6">
             <div className="relative">
-              <div className="absolute inset-0 bg-red-100 rounded-full animate-pulse" />
-              <AlertCircle className="relative h-16 w-16 text-red-500" />
+              <div className="absolute inset-0 bg-orange-100 rounded-full animate-pulse" />
+              <AlertCircle className="relative h-16 w-16 text-orange-500" />
             </div>
           </div>
 
@@ -37,16 +42,19 @@ export default function NotFound() {
             id="not-found-button-group"
             className="flex flex-col sm:flex-row gap-3 justify-center"
           >
-            <Button
-              onClick={handleGoHome}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
-            >
-              <Home className="w-4 h-4 mr-2" />
-              Go Home
-            </Button>
+            <Link href="/">
+              <Button
+                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Go Home
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+
+export default NotFoundView;

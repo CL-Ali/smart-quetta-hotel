@@ -1,0 +1,578 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ── 100% Offline Local Fonts ── */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('/fonts/Plus_Jakarta_Sans/PlusJakartaSans-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Outfit';
+  src: url('/fonts/Outfit/Outfit-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Sans Arabic';
+  src: url('/fonts/Noto_Sans_Arabic/NotoSansArabic-VariableFont_wdth,wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Nastaliq Urdu';
+  src: url('/fonts/Noto_Nastaliq_Urdu/static/NotoNastaliqUrdu-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Nastaliq Urdu';
+  src: url('/fonts/Noto_Nastaliq_Urdu/static/NotoNastaliqUrdu-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Nastaliq Urdu';
+  src: url('/fonts/Noto_Nastaliq_Urdu/static/NotoNastaliqUrdu-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Nastaliq Urdu';
+  src: url('/fonts/Noto_Nastaliq_Urdu/static/NotoNastaliqUrdu-Bold.ttf') format('truetype');
+  font-weight: 700 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/inter/Inter-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/inter/Inter-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/inter/Inter-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+/* Global sleek scrollbars & stable scrollbar gutter to prevent layout shifts */
+html {
+  scrollbar-gutter: stable;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 180, 180, 0.3) transparent;
+}
+
+html.dark *,
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(180, 180, 180, 0.35);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(217, 138, 60, 0.65);
+}
+
+html.dark ::-webkit-scrollbar-thumb,
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover,
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(217, 138, 60, 0.65);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ── I-Techi-Esim Monolithic Luxe Fintech / Hospitality Palette ── */
+  --color-brand-50: #FDF9F5;
+  --color-brand-100: #FBF4EC;
+  --color-brand-200: #F7E8D8;
+  --color-brand-300: #EFCFA9;
+  --color-brand-400: #E5AB68;
+  --color-brand-500: #D98A3C;
+  --color-brand-600: #C5772D;
+  --color-brand-700: #A25D1E;
+  --color-brand-800: #804719;
+  --color-brand-900: #683916;
+  --color-brand-950: #3D1E0A;
+  --color-brand-amber: #D98A3C;
+  --color-brand-amber-hover: #C5772D;
+  --color-brand-teal: #0D4846;
+  --color-brand-cream: #F7E8D8;
+  --color-brand-cream-warm: #FBF4EC;
+  --color-brand-espresso: #24180A;
+  --color-brand-espresso-dark: #342010;
+
+  --color-surface-light-canvas: #F8F3EC;
+  --color-surface-light-card: #FFFFFF;
+  --color-surface-light-card-hero: #FBF4EC;
+  --color-surface-light-input: #FFFFFF;
+  --color-surface-light-hover: #FDFBF8;
+  --color-surface-light-border: #E5E7EB;
+
+  --color-surface-dark-canvas: #0E131C;
+  --color-surface-dark-card: #121824;
+  --color-surface-dark-card-hero: #1C1814;
+  --color-surface-dark-input: #151C2A;
+  --color-surface-dark-hover: #1A2336;
+  --color-surface-dark-border: #222C3E;
+
+  --color-ink-DEFAULT: #0B0F17;
+  --color-ink-soft: #121824;
+  --color-ink-panel: #151C2A;
+  --color-ink-float: #1A2336;
+  --color-ink-line: #222C3E;
+
+  --color-badge-success-bg: #DCFCE7;
+  --color-badge-success-text: #15803D;
+  --color-badge-success-darkBg: #0D331E;
+  --color-badge-success-darkText: #4ADE80;
+
+  --color-badge-failed-bg: #FEE2E2;
+  --color-badge-failed-text: #DC2626;
+  --color-badge-failed-darkBg: #3B1A1E;
+  --color-badge-failed-darkText: #F87171;
+
+  --color-badge-pending-bg: #FEF3C7;
+  --color-badge-pending-text: #D97706;
+  --color-badge-pending-darkBg: #33230A;
+  --color-badge-pending-darkText: #FBBF24;
+}
+
+:root {
+  /* I-Techi-Esim Monolithic Luxe Caramel Amber & Espresso Palette (Light Mode) */
+  --primary: #D98A3C;
+  --primary-foreground: #FFFFFF;
+  --sidebar-primary: #D98A3C;
+  --sidebar-primary-foreground: #FFFFFF;
+  --chart-1: #D98A3C;
+  --chart-2: #C5772D;
+  --chart-3: #804719;
+  --chart-4: #E5AB68;
+  --chart-5: #F7E8D8;
+  --radius: 0.875rem;
+  --background: #F8F3EC;
+  --foreground: #24180A;
+  --card: #FFFFFF;
+  --card-foreground: #24180A;
+  --popover: #FFFFFF;
+  --popover-foreground: #24180A;
+  --secondary: #FBF4EC;
+  --secondary-foreground: #24180A;
+  --muted: #F7E8D8;
+  --muted-foreground: #804719;
+  --accent: #D98A3C;
+  --accent-foreground: #24180A;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E5E7EB;
+  --input: #FFFFFF;
+  --ring: #D98A3C;
+  --sidebar: #FBF4EC;
+  --sidebar-foreground: #24180A;
+  --sidebar-accent: #D98A3C;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: #D98A3C;
+}
+
+.dark {
+  /* I-Techi-Esim Monolithic Deep Slate & Caramel Amber Palette (Dark Mode) */
+  --primary: #D98A3C;
+  --primary-foreground: #0E131C;
+  --sidebar-primary: #D98A3C;
+  --sidebar-primary-foreground: #0E131C;
+  --background: #0E131C;
+  --foreground: #F8FAFC;
+  --card: #121824;
+  --card-foreground: #F8FAFC;
+  --popover: #121824;
+  --popover-foreground: #F8FAFC;
+  --secondary: #1C1814;
+  --secondary-foreground: #F8FAFC;
+  --muted: #1A2336;
+  --muted-foreground: #94A3B8;
+  --accent: #D98A3C;
+  --accent-foreground: #F8FAFC;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #222C3E;
+  --input: #151C2A;
+  --ring: #D98A3C;
+  --sidebar: #121824;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-accent: #D98A3C;
+  --sidebar-accent-foreground: #0E131C;
+  --sidebar-border: #222C3E;
+  --sidebar-ring: #D98A3C;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Plus Jakarta Sans', 'Outfit', 'Noto Sans Arabic', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Subtle Warm Luxe Ambient Lighting from I-Techi-Esim */
+  body {
+    background-image:
+      radial-gradient(46rem 40rem at 85% -5%, rgba(217, 138, 60, 0.08), transparent 60%),
+      radial-gradient(42rem 42rem at -5% 15%, rgba(217, 138, 60, 0.04), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  html.dark body,
+  .dark body {
+    background-image:
+      radial-gradient(44rem 36rem at 85% -5%, rgba(217, 138, 60, 0.09), transparent 60%),
+      radial-gradient(38rem 38rem at -5% 15%, rgba(217, 138, 60, 0.04), transparent 55%);
+  }
+
+  /* ── Language-specific Font Rules ── */
+  html[lang="ur"],
+  html[lang="ur"] body,
+  html[lang="ur"] button,
+  html[lang="ur"] input,
+  html[lang="ur"] textarea,
+  html[lang="ur"] select,
+  html[lang="ur"] h1,
+  html[lang="ur"] h2,
+  html[lang="ur"] h3,
+  html[lang="ur"] h4,
+  html[lang="ur"] h5,
+  html[lang="ur"] h6,
+  html[lang="ur"] p,
+  html[lang="ur"] label,
+  html[lang="ur"] span,
+  html[lang="ur"] div,
+  html[lang="ur"] a {
+    font-family: 'Noto Nastaliq Urdu', 'Gulzar', 'Jameel Noori Nastaleeq', 'Urdu Typesetting', 'Plus Jakarta Sans', 'Outfit', 'Noto Sans Arabic', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  html[lang="ur"] h1,
+  html[lang="ur"] h2,
+  html[lang="ur"] h3,
+  html[lang="ur"] h4,
+  html[lang="ur"] h5,
+  html[lang="ur"] h6 {
+    line-height: 1.7;
+    letter-spacing: 0;
+    padding-top: 0.1rem;
+    padding-bottom: 0.15rem;
+  }
+
+  html[lang="ur"] p {
+    line-height: 1.85;
+    letter-spacing: 0;
+  }
+
+  html[lang="ur"] label {
+    line-height: 1.6;
+    letter-spacing: 0;
+  }
+
+  html[lang="ur"] button {
+    line-height: 1.5;
+    letter-spacing: 0;
+  }
+
+  html[lang="ur"] input,
+  html[lang="ur"] textarea {
+    line-height: 1.6;
+  }
+
+  html[lang="ps"],
+  html[lang="bal"],
+  html[lang="brh"],
+  html[lang="fa"],
+  html[lang="pa"],
+  html[lang="sd"],
+  html[lang="ps"] body,
+  html[lang="bal"] body,
+  html[lang="brh"] body,
+  html[lang="fa"] body,
+  html[lang="pa"] body,
+  html[lang="sd"] body {
+    font-family: 'Noto Sans Arabic', 'Plus Jakarta Sans', 'Noto Nastaliq Urdu', system-ui, -apple-system, sans-serif;
+  }
+
+  html[lang="en"],
+  html[lang="en"] body {
+    font-family: 'Plus Jakarta Sans', 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  .font-mono,
+  html[lang="ur"] .font-mono,
+  html[lang="ps"] .font-mono,
+  html[lang="bal"] .font-mono,
+  html[lang="brh"] .font-mono,
+  html[lang="fa"] .font-mono,
+  html[lang="pa"] .font-mono,
+  html[lang="sd"] .font-mono {
+    font-family: 'Outfit', 'Plus Jakarta Sans', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  }
+
+  /* ── Headings: always crisp, never dull ── */
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--foreground);
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+  }
+
+  /* ── Paragraphs / body text ── */
+  p {
+    color: var(--muted-foreground);
+    line-height: 1.7;
+  }
+
+  /* ── Inputs & textareas ── */
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select {
+    color: var(--foreground);
+    outline: none;
+    width: 100%;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.7;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    @apply cursor-pointer;
+  }
+}
+
+@layer components {
+  .container {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  .container-x {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  .flex {
+    @apply flex min-w-0 min-h-0;
+  }
+
+  /* Monolithic Floating Card System (Pure White / Dark Slate on Warm Ivory Canvas) */
+  .card-floating {
+    @apply rounded-[26px] bg-white dark:bg-[#121824] p-5 sm:p-6 transition-all duration-300;
+  }
+
+  .card-hero-floating {
+    @apply rounded-[28px] bg-[#FBF4EC] dark:bg-[#1C1814] p-6 transition-all duration-300;
+  }
+
+  .card-squircle {
+    @apply rounded-[26px] bg-white dark:bg-[#121824] p-5 sm:p-6 transition-all duration-300;
+  }
+
+  .card-hero-warm {
+    @apply rounded-[28px] bg-[#FBF4EC] dark:bg-[#1C1814] p-6 transition-all duration-300;
+  }
+
+  /* Signature Gradient Text (Caramel Amber Luxe) */
+  .gradient-text {
+    @apply bg-gradient-to-r from-brand-amber via-amber-600 to-yellow-600 bg-clip-text text-transparent dark:from-amber-400 dark:via-amber-300 dark:to-yellow-400;
+  }
+
+  /* Monolithic Button System */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none bg-brand-amber text-white shadow-xs shadow-amber-500/20 hover:bg-brand-amber-hover;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none bg-brand-cream text-brand-espresso hover:bg-amber-100 dark:bg-brand-cream dark:text-brand-espresso;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none bg-transparent text-stone-700 hover:text-brand-amber hover:bg-amber-50/50 dark:text-slate-200 dark:hover:text-brand-amber;
+  }
+
+  /* Unified Chip & Badge System */
+  .chip {
+    @apply inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-semibold text-stone-700 transition-colors hover:text-brand-amber dark:text-slate-300 dark:hover:text-white;
+  }
+
+  .badge-status {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider;
+  }
+
+  .badge-success {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-badge-success-bg text-badge-success-text dark:bg-badge-success-darkBg dark:text-badge-success-darkText;
+  }
+
+  .badge-failed {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-badge-failed-bg text-badge-failed-text dark:bg-badge-failed-darkBg dark:text-badge-failed-darkText;
+  }
+
+  .badge-pending {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-badge-pending-bg text-badge-pending-text dark:bg-badge-pending-darkBg dark:text-badge-pending-darkText;
+  }
+}
+
+@layer utilities {
+  .grid-bg {
+    background-size: 36px 36px;
+    background-image: linear-gradient(to right, rgba(120, 120, 120, 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(120, 120, 120, 0.08) 1px, transparent 1px);
+  }
+
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 65%, transparent);
+    mask-image: linear-gradient(to bottom, black 65%, transparent);
+  }
+
+  .mask-fade-x {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+  }
+
+  /* Custom Sleek Scrollbars */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(180, 180, 180, 0.35);
+    border-radius: 9999px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(217, 138, 60, 0.6);
+  }
+
+  html.dark .custom-scrollbar::-webkit-scrollbar-thumb,
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(217, 138, 60, 0.6);
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(180, 180, 180, 0.35) transparent;
+  }
+
+  html.dark .custom-scrollbar,
+  .dark .custom-scrollbar {
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+}

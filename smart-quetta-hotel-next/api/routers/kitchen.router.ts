@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and, ne } from "drizzle-orm";
 import { publicProcedure, router } from "../lib/trpc";
 import { getDb } from "../db";
 import { orderItems, orders } from "../db/schema";
@@ -8,14 +8,22 @@ import {
   type DomainCommandResult,
 } from "../lib/domain";
 import { getIo, SOCKET_EVENT } from "../lib/socket";
+import { getCurrentTicketVersion } from "../lib/ticketVersion";
 import { z } from "zod";
 
 export const kitchenRouter = router({
   getQueue: publicProcedure.query(async () => {
     const db = getDb();
+    const currentTicketVersion = getCurrentTicketVersion(db);
     const queue = db
       .select()
       .from(orders)
+      .where(
+        and(
+          eq(orders.ticketVersion, currentTicketVersion),
+          ne(orders.status, "cancelled")
+        )
+      )
       .orderBy(desc(orders.createdAt))
       .all();
     return queue;

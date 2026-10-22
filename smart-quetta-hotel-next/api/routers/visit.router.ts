@@ -3,10 +3,9 @@ import { eq, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { publicProcedure, router } from "../lib/trpc";
 import { getDb } from "../db";
-import { browserSessions, visits } from "../db/schema";
+import { browserSessions, tickets, visits } from "../db/schema";
 import {
   createDomainEvent,
-  createVisitTicket,
   ensureVisitCanBeClosed,
   findGuestById,
   findVisitById,
@@ -55,26 +54,15 @@ function touchBrowserSession(
 
 const openVisitInput = z.object({
   guestId: z.number(),
-  tableNo: z.string().optional(),
+  seatingNo: z.string().optional(),
+  peopleCount: z.number().int().positive().optional(),
+  seatingType: z.enum(["seat", "table"]).optional(),
 });
 
 const closeVisitInput = z.object({ visitId: z.number() });
 
 /**
- * resumeVisit accepts exactly two high-entropy, server-issued opaque tokens.
- *
- * Supported paths (in order of precedence):
- *   1. Cookie  — cookieHash (UUID v4, 122 bits) stored by the device at login
- *   2. Ticket  — ticketNo   (VIS-{id}-{48-bit hex}) shown at visit open / QR
- *
- * Intentionally EXCLUDED from Phase 5 (security reasons):
- *   - GuestId  — sequential integer, guessable (violates spec 025)
- *   - Phone    — needs OTP verification (Phase 6)
- *   - Staff    — needs authenticated role (Phase 6)
- *
- * QR codes are the visual carrier for ticketNo — same backend path.
- *
- * TODO (Phase 6): add per-IP rate limiting on this endpoint.
+ * resumeVisit accepts either cookieHash or ticketNo.
  */
 const resumeVisitInput = z.object({
   cookieHash: z.string().optional(),
@@ -89,15 +77,20 @@ const resumeVisitInput = z.object({
 export const visitRouter = router({
   /**
    * Lightweight query to check if a stored visitId is still open.
-   * Used by Home.tsx on mount to verify a localStorage-restored session
-   * before trusting it — prevents serving a stale closed visitId.
    */
   getVisitStatus: publicProcedure
     .input(z.object({ visitId: z.number() }))
     .query(async ({ input }) => {
       const db = getDb();
       const visit = db
-        .select({ id: visits.id, status: visits.status, guestId: visits.guestId, ticketNo: visits.ticketNo })
+        .select({
+          id: visits.id,
+          status: visits.status,
+          guestId: visits.guestId,
+          seatingNo: visits.seatingNo,
+          peopleCount: visits.peopleCount,
+          seatingType: visits.seatingType,
+        })
         .from(visits)
         .where(eq(visits.id, input.visitId))
         .all()[0];
@@ -111,13 +104,17 @@ export const visitRouter = router({
       const guest = findGuestById(db, input.guestId);
       if (!guest) throw new Error("Guest not found");
 
-      // Generate ticket before insert so we can write it in the same row
-      // (two-step: insert first to get the id, then update with ticket)
+      const seatingNo = input.seatingNo ?? null;
+      const peopleCount = input.peopleCount ?? 1;
+      const seatingType = input.seatingType ?? (peopleCount > 1 ? "table" : "seat");
+
       const inserted = db
         .insert(visits)
         .values({
           guestId: input.guestId,
-          tableNo: input.tableNo ?? null,
+          seatingNo,
+          peopleCount,
+          seatingType,
           status: "open",
           startedAt: new Date().toISOString(),
           createdAt: new Date().toISOString(),
@@ -125,12 +122,21 @@ export const visitRouter = router({
         .returning()
         .all()[0];
 
-      const ticketNo = createVisitTicket(inserted.id);
+      const ticketNo = `TKT-${String(inserted.id).padStart(3, "0")}`;
 
-      db.update(visits)
-        .set({ ticketNo })
-        .where(eq(visits.id, inserted.id))
-        .run();
+      // Insert primary visit ticket into tickets table
+      try {
+        db.insert(tickets)
+          .values({
+            ticketNo,
+            guestId: input.guestId,
+            visitId: inserted.id,
+            seatingNo,
+            seatingType,
+            status: "active",
+          })
+          .run();
+      } catch (_) {}
 
       // Create a BrowserSession so this device can resume by cookie
       const cookieHash = createBrowserSession(db, input.guestId, inserted.id);
@@ -144,11 +150,9 @@ export const visitRouter = router({
             name: "VisitOpened",
             entityId: inserted.id,
             entityType: "visit",
-            payload: { tableNo: inserted.tableNo },
+            payload: { seatingNo: inserted.seatingNo, seatingType: inserted.seatingType },
           }),
         ],
-        // cookieHash is returned to the frontend for localStorage storage.
-        // It is the device's recovery credential for this session.
         data: { ...visitWithTicket, cookieHash },
       };
 
@@ -241,18 +245,24 @@ export const visitRouter = router({
         }
       }
 
-      // ── Path 2: Ticket (also handles QR — QR encodes ticketNo string) ───
+      // ── Path 2: Ticket (finds visit via tickets table or direct lookup) ───
       if (input.ticketNo) {
-        const visit = db
+        let visit = null;
+        const ticketRow = db
           .select()
-          .from(visits)
-          .where(eq(visits.ticketNo, input.ticketNo))
-          .orderBy(desc(visits.id))
+          .from(tickets)
+          .where(eq(tickets.ticketNo, input.ticketNo))
           .all()[0];
 
+        if (ticketRow && ticketRow.visitId) {
+          visit = db
+            .select()
+            .from(visits)
+            .where(eq(visits.id, ticketRow.visitId))
+            .all()[0];
+        }
+
         if (!visit || visit.status !== "open") {
-          // Log failed attempt: IP + first 4 chars of token only (never full value)
-          // Phase 6: replace with rate-limited counter per IP
           const ip = (ctx.req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
             ?? ctx.req.socket?.remoteAddress
             ?? "unknown";

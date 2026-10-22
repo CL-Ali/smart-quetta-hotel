@@ -1,39 +1,7 @@
 import { int, sqliteTable, text, real } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
-/**
- * Menus
- */
-export const menus = sqliteTable("menus", {
-  id: int("id").primaryKey({ autoIncrement: true }),
-  title: text("title").notNull(),
-  isActive: int("isActive", { mode: "boolean" }).default(true).notNull(),
-  createdAt: text("createdAt")
-    .default(sql`(datetime('now'))`)
-    .notNull(),
-  updatedAt: text("updatedAt")
-    .default(sql`(datetime('now'))`)
-    .notNull(),
-});
 
-export type Menu = typeof menus.$inferSelect;
-export type InsertMenu = typeof menus.$inferInsert;
-
-/**
- * Categories
- */
-export const categories = sqliteTable("categories", {
-  id: int("id").primaryKey({ autoIncrement: true }),
-  menuId: int("menuId")
-    .references(() => menus.id)
-    .notNull(),
-  name: text("name").notNull(),
-  sortOrder: int("sortOrder").default(0).notNull(),
-  isActive: int("isActive", { mode: "boolean" }).default(true).notNull(),
-});
-
-export type Category = typeof categories.$inferSelect;
-export type InsertCategory = typeof categories.$inferInsert;
 
 /**
  * Staff
@@ -42,10 +10,19 @@ export const staff = sqliteTable("staff", {
   id: int("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   email: text("email").notNull(),
+  username: text("username"),
+  password: text("password"),
   passwordHash: text("passwordHash").notNull(),
-  role: text("role").notNull(),
+  role: text("role").notNull(), // 'admin' | 'cashier' | 'waiter' | 'kitchen'
+  stationName: text("stationName"), // e.g. "Counter 1", "Counter 2", "Takeaway Desk", "Floor Section"
+  assignedCashierIds: text("assignedCashierIds"), // JSON array string of assigned cashier IDs e.g. "[1, 2]"
+  permissions: text("permissions"), // JSON string of granted permission codes
+  allowedIp: text("allowedIp"),
+  currentIp: text("currentIp"),
   isActive: int("isActive", { mode: "boolean" }).default(true).notNull(),
   lastLoginAt: text("lastLoginAt"),
+  createdAt: text("createdAt").default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text("updatedAt").default(sql`(datetime('now'))`).notNull(),
 });
 
 export type Staff = typeof staff.$inferSelect;
@@ -78,10 +55,9 @@ export const visits = sqliteTable("visits", {
   guestId: int("guestId")
     .references(() => guests.id)
     .notNull(),
-  tableNo: text("tableNo"),
-  // Server-issued recovery ticket — VIS-{id}-{48-bit hex}. Shown to guest at
-  // visit open; also encoded in QR code. High-entropy opaque token.
-  ticketNo: text("ticketNo"),
+  seatingNo: text("seatingNo"),
+  peopleCount: int("peopleCount").default(1).notNull(),
+  seatingType: text("seatingType").default("seat"),
   status: text("status").default("created").notNull(),
   startedAt: text("startedAt")
     .default(sql`(datetime('now'))`)
@@ -94,6 +70,29 @@ export const visits = sqliteTable("visits", {
 
 export type Visit = typeof visits.$inferSelect;
 export type InsertVisit = typeof visits.$inferInsert;
+
+/**
+ * Tickets (Per-Order Guest Tickets - Multiple per guest)
+ */
+export const tickets = sqliteTable("tickets", {
+  id: int("id").primaryKey({ autoIncrement: true }),
+  ticketNo: text("ticketNo").notNull().unique(),
+  ticketVersion: int("ticketVersion").default(1).notNull(),
+  guestId: int("guestId")
+    .references(() => guests.id)
+    .notNull(),
+  orderId: int("orderId").references(() => orders.id),
+  visitId: int("visitId").references(() => visits.id),
+  seatingNo: text("seatingNo"),
+  seatingType: text("seatingType").default("seat"),
+  status: text("status").default("active").notNull(),
+  createdAt: text("createdAt")
+    .default(sql`(datetime('now'))`)
+    .notNull(),
+});
+
+export type Ticket = typeof tickets.$inferSelect;
+export type InsertTicket = typeof tickets.$inferInsert;
 
 /**
  * Browser Sessions
@@ -123,9 +122,9 @@ export const menuItems = sqliteTable("menu_items", {
   name: text("name").notNull(),
   description: text("description"),
   price: real("price").notNull(),
-  category: text("category"),
   imageUrl: text("imageUrl"),
   departmentId: int("departmentId").references(() => departments.id),
+  options: text("options"),
   isAvailable: int("isAvailable", { mode: "boolean" }).default(true).notNull(),
   createdAt: text("createdAt")
     .default(sql`(datetime('now'))`)
@@ -143,6 +142,22 @@ export type Department = typeof departments.$inferSelect;
 export type InsertDepartment = typeof departments.$inferInsert;
 
 /**
+ * Counters (کاؤنٹرز اور پوائنٹ آف سیل ٹرمینلز)
+ */
+export const counters = sqliteTable("counters", {
+  id: int("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(), // e.g. "Counter 1", "Counter 2", "Takeaway Desk", "Rooftop Counter"
+  code: text("code"), // e.g. "C-1", "C-2", "TA"
+  description: text("description"),
+  isActive: int("isActive", { mode: "boolean" }).default(true).notNull(),
+  createdAt: text("createdAt").default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text("updatedAt").default(sql`(datetime('now'))`).notNull(),
+});
+
+export type Counter = typeof counters.$inferSelect;
+export type InsertCounter = typeof counters.$inferInsert;
+
+/**
  * Seating Areas
  */
 export const seatingAreas = sqliteTable("seating_areas", {
@@ -150,6 +165,7 @@ export const seatingAreas = sqliteTable("seating_areas", {
   name: text("name").notNull(),
   type: text("type"),
   qrCodeIdentifier: text("qrCodeIdentifier").unique(),
+  capacity: int("capacity").default(4),
   createdAt: text("createdAt")
     .default(sql`(datetime('now'))`)
     .notNull(),
@@ -175,15 +191,43 @@ export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
 
 /**
+ * Shopkeepers & Khata Accounts (دکاندار اور کھاتہ دار)
+ */
+export const shopkeepers = sqliteTable("shopkeepers", {
+  id: int("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  shopName: text("shopName").notNull(),
+  shopNumber: text("shopNumber"),
+  phone: text("phone"),
+  balance: real("balance").default(0).notNull(),
+  createdAt: text("createdAt")
+    .default(sql`(datetime('now'))`)
+    .notNull(),
+  updatedAt: text("updatedAt")
+    .default(sql`(datetime('now'))`)
+    .notNull(),
+});
+
+export type Shopkeeper = typeof shopkeepers.$inferSelect;
+export type InsertShopkeeper = typeof shopkeepers.$inferInsert;
+
+/**
  * Orders
  */
 export const orders = sqliteTable("orders", {
   id: int("id").primaryKey({ autoIncrement: true }),
+  ticketVersion: int("ticketVersion").default(1).notNull(),
   customerId: int("customerId").references(() => customers.id),
   seatingAreaId: int("seatingAreaId").references(() => seatingAreas.id),
   customerName: text("customerName"),
+  seatingNo: text("seatingNo"),
+  peopleCount: int("peopleCount").default(1).notNull(),
+  seatingType: text("seatingType").default("seat"),
   visitId: int("visitId").references(() => visits.id),
   orderNo: text("orderNo"),
+  cashierId: int("cashierId").references(() => staff.id),
+  cashierName: text("cashierName"),
+  counterName: text("counterName"), // e.g. "Counter 1", "Counter 2", "Takeaway Desk"
   subtotal: real("subtotal").default(0),
   discount: real("discount").default(0),
   total: real("total").default(0),
@@ -195,6 +239,7 @@ export const orders = sqliteTable("orders", {
   // cash | bank | pending
   paymentMethod: text("paymentMethod").default("pending"),
   paidAmount: real("paidAmount").default(0),
+  remarks: text("remarks"),
   createdAt: text("createdAt")
     .default(sql`(datetime('now'))`)
     .notNull(),
@@ -205,6 +250,20 @@ export const orders = sqliteTable("orders", {
 
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = typeof orders.$inferInsert;
+
+/**
+ * System / Hotel Settings
+ */
+export const systemSettings = sqliteTable("system_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: text("updatedAt")
+    .default(sql`(datetime('now'))`)
+    .notNull(),
+});
+
+export type SystemSetting = typeof systemSettings.$inferSelect;
+export type InsertSystemSetting = typeof systemSettings.$inferInsert;
 
 /**
  * Order Items
@@ -229,6 +288,7 @@ export const orderItems = sqliteTable("order_items", {
  */
 export const invoices = sqliteTable("invoices", {
   id: int("id").primaryKey({ autoIncrement: true }),
+  ticketVersion: int("ticketVersion").default(1).notNull(),
   visitId: int("visitId")
     .references(() => visits.id)
     .notNull(),
@@ -253,6 +313,7 @@ export type InsertInvoice = typeof invoices.$inferInsert;
  */
 export const receipts = sqliteTable("receipts", {
   id: int("id").primaryKey({ autoIncrement: true }),
+  ticketVersion: int("ticketVersion").default(1).notNull(),
   invoiceId: int("invoiceId")
     .references(() => invoices.id)
     .notNull(),
@@ -302,21 +363,14 @@ export const stock = sqliteTable("stock", {
 export type Stock = typeof stock.$inferSelect;
 export type InsertStock = typeof stock.$inferInsert;
 
-/**
- * Recipes - For auto-deduction of inventory
- */
-export const recipes = sqliteTable("recipes", {
-  id: int("id").primaryKey({ autoIncrement: true }),
-  menuItemId: int("menuItemId").references(() => menuItems.id),
-  inventoryItemId: int("inventoryItemId").references(() => inventory.id),
-  quantityNeeded: real("quantityNeeded").notNull(),
-});
+
 
 /**
  * Payments
  */
 export const payments = sqliteTable("payments", {
   id: int("id").primaryKey({ autoIncrement: true }),
+  ticketVersion: int("ticketVersion").default(1).notNull(),
   orderId: int("orderId").references(() => orders.id),
   invoiceId: int("invoiceId").references(() => invoices.id),
   amount: real("amount").notNull(),
@@ -337,16 +391,31 @@ export const payments = sqliteTable("payments", {
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = typeof payments.$inferInsert;
 
-// Stub User type for auth compatibility (not stored in SQLite)
-export type User = {
-  id: number;
-  openId: string;
-  name: string | null;
-  email: string | null;
-  loginMethod: string | null;
-  role: "user" | "admin";
-  createdAt: Date;
-  updatedAt: Date;
-  lastSignedIn: Date;
-};
-export type InsertUser = Partial<User> & { openId: string };
+/**
+ * Ticket Session & Day Close Logs (Audit Archive)
+ */
+export const ticketSessionLogs = sqliteTable("ticket_session_logs", {
+  id: int("id").primaryKey({ autoIncrement: true }),
+  ticketVersion: int("ticketVersion").notNull().unique(),
+  shiftStatus: text("shiftStatus").default("closed").notNull(),
+  startDate: text("startDate").notNull(),
+  closedDate: text("closedDate").notNull(),
+  closedBy: text("closedBy").notNull(),
+  totalTickets: int("totalTickets").default(0).notNull(),
+  totalOrders: int("totalOrders").default(0).notNull(),
+  totalRevenue: real("totalRevenue").default(0).notNull(),
+  totalCash: real("totalCash").default(0).notNull(),
+  totalBank: real("totalBank").default(0).notNull(),
+  totalKhata: real("totalKhata").default(0).notNull(),
+  totalDiscount: real("totalDiscount").default(0).notNull(),
+  itemsSnapshot: text("itemsSnapshot").notNull(), // JSON string
+  ordersSnapshot: text("ordersSnapshot").notNull(), // JSON string
+  createdAt: text("createdAt")
+    .default(sql`(datetime('now'))`)
+    .notNull(),
+});
+
+export type TicketSessionLog = typeof ticketSessionLogs.$inferSelect;
+export type InsertTicketSessionLog = typeof ticketSessionLogs.$inferInsert;
+
+

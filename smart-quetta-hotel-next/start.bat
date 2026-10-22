@@ -1,10 +1,10 @@
 @echo off
-title Smart Quetta Hotel
+title Smart Hotel
 color 0A
 
 echo.
 echo  ==========================================
-echo   Smart Quetta Hotel - Starting...
+echo   Smart Hotel - Starting...
 echo  ==========================================
 echo.
 

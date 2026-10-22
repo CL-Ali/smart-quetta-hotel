@@ -3,7 +3,7 @@ set -e
 
 echo ""
 echo " =========================================="
-echo "  Smart Quetta Hotel - Starting..."
+echo "  Smart Hotel - Starting..."
 echo " =========================================="
 echo ""
 

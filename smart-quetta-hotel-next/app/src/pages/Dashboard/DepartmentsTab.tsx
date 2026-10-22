@@ -1,31 +1,46 @@
+"use client";
+
 import { useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { DepartmentForm } from "../../components/DepartmentForm";
 import { Plus, Trash2, Edit3, Loader2, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
+<<<<<<<< HEAD:smart-quetta-hotel-next/app/src/pages/Dashboard/DepartmentsTab.tsx
 import { Drawer, DrawerContent } from "../../components/ui/drawer";
 import { useIsMobile } from "../../hooks/useMobile";
 import { AlertDialog, AlertDialogContent } from "../../components/ui/alert-dialog";
 import { fmtDate } from "../../lib/time";
+========
+import { Drawer, DrawerContent } from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/useMobile";
+import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
+import { fmtDate } from "@/lib/time";
+
+>>>>>>>> v1.0.0:src/features/dashboard/components/DepartmentsTab.tsx
 export const DepartmentsTab = () => {
   const isMobile = useIsMobile();
   const [showForm, setShowForm] = useState(false);
   const [editDept, setEditDept] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
+
   // tRPC Queries and Mutations
   const { data: departments, isLoading, refetch } = trpc.department.getDepartments.useQuery();
   const deleteMutation = trpc.department.deleteDepartment.useMutation();
+
   const handleAdd = () => {
     setEditDept(null);
     setShowForm(true);
   };
+
   const handleEdit = (d: any) => {
     setEditDept(d);
     setShowForm(true);
   };
+
   const handleDelete = (d: any) => {
     setConfirmDelete(d);
   };
+
   const handleConfirmDelete = async () => {
     if (!confirmDelete) return;
     try {
@@ -37,13 +52,19 @@ export const DepartmentsTab = () => {
       toast.error("Failed to delete department");
     }
   };
+
   const renderDeleteConfirmation = (isMob: boolean) => (
     <div className="p-4 flex flex-col gap-4 text-center">
-      <div className={`flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2 ${isMob ? "pt-0" : "pt-2"}`}>
+      <div
+        className={`flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2 ${
+          isMob ? "pt-0" : "pt-2"
+        }`}
+      >
         <h3 className="text-lg font-bold text-gray-900 dark:text-gray-150">Confirm Delete</h3>
       </div>
       <p className="text-sm text-gray-500 my-2">
-        Are you sure you want to delete <strong>{confirmDelete?.name}</strong>? All associated products will lose this department classification.
+        Are you sure you want to delete <strong>{confirmDelete?.name}</strong>? All associated products
+        will lose this department classification.
       </p>
       <div className="flex gap-3 pt-2">
         <button
@@ -62,6 +83,7 @@ export const DepartmentsTab = () => {
       </div>
     </div>
   );
+
   return (
     <div className="space-y-4 pb-8">
       {/* Title & Action Bar */}
@@ -78,12 +100,14 @@ export const DepartmentsTab = () => {
           <span>Add Department</span>
         </button>
       </div>
+
       {/* Loading State */}
       {isLoading && (
         <div className="flex justify-center py-20">
           <Loader2 className="animate-spin h-8 w-8 text-orange-500" />
         </div>
       )}
+
       {/* Empty State */}
       {!isLoading && (!departments || departments.length === 0) && (
         <div className="text-center py-20 text-gray-400">
@@ -91,6 +115,7 @@ export const DepartmentsTab = () => {
           <p className="text-sm">No departments found</p>
         </div>
       )}
+
       {/* Departments List */}
       {!isLoading && departments && departments.length > 0 && (
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm divide-y divide-gray-50 dark:divide-gray-800">
@@ -99,46 +124,45 @@ export const DepartmentsTab = () => {
               key={d.id}
               className="px-4 py-3 flex items-center justify-between hover:bg-gray-50/50 dark:hover:bg-gray-850/50 transition-colors"
             >
-              <div className="min-w-0 pr-4">
-                <p className="font-bold text-gray-900 dark:text-gray-150 text-sm truncate">
-                  {d.name}
-                </p>
-                {d.createdAt && (
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    Created: {fmtDate(d.createdAt)}
-                  </p>
-                )}
+              <div>
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{d.name}</h3>
+                <p className="text-[10px] text-gray-400">Created: {fmtDate(d.createdAt)}</p>
               </div>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex items-center gap-1">
                 <button
                   onClick={() => handleEdit(d)}
-                  className="p-1.5 bg-gray-50 hover:bg-orange-50 dark:bg-gray-950 dark:hover:bg-orange-950/20 rounded-lg text-gray-450 hover:text-orange-600 transition-colors cursor-pointer border border-gray-100 dark:border-gray-800"
+                  className="p-2 text-gray-400 hover:text-orange-600 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors"
                   title="Edit Department"
                 >
-                  <Edit3 className="w-3.5 h-3.5" />
+                  <Edit3 className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => handleDelete(d)}
-                  className="p-1.5 bg-gray-50 hover:bg-red-50 dark:bg-gray-950 dark:hover:bg-red-950/20 rounded-lg text-gray-450 hover:text-red-600 transition-colors cursor-pointer border border-gray-100 dark:border-gray-800"
+                  className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                   title="Delete Department"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ))}
         </div>
       )}
-      {/* Add / Edit Form Overlay */}
+
+      {/* Form Drawer / Dialog */}
       <DepartmentForm
         open={showForm}
         onClose={() => setShowForm(false)}
-        onSuccess={refetch}
-        initialData={editDept ?? undefined}
+        initialData={editDept}
+        onSuccess={() => {
+          setShowForm(false);
+          refetch();
+        }}
       />
-      {/* Delete Confirmation Sheet/Modal */}
-      {confirmDelete && (
-        isMobile ? (
+
+      {/* Delete Confirmation */}
+      {confirmDelete &&
+        (isMobile ? (
           <Drawer open={!!confirmDelete} onOpenChange={(v) => !v && setConfirmDelete(null)}>
             <DrawerContent className="bg-white dark:bg-gray-950 p-0">
               <div className="mx-auto w-12 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full my-3 shrink-0" />
@@ -151,9 +175,7 @@ export const DepartmentsTab = () => {
               {renderDeleteConfirmation(false)}
             </AlertDialogContent>
           </AlertDialog>
-        )
-      )}
+        ))}
     </div>
   );
 };
-export default DepartmentsTab;

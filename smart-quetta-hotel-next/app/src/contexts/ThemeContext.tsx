@@ -1,4 +1,8 @@
 "use client";
+<<<<<<< HEAD:smart-quetta-hotel-next/app/src/contexts/ThemeContext.tsx
+=======
+
+>>>>>>> v1.0.0:src/contexts/ThemeContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
@@ -23,7 +27,7 @@ export function ThemeProvider({
   switchable = false,
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(() => {
-    if (switchable) {
+    if (switchable && typeof window !== "undefined") {
       const stored = localStorage.getItem("theme");
       return (stored as Theme) || defaultTheme;
     }
